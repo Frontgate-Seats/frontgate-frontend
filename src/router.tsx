@@ -1,12 +1,13 @@
 import { lazy } from "react";
 import type { RouteObject } from "react-router";
+import Loadable from "./shared/loadable/index.loadable";
 
 /* ***Layouts**** */
-const FullLayout = lazy(() => import("./layouts/full.layout"));
+const FullLayout = Loadable(lazy(() => import("./layouts/full.layout")));
 
 /* ****Pages**** */
-const DashboardPage = lazy(() => import("./pages/dashboard.page"));
-const SignInAuthPage = lazy(() => import("./pages/auth/signIn.auth.page"));
+const DashboardPage = Loadable(lazy(() => import("./pages/dashboard.page")));
+const SignInAuthPage = Loadable(lazy(() => import("./pages/auth/signIn.auth.page")));
 
 
 export const route: RouteObject[] = [
