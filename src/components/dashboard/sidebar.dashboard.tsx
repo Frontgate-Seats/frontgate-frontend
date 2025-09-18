@@ -1,37 +1,26 @@
 import { Fragment, useCallback } from "react";
-import { useTheme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
 import List from "@mui/material/List";
 import Toolbar from "@mui/material/Toolbar";
-import type {} from "@mui/material/themeCssVarsAugmentation";
-import PersonIcon from "@mui/icons-material/Person";
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import BarChartIcon from "@mui/icons-material/BarChart";
-import DescriptionIcon from "@mui/icons-material/Description";
-import LayersIcon from "@mui/icons-material/Layers";
 import { matchPath, useLocation } from "react-router";
+import DashboardIcon from "@mui/icons-material/Dashboard";
+
 import {
   getDrawerSxTransitionMixin,
   getDrawerWidthTransitionMixin,
 } from "../../shared/utils/mixin.util";
-import {
-  DRAWER_WIDTH,
-  MINI_DRAWER_WIDTH,
-} from "../../shared/constants/layout.constant";
+import { DRAWER_WIDTH, MINI_DRAWER_WIDTH } from "../../shared/constants/layout.constant";
+
 import DashboardSidebarHeaderItem from "./headerItem.dashboard";
 import DashboardSidebarPageItem from "./pageItem.dashboard";
-import DashboardSidebarDividerItem from "./deviderItem.dashboard";
 import { useDashboardLayoutContext } from "../../contexts/dashboardLayout.context";
 
 export default function DashboardSidebar() {
-  const theme = useTheme();
-
   const { pathname } = useLocation();
 
   const {
     mini,
-
     handleSetSidebarExpanded,
     isNavigationExpanded,
     isFullyExpanded,
@@ -40,22 +29,26 @@ export default function DashboardSidebar() {
     dashboardLayoutRef,
   } = useDashboardLayoutContext();
 
+  // Calculate drawer width
+  const drawerWidth = mini ? MINI_DRAWER_WIDTH : DRAWER_WIDTH;
+
+  // Drawer content generator
   const getDrawerContent = useCallback(
     (viewport: "phone" | "tablet" | "desktop") => (
       <Fragment>
         <Toolbar />
         <Box
           component="nav"
-          aria-label={`${viewport.charAt(0).toUpperCase()}${viewport.slice(1)}`}
+          aria-label={`${viewport.charAt(0).toUpperCase() + viewport.slice(1)} navigation`}
           sx={{
             height: "100%",
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
             overflow: "auto",
-            scrollbarGutter: mini ? "stable" : "auto",
             overflowX: "hidden",
-            pt: !mini ? 0 : 2,
+            pt: mini ? 2 : 0,
+            scrollbarGutter: mini ? "stable" : "auto",
             ...(hasDrawerTransitions
               ? getDrawerSxTransitionMixin(isFullyExpanded, "padding")
               : {}),
@@ -64,67 +57,20 @@ export default function DashboardSidebar() {
           <List
             dense
             sx={{
+              width: mini ? MINI_DRAWER_WIDTH : "auto",
               padding: mini ? 0 : 0.5,
               mb: 4,
-              width: mini ? MINI_DRAWER_WIDTH : "auto",
             }}
           >
             <DashboardSidebarHeaderItem>Main</DashboardSidebarHeaderItem>
+
             <DashboardSidebarPageItem
               id="dashboard"
               title="Dashboard"
               icon={<DashboardIcon />}
               href="/dashboard"
-              selected={
-                !!matchPath("/dashboard/*", pathname) || pathname === "/"
-              }
+              selected={!!matchPath("/dashboard/*", pathname) || pathname === "/"}
             />
-            {/* <DashboardSidebarDividerItem />
-            <DashboardSidebarHeaderItem>
-              Example items
-            </DashboardSidebarHeaderItem>
-            <DashboardSidebarPageItem
-              id="reports"
-              title="Reports"
-              icon={<BarChartIcon />}
-              href="/reports"
-              selected={!!matchPath("/reports", pathname)}
-              defaultExpanded={!!matchPath("/reports", pathname)}
-              expanded={expandedItemIds.includes("reports")}
-              nestedNavigation={
-                <List
-                  dense
-                  sx={{
-                    padding: 0,
-                    my: 1,
-                    pl: mini ? 0 : 1,
-                    minWidth: 240,
-                  }}
-                >
-                  <DashboardSidebarPageItem
-                    id="sales"
-                    title="Sales"
-                    icon={<DescriptionIcon />}
-                    href="/reports/sales"
-                    selected={!!matchPath("/reports/sales", pathname)}
-                  />
-                  <DashboardSidebarPageItem
-                    id="traffic"
-                    title="Traffic"
-                    icon={<DescriptionIcon />}
-                    href="/reports/traffic"
-                    selected={!!matchPath("/reports/traffic", pathname)}
-                  />
-                </List>
-              }
-            />
-            <DashboardSidebarPageItem
-              id="integrations"
-              title="Integrations"
-              icon={<LayersIcon />}
-              href="/integrations"
-              selected={!!matchPath("/integrations", pathname)}
-            /> */}
           </List>
         </Box>
       </Fragment>
@@ -132,62 +78,54 @@ export default function DashboardSidebar() {
     [mini, hasDrawerTransitions, isFullyExpanded, expandedItemIds, pathname]
   );
 
+  // Drawer shared styles
   const getDrawerSharedSx = useCallback(
-    (isTemporary: boolean) => {
-      const drawerWidth = mini ? MINI_DRAWER_WIDTH : DRAWER_WIDTH;
-
-      return {
-        displayPrint: "none",
+    (isTemporary: boolean) => ({
+      displayPrint: "none",
+      width: drawerWidth,
+      flexShrink: 0,
+      ...getDrawerWidthTransitionMixin(isNavigationExpanded),
+      ...(isTemporary ? { position: "absolute" } : {}),
+      [`& .MuiDrawer-paper`]: {
+        position: "absolute",
         width: drawerWidth,
-        flexShrink: 0,
+        boxSizing: "border-box",
+        backgroundImage: "none",
         ...getDrawerWidthTransitionMixin(isNavigationExpanded),
-        ...(isTemporary ? { position: "absolute" } : {}),
-        [`& .MuiDrawer-paper`]: {
-          position: "absolute",
-          width: drawerWidth,
-          boxSizing: "border-box",
-          backgroundImage: "none",
-          ...getDrawerWidthTransitionMixin(isNavigationExpanded),
-        },
-      };
-    },
-    [isNavigationExpanded, mini]
+      },
+    }),
+    [drawerWidth, isNavigationExpanded]
   );
 
   return (
     <>
+      {/* MOBILE DRAWER */}
       <Drawer
         container={dashboardLayoutRef?.current}
         variant="temporary"
         open={isNavigationExpanded}
         onClose={() => handleSetSidebarExpanded(false)}
-        ModalProps={{
-          keepMounted: true, // Better open performance on mobile.
-        }}
+        ModalProps={{ keepMounted: true }}
         sx={{
-          display: {
-            xs: "block",
-            sm: "none",
-            md: "none",
-          },
+          display: { xs: "block", sm: "none" },
           ...getDrawerSharedSx(true),
         }}
       >
         {getDrawerContent("phone")}
       </Drawer>
+
+      {/* TABLET DRAWER */}
       <Drawer
         variant="permanent"
         sx={{
-          display: {
-            xs: "none",
-            sm: "block",
-            md: "none",
-          },
+          display: { xs: "none", sm: "block", md: "none" },
           ...getDrawerSharedSx(false),
         }}
       >
         {getDrawerContent("tablet")}
       </Drawer>
+
+      {/* DESKTOP DRAWER */}
       <Drawer
         variant="permanent"
         sx={{

@@ -9,45 +9,51 @@ import { useDashboardLayoutContext } from "../contexts/dashboardLayout.context";
 import FrontGateLogoBlack from "../assets/img/frontgate_logo_black.png";
 import FrontGateLogoWhite from "../assets/img/frontgate_logo_white.png";
 import { useColorScheme } from "@mui/material/styles";
+import { DRAWER_WIDTH, MINI_DRAWER_WIDTH } from "../shared/constants/layout.constant";
+import { useTheme } from "@mui/material/styles";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 export default function DashboardLayout() {
-  const { dashboardLayoutRef } = useDashboardLayoutContext();
-  const { mode, } = useColorScheme();
+  const { dashboardLayoutRef, mini } = useDashboardLayoutContext();
+  const { mode } = useColorScheme();
+  const theme = useTheme();
+
+  // Detect if viewport is mobile (< md)
+  const isMobile = !useMediaQuery(theme.breakpoints.up("md"));
+
   return (
     <Stack
       ref={dashboardLayoutRef}
       sx={{
-        height: "100vh",
-        width: "100vw",
+        height: "100%",
+        width: "100%",
         display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
         flexDirection: "column",
         bgcolor: "background.default",
       }}
     >
-      <DashboardHeader logo={<img src={mode === "dark" ? FrontGateLogoWhite : FrontGateLogoBlack} alt="Frontgate Logo" />} title="FrontGate" />
+      <DashboardHeader
+        logo={
+          <img
+            src={mode === "dark" ? FrontGateLogoWhite : FrontGateLogoBlack}
+            alt="Frontgate Logo"
+          />
+        }
+        title="FrontGate"
+      />
       <DashboardSidebar />
       <Box
         sx={{
+          height: "100%",
+          width: "100%",
           display: "flex",
           flexDirection: "column",
-          flex: 1,
-          minWidth: 0,
+          overflow: "auto",
+          paddingLeft: isMobile ? 0 : `${mini ? MINI_DRAWER_WIDTH : DRAWER_WIDTH}px`,
         }}
       >
         <Toolbar sx={{ displayPrint: "none" }} />
-        <Box
-          component="main"
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            flex: 1,
-            overflow: "auto",
-          }}
-        >
-          <Outlet />
-        </Box>
+        <Outlet />
       </Box>
     </Stack>
   );

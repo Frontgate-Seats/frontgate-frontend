@@ -85,16 +85,6 @@ export default function DashboardSidebarPageItem({
 
   const LinkComponent = hasExternalHref ? "a" : Link;
 
-  const miniNestedNavigationSidebarContextValue = React.useMemo(() => {
-    return {
-      onPageItemClick: onPageItemClick ?? (() => {}),
-      mini: false,
-      fullyExpanded: true,
-      fullyCollapsed: false,
-      hasDrawerTransitions: false,
-    };
-  }, [onPageItemClick]);
-
   return (
     <React.Fragment>
       <ListItem

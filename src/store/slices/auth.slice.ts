@@ -29,7 +29,7 @@ export const signIn = createAsyncThunk(
       }
       return response.data;
     } catch (error: any) {
-      console.log("ERRO : ", error)
+      console.log("ERRO : ", error);
       dispatch(
         setSnackbar({
           message: error.message || "Something went wrong",
@@ -41,20 +41,26 @@ export const signIn = createAsyncThunk(
   }
 );
 
-
 export const authSlice = createSlice({
   name: "auth",
   initialState,
-  reducers: {},
+  reducers: {
+    logout: (state) => {
+      state.user = null;
+      state.token = null;
+      state.loading = false;
+      state.error = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
       // User signIn
       .addCase(signIn.pending, (state) => {
-        state.loading = false;
+        state.loading = true;
         state.error = null;
       })
       .addCase(signIn.fulfilled, (state, action) => {
-        state.loading = true;
+        state.loading = false;
         state.user = action.payload.user;
         state.token = action.payload.token;
       })
@@ -66,7 +72,7 @@ export const authSlice = createSlice({
 });
 
 export const {
-  // incrementByAmount
+  logout
 } = authSlice.actions;
 
 export default authSlice.reducer;

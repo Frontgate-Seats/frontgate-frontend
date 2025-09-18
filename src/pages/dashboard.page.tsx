@@ -166,7 +166,7 @@ export default function DashboardPage() {
 
   const columns: GridColDef<Event>[] = [
     { field: 'id', headerName: 'ID' },
-    { field: 'eventName', headerName: 'Event Name', width: 180 },
+    { field: 'eventName', headerName: 'Event Name',flex: 1 },
     { field: 'performerName', headerName: 'Performer', width: 160 },
     {
       field: 'eventDate',
@@ -183,7 +183,7 @@ export default function DashboardPage() {
       field: 'actions',
       type: 'actions',
       getActions: (params: any) => [
-        <Button variant='contained' color='primary' sx={{
+        <Button variant='contained' color='primary' sx={{ 
           margin: 1
         }}>
           <Typography>Buy Now</Typography>

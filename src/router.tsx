@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import type { RouteObject } from "react-router";
+import { Navigate, type RouteObject } from "react-router";
 import Loadable from "./shared/loadable/index.loadable";
 import { DashboardProvider } from "./provider/dashboardLayout.provider";
 import { AuthProvider } from "./provider/auth.provider";
@@ -32,8 +32,12 @@ export const route: RouteObject[] = [
         element: <DashboardPage />,
       },
       {
-        path: "/dasboard",
+        path: "/dashboard", // ✅ fixed
         element: <DashboardPage />,
+      },
+      {
+        path: "*",
+        element: <Navigate to="/dashboard" replace />,
       },
     ],
   },
@@ -48,6 +52,10 @@ export const route: RouteObject[] = [
       {
         path: "/auth/signIn",
         element: <SignInAuthPage />,
+      },
+      {
+        path: "*",
+        element: <Navigate to="/dashboard" replace />,
       },
     ],
   },
