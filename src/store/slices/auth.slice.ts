@@ -1,22 +1,21 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-// import type { PayloadAction } from "@reduxjs/toolkit";
-// import { SignUpProps } from "../../Types/redux/services/SignUpProps";
+import { setSnackbar } from "./snackbar.slice";
 import type { SignInProps, UserStateSlice, VerifyTokenProps } from "./types";
 import authApi from "../../apis/auth.api";
 
 const initialState: UserStateSlice = {
-  isLoading: false,
+  loading: false,
   user: null,
   error: null,
 };
 
 const name: string = "auth";
 
-export const SignIn = createAsyncThunk(
+export const signIn = createAsyncThunk(
   `${name}/auth/signIn`,
   async (data: SignInProps, { rejectWithValue }) => {
     try {
-      const response = await authApi.SignIn(data);
+      const response = await authApi.signIn(data);
       if (response.data.code !== 200) {
         return rejectWithValue(response.data);
       }
@@ -27,72 +26,35 @@ export const SignIn = createAsyncThunk(
   }
 );
 
-// export const SignUp = createAsyncThunk(
-//   `${name}/auth/signUp`,
-//   async (data: SignUpProps, { rejectWithValue }) => {
-//     try {
-//       const response = await authApi.SignUp(data);
-//       if (response.data.code !== 200) {
-//         return rejectWithValue(response.data);
-//       }
-//       return response.data;
-//     } catch (error: any) {
-//       return rejectWithValue(error);
-//     }
-//   }
-// );
-
-export const VerifyToken = createAsyncThunk(
-  `${name}/auth/verifyToken `,
-  async (data: VerifyTokenProps, { rejectWithValue }) => {
-    try {
-      const response = await authApi.VerifyToken(data);
-      if (response.data.code !== 200) {
-        return rejectWithValue(response.data);
-      }
-      return response.data;
-    } catch (error: any) {
-      return rejectWithValue(error);
-    }
-  }
-);
 
 export const authSlice = createSlice({
   name: "auth",
   initialState,
-  reducers: {
-    // incrementByAmount: (state, action: PayloadAction<number>) => {
-    //     //   state.value += action.payload
-    // },
-  },
+  reducers: {},
   extraReducers: (builder) => {
     builder
-      // User SignUp
-      // .addCase(SignUp.pending, (state) => {
-      //   state.isLoading = true;
-      //   state.error = null;
-      // })
-      // .addCase(SignUp.fulfilled, (state, action) => {
-      //   state.isLoading = false;
-      //   state.user = action.payload;
-      // })
-      // .addCase(SignUp.rejected, (state, action: any) => {
-      //   state.isLoading = false;
-      //   state.error = action.payload ?? null;
-      // })
-
-      // User SignIn
-      .addCase(SignIn.pending, (state) => {
-        state.isLoading = true;
+      // User signIn
+      .addCase(signIn.pending, (state) => {
+        state.loading = false;
         state.error = null;
       })
-      .addCase(SignIn.fulfilled, (state, action) => {
-        state.isLoading = false;
+      .addCase(signIn.fulfilled, (state, action) => {
+        state.loading = true;
         state.user = action.payload;
       })
-      .addCase(SignIn.rejected, (state, action: any) => {
-        state.isLoading = false;
+      .addCase(signIn.rejected, (state, action: any) => {
+        state.loading = false;
         state.error = action.payload ?? null;
+        // dispatch snackbar for the error
+        if (action.payload) {
+          // since we are inside extraReducers, use the thunkAPI `dispatch`
+          action.meta.dispatch(
+            setSnackbar({
+              message: action.payload.message || "Something went wrong",
+              severity: "error",
+            })
+          );
+        }
       });
   },
 });

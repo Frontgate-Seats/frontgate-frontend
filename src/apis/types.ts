@@ -1,6 +1,6 @@
 export type SignInProps = {
-  email?: string;
-  password: string;
+  email?: FormDataEntryValue;
+  password: FormDataEntryValue;
 };
 
 export type VerifyTokenProps = {

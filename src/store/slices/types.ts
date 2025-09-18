@@ -1,8 +1,8 @@
 // AUTH
 
 export type SignInProps = {
-  email?: string;
-  password: string;
+  email?: FormDataEntryValue;
+  password: FormDataEntryValue;
 };
 
 export type VerifyTokenProps = {
@@ -10,7 +10,7 @@ export type VerifyTokenProps = {
 }
 
 export type UserStateSlice = {
-  isLoading: boolean;
+  loading: boolean;
   user: object | null;
   error: object | null | string;
 };

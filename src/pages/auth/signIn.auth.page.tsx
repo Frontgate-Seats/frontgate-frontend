@@ -6,6 +6,10 @@ import TextField from "@mui/material/TextField";
 import Stack from "@mui/material/Stack";
 import MuiCard from "@mui/material/Card";
 import { styled } from "@mui/material/styles";
+import type { AppDispatch, RootState } from "../../store";
+import { useDispatch, useSelector } from "react-redux";
+import { signIn } from "../../store/slices/auth.slice";
+import { useNavigate } from "react-router-dom";
 
 const Card = styled(MuiCard)(({ theme }) => ({
   display: "flex",
@@ -49,7 +53,11 @@ const SignUpContainer = styled(Stack)(({ theme }) => ({
   },
 }));
 
-export default function SignInAuthPage() {
+const SignInAuthPage = () => {
+  const dispatch = useDispatch<AppDispatch>();
+  const { loading } = useSelector((state: RootState) => state.auth);
+  const navigate = useNavigate();
+
   const [passwordError, setPasswordError] = React.useState(false);
   const [passwordErrorMessage, setPasswordErrorMessage] = React.useState("");
 
@@ -70,15 +78,23 @@ export default function SignInAuthPage() {
     return isValid;
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     if (passwordError) {
       event.preventDefault();
       return;
     }
     const data = new FormData(event.currentTarget);
-    console.log({
-      password: data.get("password"),
-    });
+
+    const password = data.get("password");
+
+    if (password) {
+      const response = await dispatch(
+        signIn({
+          password,
+        })
+      );
+      navigate("/");
+    }
   };
 
   return (
@@ -111,6 +127,7 @@ export default function SignInAuthPage() {
               fullWidth
               variant="contained"
               onClick={validateInputs}
+              loading={loading}
             >
               Sign In
             </Button>
@@ -119,4 +136,6 @@ export default function SignInAuthPage() {
       </SignUpContainer>
     </>
   );
-}
+};
+
+export default SignInAuthPage;
