@@ -12,6 +12,7 @@ export type VerifyTokenProps = {
 export type UserStateSlice = {
   loading: boolean;
   user: object | null;
+  token: object | null;
   error: object | null | string;
 };
 

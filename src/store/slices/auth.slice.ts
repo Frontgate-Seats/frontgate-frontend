@@ -1,11 +1,12 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { setSnackbar } from "./snackbar.slice";
-import type { SignInProps, UserStateSlice, VerifyTokenProps } from "./types";
+import type { SignInProps, UserStateSlice } from "./types";
 import authApi from "../../apis/auth.api";
 
 const initialState: UserStateSlice = {
   loading: false,
   user: null,
+  token: null,
   error: null,
 };
 
@@ -40,7 +41,8 @@ export const authSlice = createSlice({
       })
       .addCase(signIn.fulfilled, (state, action) => {
         state.loading = true;
-        state.user = action.payload;
+        state.user = action.payload.user;
+        state.token = action.payload.token;
       })
       .addCase(signIn.rejected, (state, action: any) => {
         state.loading = false;

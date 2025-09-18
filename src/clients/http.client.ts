@@ -1,13 +1,15 @@
 import axios from "axios";
+import { store } from "../store";
 import envConfigs from "../configs/env.configs";
-
-const token = localStorage.getItem("authToken");
 
 const httpClient = axios.create({
   baseURL: envConfigs.server.url,
-  headers: {
-    Authorization: token ? `${token}` : undefined,
-  },
+});
+
+httpClient.interceptors.request.use((config) => {
+  const token = store.getState().auth.token; 
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
 });
 
 httpClient.interceptors.response.use(
