@@ -5,11 +5,25 @@ import FormControl from "@mui/material/FormControl";
 import TextField from "@mui/material/TextField";
 import Stack from "@mui/material/Stack";
 import MuiCard from "@mui/material/Card";
-import { styled } from "@mui/material/styles";
+import { styled, useColorScheme } from "@mui/material/styles";
 import type { AppDispatch, RootState } from "../../store";
 import { useDispatch, useSelector } from "react-redux";
 import { signIn } from "../../store/slices/auth.slice";
 import { useNavigate } from "react-router-dom";
+import FrontGateLogoBlack from "../../assets/img/frontgate_logo_black.png";
+import FrontGateLogoWhite from "../../assets/img/frontgate_logo_white.png";
+
+const LogoContainer = styled("div")({
+  position: "relative",
+  height: 80,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  "& img": {
+    maxHeight: 80,
+  },
+});
+
 
 const Card = styled(MuiCard)(({ theme }) => ({
   display: "flex",
@@ -57,50 +71,39 @@ const SignInAuthPage = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { loading } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
+  const { mode } = useColorScheme();
 
   const [passwordError, setPasswordError] = React.useState(false);
   const [passwordErrorMessage, setPasswordErrorMessage] = React.useState("");
 
-  const validateInputs = () => {
-    const password = document.getElementById("password") as HTMLInputElement;
 
-    let isValid = true;
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); // ✅ stop page refresh
 
-    if (!password.value || password.value.length < 6) {
+    const data = new FormData(event.currentTarget);
+    const password = data.get("password") as string;
+
+    // Validate inputs
+    if (!password || password.length < 6) {
       setPasswordError(true);
       setPasswordErrorMessage("Password must be at least 6 characters long.");
-      isValid = false;
+      return;
     } else {
       setPasswordError(false);
       setPasswordErrorMessage("");
     }
 
-    return isValid;
+    // Dispatch login
+    await dispatch(signIn({ password }));
+    navigate("/");
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    if (passwordError) {
-      event.preventDefault();
-      return;
-    }
-    const data = new FormData(event.currentTarget);
-
-    const password = data.get("password");
-
-    if (password) {
-      const response = await dispatch(
-        signIn({
-          password,
-        })
-      );
-      navigate("/");
-    }
-  };
 
   return (
     <>
       <SignUpContainer direction="column" justifyContent="space-between">
         <Card variant="outlined">
+          <LogoContainer><img src={mode === "dark" ? FrontGateLogoWhite : FrontGateLogoBlack} alt="Frontgate Logo" sizes="" /></LogoContainer>
           <Box
             component="form"
             onSubmit={handleSubmit}
@@ -126,7 +129,6 @@ const SignInAuthPage = () => {
               type="submit"
               fullWidth
               variant="contained"
-              onClick={validateInputs}
               loading={loading}
             >
               Sign In

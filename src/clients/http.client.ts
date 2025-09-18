@@ -3,7 +3,7 @@ import { store } from "../store";
 import envConfigs from "../configs/env.configs";
 
 const httpClient = axios.create({
-  baseURL: envConfigs.server.url,
+  baseURL: `${envConfigs.server.url}/api`,
 });
 
 httpClient.interceptors.request.use((config) => {

@@ -6,10 +6,13 @@ import { Stack } from "@mui/material";
 import DashboardHeader from "../components/dashboard/header.dashboard";
 import DashboardSidebar from "../components/dashboard/sidebar.dashboard";
 import { useDashboardLayoutContext } from "../contexts/dashboardLayout.context";
+import FrontGateLogoBlack from "../assets/img/frontgate_logo_black.png";
+import FrontGateLogoWhite from "../assets/img/frontgate_logo_white.png";
+import { useColorScheme } from "@mui/material/styles";
 
 export default function DashboardLayout() {
   const { dashboardLayoutRef } = useDashboardLayoutContext();
-
+  const { mode, } = useColorScheme();
   return (
     <Stack
       ref={dashboardLayoutRef}
@@ -23,7 +26,7 @@ export default function DashboardLayout() {
         bgcolor: "background.default",
       }}
     >
-      <DashboardHeader logo={<></>} title="FrontGate" />
+      <DashboardHeader logo={<img src={mode === "dark" ? FrontGateLogoWhite : FrontGateLogoBlack} alt="Frontgate Logo" />} title="FrontGate" />
       <DashboardSidebar />
       <Box
         sx={{

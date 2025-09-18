@@ -12,7 +12,6 @@ export const signIn = async (payload: SignInProps) => {
   }
 };
 
-
 const authApi = {
   signIn
 };

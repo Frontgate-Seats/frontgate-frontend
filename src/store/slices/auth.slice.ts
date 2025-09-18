@@ -14,14 +14,28 @@ const name: string = "auth";
 
 export const signIn = createAsyncThunk(
   `${name}/auth/signIn`,
-  async (data: SignInProps, { rejectWithValue }) => {
+  async (data: SignInProps, { rejectWithValue, dispatch }) => {
     try {
       const response = await authApi.signIn(data);
-      if (response.data.code !== 200) {
+      if (!response.success) {
+        // dispatch snackbar on error
+        dispatch(
+          setSnackbar({
+            message: response.data.message || "Something went wrong",
+            severity: "error",
+          })
+        );
         return rejectWithValue(response.data);
       }
       return response.data;
     } catch (error: any) {
+      console.log("ERRO : ", error)
+      dispatch(
+        setSnackbar({
+          message: error.message || "Something went wrong",
+          severity: "error",
+        })
+      );
       return rejectWithValue(error);
     }
   }
@@ -47,16 +61,6 @@ export const authSlice = createSlice({
       .addCase(signIn.rejected, (state, action: any) => {
         state.loading = false;
         state.error = action.payload ?? null;
-        // dispatch snackbar for the error
-        if (action.payload) {
-          // since we are inside extraReducers, use the thunkAPI `dispatch`
-          action.meta.dispatch(
-            setSnackbar({
-              message: action.payload.message || "Something went wrong",
-              severity: "error",
-            })
-          );
-        }
       });
   },
 });

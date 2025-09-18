@@ -9,10 +9,10 @@ import Typography from "@mui/material/Typography";
 import MenuIcon from "@mui/icons-material/Menu";
 import MenuOpenIcon from "@mui/icons-material/MenuOpen";
 import Stack from "@mui/material/Stack";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useDashboardLayoutContext } from "../../contexts/dashboardLayout.context";
 import ThemeSwitcher from "../common/themeSwitcher.common";
-// import ThemeSwitcher from './ThemeSwitcher';
+import LogoutIcon from '@mui/icons-material/Logout';
 
 const AppBar = styled(MuiAppBar)(({ theme }) => ({
   borderWidth: 0,
@@ -43,6 +43,7 @@ export default function DashboardHeader({ logo, title }: DashboardHeaderProps) {
   const { isNavigationExpanded, handleToggleHeaderMenu } =
     useDashboardLayoutContext();
 
+  const navigate = useNavigate();
   const handleMenuOpen = React.useCallback(() => {
     handleToggleHeaderMenu(!isNavigationExpanded);
   }, [isNavigationExpanded, handleToggleHeaderMenu]);
@@ -54,16 +55,14 @@ export default function DashboardHeader({ logo, title }: DashboardHeaderProps) {
 
       return (
         <Tooltip
-          title={`${
-            isExpanded ? collapseMenuActionText : expandMenuActionText
-          } menu`}
+          title={`${isExpanded ? collapseMenuActionText : expandMenuActionText
+            } menu`}
           enterDelay={1000}
         >
           <IconButton
             size="small"
-            aria-label={`${
-              isExpanded ? collapseMenuActionText : expandMenuActionText
-            } navigation menu`}
+            aria-label={`${isExpanded ? collapseMenuActionText : expandMenuActionText
+              } navigation menu`}
             onClick={handleMenuOpen}
           >
             {isExpanded ? <MenuOpenIcon /> : <MenuIcon />}
@@ -91,20 +90,6 @@ export default function DashboardHeader({ logo, title }: DashboardHeaderProps) {
             <Link to="/" style={{ textDecoration: "none" }}>
               <Stack direction="row" alignItems="center">
                 {logo ? <LogoContainer>{logo}</LogoContainer> : null}
-                {title ? (
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      color: (theme.vars ?? theme).palette.primary.main,
-                      fontWeight: "700",
-                      ml: 1,
-                      whiteSpace: "nowrap",
-                      lineHeight: 1,
-                    }}
-                  >
-                    {title}
-                  </Typography>
-                ) : null}
               </Stack>
             </Link>
           </Stack>
@@ -117,6 +102,20 @@ export default function DashboardHeader({ logo, title }: DashboardHeaderProps) {
             <Stack direction="row" alignItems="center">
               <ThemeSwitcher />
             </Stack>
+
+            <Stack direction="row" alignItems="center">
+              <Tooltip title="Logout">
+                <IconButton
+                  onClick={() => {
+                    localStorage.clear();       // clear all local storage
+                    navigate("/auth/signIn");         // redirect to login page
+                  }}
+                >
+                  <LogoutIcon />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+
           </Stack>
         </Stack>
       </Toolbar>
