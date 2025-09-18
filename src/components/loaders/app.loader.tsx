@@ -8,11 +8,9 @@ const AppLoader = () => {
       container
       justifyContent="center"
       alignItems="center"
-      style={{ height: "100vh" }}
+      sx={{ height: "100%", width: "100%" }}
     >
-      <Grid>
         <AnimationLottie animationData={Loader} height={200} width={200} />
-      </Grid>
     </Grid>
   );
 };

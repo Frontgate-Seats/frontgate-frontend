@@ -20,8 +20,7 @@ const App: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
 
   // THEME
-  const themeMode = useSelector((state: RootState) => state.theme.mode);
-  const theme = useMemo(() => getTheme(themeMode), [themeMode]);
+  const theme = useMemo(() => getTheme(), []);
 
   // SNACKBAR
   const snackbar = useSelector((state: RootState) => state.snackbar);
@@ -33,7 +32,7 @@ const App: React.FC = () => {
   const router = createBrowserRouter(route);
 
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={theme} defaultMode="system">
       <CssBaseline />
       <Snackbar
         open={snackbar.open}
