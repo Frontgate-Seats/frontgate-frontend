@@ -3,6 +3,7 @@ import { Navigate, type RouteObject } from "react-router";
 import Loadable from "./shared/loadable/index.loadable";
 import { DashboardProvider } from "./provider/dashboardLayout.provider";
 import { AuthProvider } from "./provider/auth.provider";
+import { NoAuthProvider } from "./provider/noAuth.provider";
 
 /* ***Layouts**** */
 const FullLayout = Loadable(lazy(() => import("./layouts/full.layout")));
@@ -43,7 +44,11 @@ export const route: RouteObject[] = [
   },
   {
     path: "/auth",
-    element: <FullLayout />,
+    element: (
+      <NoAuthProvider>
+        <FullLayout />
+      </NoAuthProvider>
+    ),
     children: [
       {
         index: true,

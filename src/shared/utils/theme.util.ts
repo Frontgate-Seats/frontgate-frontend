@@ -15,6 +15,8 @@ export const getTheme = (): ReturnType<typeof createTheme> => {
         palette: darkPalette,
       },
     },
+    cssVarPrefix: "frontgateseats",
+    colorSchemeSelector: "class",
     typography,
     breakpoints,
     components,

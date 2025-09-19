@@ -1,6 +1,6 @@
 // src/components/dashboard/dashboardHeader.component.tsx
 import * as React from "react";
-import { styled, useTheme } from "@mui/material/styles";
+import { styled } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import MuiAppBar from "@mui/material/AppBar";
 import IconButton from "@mui/material/IconButton";
@@ -40,7 +40,6 @@ export interface DashboardHeaderProps {
 }
 
 export default function DashboardHeader({ logo }: DashboardHeaderProps) {
-  const theme = useTheme();
   const dispatch = useDispatch();
   const { isNavigationExpanded, handleToggleHeaderMenu } =
     useDashboardLayoutContext();
@@ -77,10 +76,6 @@ export default function DashboardHeader({ logo }: DashboardHeaderProps) {
     <AppBar
       color="inherit"
       position="absolute"
-      sx={{
-        backgroundColor: theme.palette.background.paper, // dark/light mode aware
-        displayPrint: "none",
-      }}
     >
       <Toolbar>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: "100%" }}>
@@ -97,7 +92,7 @@ export default function DashboardHeader({ logo }: DashboardHeaderProps) {
             <Tooltip title="Logout">
               <IconButton
                 onClick={() => {
-                  dispatch(logout()) 
+                  dispatch(logout())
                   navigate("/auth/signIn");
                 }}
               >
