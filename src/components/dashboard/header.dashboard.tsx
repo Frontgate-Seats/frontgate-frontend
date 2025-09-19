@@ -37,10 +37,9 @@ const LogoContainer = styled("div")({
 
 export interface DashboardHeaderProps {
   logo?: React.ReactNode;
-  title?: string;
 }
 
-export default function DashboardHeader({ logo, title }: DashboardHeaderProps) {
+export default function DashboardHeader({ logo }: DashboardHeaderProps) {
   const theme = useTheme();
   const dispatch = useDispatch();
   const { isNavigationExpanded, handleToggleHeaderMenu } =

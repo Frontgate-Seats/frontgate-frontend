@@ -1,30 +1,24 @@
-import * as React from 'react';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import IconButton from '@mui/material/IconButton';
-import Stack from '@mui/material/Stack';
-import Tooltip from '@mui/material/Tooltip';
+import * as React from "react";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
 import {
   DataGrid,
-  GridActionsCellItem,
   type GridColDef,
   type GridFilterModel,
   type GridPaginationModel,
   type GridSortModel,
   type GridEventListener,
-  gridClasses,
-} from '@mui/x-data-grid';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import InventoryIcon from '@mui/icons-material/Inventory';
-import { useLocation, useNavigate, useSearchParams } from 'react-router';
+} from "@mui/x-data-grid";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 
-import {
-  getManyEvents as getEvents,
-  type Event,
-} from '../data/events';
-import PageContainer from './PageContainer';
-import { Typography } from '@mui/material';
+import { getManyEvents as getEvents, type Event } from "../data/events";
+import PageContainer from "./PageContainer";
+import { Typography } from "@mui/material";
 
 const INITIAL_PAGE_SIZE = 10;
 
@@ -33,20 +27,20 @@ export default function DashboardPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-
-  const [paginationModel, setPaginationModel] = React.useState<GridPaginationModel>({
-    page: searchParams.get('page') ? Number(searchParams.get('page')) : 0,
-    pageSize: searchParams.get('pageSize')
-      ? Number(searchParams.get('pageSize'))
-      : INITIAL_PAGE_SIZE,
-  });
+  const [paginationModel, setPaginationModel] =
+    React.useState<GridPaginationModel>({
+      page: searchParams.get("page") ? Number(searchParams.get("page")) : 0,
+      pageSize: searchParams.get("pageSize")
+        ? Number(searchParams.get("pageSize"))
+        : INITIAL_PAGE_SIZE,
+    });
   const [filterModel, setFilterModel] = React.useState<GridFilterModel>(
-    searchParams.get('filter')
-      ? JSON.parse(searchParams.get('filter') ?? '')
-      : { items: [] },
+    searchParams.get("filter")
+      ? JSON.parse(searchParams.get("filter") ?? "")
+      : { items: [] }
   );
   const [sortModel, setSortModel] = React.useState<GridSortModel>(
-    searchParams.get('sort') ? JSON.parse(searchParams.get('sort') ?? '') : [],
+    searchParams.get("sort") ? JSON.parse(searchParams.get("sort") ?? "") : []
   );
 
   const [rowsState, setRowsState] = React.useState<{
@@ -56,7 +50,7 @@ export default function DashboardPage() {
     rows: [],
     rowCount: 0,
   });
-  console.log("rowsState : ", rowsState)
+  console.log("rowsState : ", rowsState);
 
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<Error | null>(null);
@@ -65,16 +59,16 @@ export default function DashboardPage() {
     (model: GridPaginationModel) => {
       setPaginationModel(model);
 
-      searchParams.set('page', String(model.page));
-      searchParams.set('pageSize', String(model.pageSize));
+      searchParams.set("page", String(model.page));
+      searchParams.set("pageSize", String(model.pageSize));
 
       const newSearchParamsString = searchParams.toString();
 
       navigate(
-        `${pathname}${newSearchParamsString ? '?' : ''}${newSearchParamsString}`,
+        `${pathname}${newSearchParamsString ? "?" : ""}${newSearchParamsString}`
       );
     },
-    [navigate, pathname, searchParams],
+    [navigate, pathname, searchParams]
   );
 
   const handleFilterModelChange = React.useCallback(
@@ -85,18 +79,18 @@ export default function DashboardPage() {
         model.items.length > 0 ||
         (model.quickFilterValues && model.quickFilterValues.length > 0)
       ) {
-        searchParams.set('filter', JSON.stringify(model));
+        searchParams.set("filter", JSON.stringify(model));
       } else {
-        searchParams.delete('filter');
+        searchParams.delete("filter");
       }
 
       const newSearchParamsString = searchParams.toString();
 
       navigate(
-        `${pathname}${newSearchParamsString ? '?' : ''}${newSearchParamsString}`,
+        `${pathname}${newSearchParamsString ? "?" : ""}${newSearchParamsString}`
       );
     },
-    [navigate, pathname, searchParams],
+    [navigate, pathname, searchParams]
   );
 
   const handleSortModelChange = React.useCallback(
@@ -104,18 +98,18 @@ export default function DashboardPage() {
       setSortModel(model);
 
       if (model.length > 0) {
-        searchParams.set('sort', JSON.stringify(model));
+        searchParams.set("sort", JSON.stringify(model));
       } else {
-        searchParams.delete('sort');
+        searchParams.delete("sort");
       }
 
       const newSearchParamsString = searchParams.toString();
 
       navigate(
-        `${pathname}${newSearchParamsString ? '?' : ''}${newSearchParamsString}`,
+        `${pathname}${newSearchParamsString ? "?" : ""}${newSearchParamsString}`
       );
     },
-    [navigate, pathname, searchParams],
+    [navigate, pathname, searchParams]
   );
 
   const loadData = React.useCallback(async () => {
@@ -150,49 +144,59 @@ export default function DashboardPage() {
     }
   }, [isLoading, loadData]);
 
-  const handleRowClick = React.useCallback<GridEventListener<'rowClick'>>(
-    ({ row }) => {
-    },
-    [navigate],
-  );
-
+  const handleRowClick = React.useCallback<
+    GridEventListener<"rowClick">
+  >(() => {}, [navigate]);
 
   const initialState = React.useMemo(
     () => ({
       pagination: { paginationModel: { pageSize: INITIAL_PAGE_SIZE } },
     }),
-    [],
+    []
   );
 
   const columns: GridColDef<Event>[] = [
-    { field: 'id', headerName: 'ID' },
-    { field: 'eventName', headerName: 'Event Name',flex: 1 },
-    { field: 'performerName', headerName: 'Performer', width: 160 },
+    { field: "id", headerName: "ID" },
+    { field: "eventName", headerName: "Event Name", flex: 1 },
+    { field: "performerName", headerName: "Performer", width: 160 },
     {
-      field: 'eventDate',
-      headerName: 'Date',
-      type: 'date',
+      field: "eventDate",
+      headerName: "Date",
+      type: "date",
       width: 120,
-      valueGetter: (eventDate: string) => eventDate ? new Date(eventDate) : null,
+      valueGetter: (eventDate: string) =>
+        eventDate ? new Date(eventDate) : null,
     },
-    { field: 'eventTime', headerName: 'Time', width: 100 },
-    { field: 'section', headerName: 'Section', width: 80 },
-    { field: 'row', headerName: 'Row', width: 80 },
-    { field: 'price', headerName: 'Price', type: 'number', align: 'left', headerAlign: 'left', width: 100, valueGetter: (price: string) => `$${price}` },
+    { field: "eventTime", headerName: "Time", width: 100 },
+    { field: "section", headerName: "Section", width: 80 },
+    { field: "row", headerName: "Row", width: 80 },
     {
-      field: 'actions',
-      type: 'actions',
-      getActions: (params: any) => [
-        <Button variant='contained' color='primary' sx={{ 
-          margin: 1
-        }}>
+      field: "price",
+      headerName: "Price",
+      type: "number",
+      align: "left",
+      headerAlign: "left",
+      width: 100,
+      valueGetter: (price: string) => `$${price}`,
+    },
+    {
+      field: "actions",
+      type: "actions",
+      getActions: () => [
+        <Button
+          variant="contained"
+          color="primary"
+          sx={{
+            margin: 1,
+          }}
+        >
           <Typography>Buy Now</Typography>
         </Button>,
       ],
     },
   ];
 
-  const pageTitle = 'Events';
+  const pageTitle = "Events";
 
   return (
     <PageContainer
@@ -202,7 +206,11 @@ export default function DashboardPage() {
         <Stack direction="row" alignItems="center" spacing={1}>
           <Tooltip title="Reload data" placement="right" enterDelay={1000}>
             <div>
-              <IconButton size="small" aria-label="refresh" onClick={handleRefresh}>
+              <IconButton
+                size="small"
+                aria-label="refresh"
+                onClick={handleRefresh}
+              >
                 <RefreshIcon />
               </IconButton>
             </div>
@@ -210,7 +218,7 @@ export default function DashboardPage() {
         </Stack>
       }
     >
-      <Box sx={{ flex: 1, width: '100%' }}>
+      <Box sx={{ flex: 1, width: "100%" }}>
         {error ? (
           <Box sx={{ flexGrow: 1 }}>
             <Alert severity="error">{error.message}</Alert>

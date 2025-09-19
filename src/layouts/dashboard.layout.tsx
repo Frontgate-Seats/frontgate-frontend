@@ -39,7 +39,6 @@ export default function DashboardLayout() {
             alt="Frontgate Logo"
           />
         }
-        title="FrontGate"
       />
       <DashboardSidebar />
       <Box

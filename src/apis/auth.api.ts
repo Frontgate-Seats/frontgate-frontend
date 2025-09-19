@@ -1,6 +1,6 @@
 import type { AxiosError } from 'axios';
 import httpClient from '../clients/http.client';
-import type { SignInProps, VerifyTokenProps } from './types';
+import type { SignInProps } from './types';
 
 export const signIn = async (payload: SignInProps) => {
   try {
