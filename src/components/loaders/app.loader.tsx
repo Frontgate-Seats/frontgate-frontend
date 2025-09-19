@@ -10,7 +10,7 @@ const AppLoader = () => {
       alignItems="center"
       sx={{ height: "100%", width: "100%" }}
     >
-        <AnimationLottie animationData={Loader} height={200} width={200} />
+        <AnimationLottie animationData={Loader} height={100} width={100} />
     </Grid>
   );
 };
