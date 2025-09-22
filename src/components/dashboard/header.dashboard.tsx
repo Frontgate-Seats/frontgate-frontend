@@ -92,8 +92,8 @@ export default function DashboardHeader({ logo }: DashboardHeaderProps) {
             <Tooltip title="Logout">
               <IconButton
                 onClick={() => {
-                  dispatch(logout())
-                  navigate("/auth/signIn");
+                  dispatch(logout()) 
+                  navigate("/auth/signin");
                 }}
               >
                 <LogoutIcon />

@@ -50,7 +50,6 @@ export default function DashboardPage() {
     rows: [],
     rowCount: 0,
   });
-  console.log("rowsState : ", rowsState);
 
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<Error | null>(null);

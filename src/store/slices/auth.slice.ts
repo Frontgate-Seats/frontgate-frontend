@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { setSnackbar } from "./snackbar.slice";
 import type { SignInProps, UserStateSlice } from "./types";
 import authApi from "../../apis/auth.api";
+import tokenApi from "../../apis/token.api";
 
 const initialState: UserStateSlice = {
   loading: false,
@@ -40,6 +41,35 @@ export const signIn = createAsyncThunk(
     }
   }
 );
+export const verifyToken = createAsyncThunk(
+  `${name}/auth/verifyToken`,
+  async (_, { rejectWithValue, dispatch }) => {
+    try {
+      const response = await tokenApi.verifyToken();
+      if (!response.success) {
+        // dispatch snackbar on error
+        dispatch(
+          setSnackbar({
+            message: response.data.message || "Something went wrong",
+            severity: "error",
+          })
+        );
+        return rejectWithValue(response.data);
+      }
+      return response.data;
+    } catch (error: any) {
+      console.log("ERRO : ", error);
+      dispatch(
+        setSnackbar({
+          message: error.message || "Something went wrong",
+          severity: "error",
+        })
+      );
+      return rejectWithValue(error);
+    }
+  }
+);
+
 
 export const authSlice = createSlice({
   name: "auth",
@@ -64,10 +94,24 @@ export const authSlice = createSlice({
         state.user = action.payload.user;
         state.token = action.payload.token;
       })
-      .addCase(signIn.rejected, (state, action: any) => {
+      .addCase(signIn.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload ?? null;
-      });
+      })
+      // verifyToken
+      .addCase(verifyToken.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(verifyToken.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(verifyToken.rejected, (state, action) => {
+        state.loading = false;
+        state.user = null;
+        state.token = null;
+        state.error = action.payload ?? null;
+      }); 
   },
 });
 

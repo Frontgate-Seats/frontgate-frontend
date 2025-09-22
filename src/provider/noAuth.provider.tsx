@@ -5,7 +5,7 @@ import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import NoAuthContext from "../contexts/noAuth.context";
 
-export const NoAuthProvider: React.FC<ReactNodeProps> = ({ children }) => {
+const NoAuthProvider: React.FC<ReactNodeProps> = ({ children }) => {
   const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
 
@@ -17,3 +17,6 @@ export const NoAuthProvider: React.FC<ReactNodeProps> = ({ children }) => {
 
   return <NoAuthContext.Provider value={null}>{children}</NoAuthContext.Provider>;
 };
+
+
+export default NoAuthProvider;

@@ -4,7 +4,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import type { ReactNodeProps } from "../shared/types/node.type";
 import { DashboardLayoutContext } from "../contexts/dashboardLayout.context";
 
-export const DashboardProvider: React.FC<ReactNodeProps> = ({ children }) => {
+const DashboardProvider: React.FC<ReactNodeProps> = ({ children }) => {
   const theme = useTheme();
 
   const [isDesktopNavigationExpanded, setIsDesktopNavigationExpanded] =
@@ -125,3 +125,6 @@ export const DashboardProvider: React.FC<ReactNodeProps> = ({ children }) => {
     </DashboardLayoutContext.Provider>
   );
 };
+
+
+export default DashboardProvider;
