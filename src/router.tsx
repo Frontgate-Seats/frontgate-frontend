@@ -17,6 +17,9 @@ const DashboardLayout = Loadable(
 
 /* ****Pages**** */
 const DashboardPage = Loadable(lazy(() => import("./pages/dashboard.page")));
+const EventsPage = Loadable(lazy(() => import("./pages/events.page")));
+const ListingsPage = Loadable(lazy(() => import("./pages/listings.page")));
+
 const SignInAuthPage = Loadable(
   lazy(() => import("./pages/auth/signIn.auth.page"))
 );
@@ -37,8 +40,16 @@ export const route: RouteObject[] = [
         element: <DashboardPage />,
       },
       {
-        path: "/dashboard", // ✅ fixed
+        path: "/dashboard",
         element: <DashboardPage />,
+      },
+      {
+        path: "/events",
+        element: <EventsPage />,
+      },
+      {
+        path: "/listings/:id",
+        element: <ListingsPage />,
       },
       {
         path: "*",

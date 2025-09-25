@@ -5,6 +5,8 @@ import List from "@mui/material/List";
 import Toolbar from "@mui/material/Toolbar";
 import { matchPath, useLocation } from "react-router";
 import DashboardIcon from "@mui/icons-material/Dashboard";
+import EventIcon from '@mui/icons-material/Event';
+import ListIcon from '@mui/icons-material/List';
 
 import {
   getDrawerSxTransitionMixin,
@@ -70,6 +72,21 @@ export default function DashboardSidebar() {
               icon={<DashboardIcon />}
               href="/dashboard"
               selected={!!matchPath("/dashboard/*", pathname) || pathname === "/"}
+            />
+
+            <DashboardSidebarPageItem
+              id="events"
+              title="Events"
+              icon={<EventIcon />}
+              href="/events"
+              selected={!!matchPath("/events/*", pathname) || pathname === "/events"}
+            />
+            <DashboardSidebarPageItem
+              id="listings"
+              title="Listings"
+              icon={<ListIcon />}
+              href="/listings"
+              selected={!!matchPath("/listings/*", pathname) || pathname === "/listings"}
             />
           </List>
         </Box>

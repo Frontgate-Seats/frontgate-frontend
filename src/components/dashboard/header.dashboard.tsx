@@ -15,6 +15,7 @@ import MenuOpenIcon from "@mui/icons-material/MenuOpen";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useDispatch } from "react-redux";
 import { logout } from "../../store/slices/auth.slice";
+import { useAppDispatch } from "../../store/reducers/root.reducer";
 
 const AppBar = styled(MuiAppBar)(({ theme }) => ({
   borderWidth: 0,
@@ -40,7 +41,7 @@ export interface DashboardHeaderProps {
 }
 
 export default function DashboardHeader({ logo }: DashboardHeaderProps) {
-  const dispatch = useDispatch();
+   const dispatch = useAppDispatch();
   const { isNavigationExpanded, handleToggleHeaderMenu } =
     useDashboardLayoutContext();
   const navigate = useNavigate();

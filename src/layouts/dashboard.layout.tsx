@@ -18,7 +18,6 @@ export default function DashboardLayout() {
   const { mode } = useColorScheme();
   const theme = useTheme();
 
-  // Detect if viewport is mobile (< md)
   const isMobile = !useMediaQuery(theme.breakpoints.up("md"));
 
   return (
@@ -48,7 +47,11 @@ export default function DashboardLayout() {
           display: "flex",
           flexDirection: "column",
           overflow: "auto",
-          paddingLeft: isMobile ? 0 : `${mini ? MINI_DRAWER_WIDTH : DRAWER_WIDTH}px`,
+          // Animate paddingLeft when sidebar toggles
+          paddingLeft: isMobile
+            ? 0
+            : `${mini ? MINI_DRAWER_WIDTH : DRAWER_WIDTH}px`,
+          transition: "padding-left 0.3s ease", // ✅ Smooth animation
         }}
       >
         <Toolbar sx={{ displayPrint: "none" }} />
