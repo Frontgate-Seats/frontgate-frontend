@@ -1,125 +1,151 @@
 import * as React from "react";
-import {
-    useParams,
-} from "react-router-dom";
-import {
-    type GridColDef,
-    type GridPaginationModel,
-} from "@mui/x-data-grid";
+import { useSelector } from "react-redux";
+import { Box, Alert, Button } from "@mui/material";
+import { useNavigate, useParams } from "react-router-dom";
+import type { GridColDef, GridPaginationModel } from "@mui/x-data-grid";
+
 import DataGridPage from "../components/common/datagrid.comon";
 import PageContainer from "./PageContainer";
-import { Alert, Box } from "@mui/material";
+import type { RootState } from "../store";
+import { useAppDispatch } from "../store/reducers/root.reducer";
+import { getListingsByField } from "../store/slices/listings.slice";
 
-const INITIAL_PAGE_SIZE = 10;
-
-
-// ✅ Dummy Listings per event
-const sampleListings = Array.from({ length: 100 }).map((_, idx) => ({
-    id: idx + 1,
-    listingId: `L-${idx + 1}`,
-    eventId: (idx % 20) + 1, // map 100 listings to 20 events
-    section: `Section ${Math.floor(idx / 5) + 1}`,
-    row: `Row ${idx % 10}`,
-    seat: `Seat ${idx + 100}`,
-    price: (30 + idx * 3).toString(),
-    seller: `Seller ${idx % 15}`,
-}));
-
-
-// ✅ ListingsPage
 export default function ListingsPage() {
-    const { id } = useParams();
-    const eventId = Number(id);
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const { eventId } = useParams();
 
-    const eventListings = sampleListings.filter(
-        (listing) => listing.eventId === eventId
-    );
+  const { rows, total, loading, error } = useSelector(
+    (state: RootState) => state.listings
+  );
 
-    const [paginationModel, setPaginationModel] =
-        React.useState<GridPaginationModel>({
-            page: 0,
-            pageSize: INITIAL_PAGE_SIZE,
-        });
-
-    const [rowsState, setRowsState] = React.useState({
-        rows: eventListings.slice(
-            paginationModel.page * paginationModel.pageSize,
-            paginationModel.page * paginationModel.pageSize + paginationModel.pageSize
-        ),
-        rowCount: eventListings.length,
+  const [paginationModel, setPaginationModel] =
+    React.useState<GridPaginationModel>({
+      page: 0,
+      pageSize: 10,
     });
 
-    const [isLoading, setIsLoading] = React.useState(false);
-    const [error] = React.useState<Error | null>(null);
-
-    const handlePaginationModelChange = React.useCallback(
-        (model: GridPaginationModel) => {
-            setPaginationModel(model);
-            setRowsState({
-                rows: eventListings.slice(
-                    model.page * model.pageSize,
-                    model.page * model.pageSize + model.pageSize
-                ),
-                rowCount: eventListings.length,
-            });
+  // Fetch events whenever pagination changes
+  React.useEffect(() => {
+    dispatch(
+      getListingsByField({
+        page: paginationModel.page,
+        pageSize: paginationModel.pageSize,
+        field: {
+          name: "eventId",
+          value: eventId,
         },
-        [eventListings]
+      })
     );
+  }, [dispatch, paginationModel, eventId]);
 
-    const handleRefresh = React.useCallback(() => {
-        if (!isLoading) {
-            setRowsState({
-                rows: eventListings.slice(
-                    paginationModel.page * paginationModel.pageSize,
-                    paginationModel.page * paginationModel.pageSize +
-                    paginationModel.pageSize
-                ),
-                rowCount: eventListings.length,
-            });
-        }
-    }, [isLoading, paginationModel, eventListings]);
+  const handlePaginationModelChange = (model: GridPaginationModel) => {
+    setPaginationModel(model);
+  };
 
-    const columns: GridColDef[] = [
-        { field: "id", headerName: "ID", width: 90 },
-        { field: "listingId", headerName: "Listing ID", flex: 1 },
-        { field: "section", headerName: "Section", width: 120 },
-        { field: "row", headerName: "Row", width: 120 },
-        { field: "seat", headerName: "Seat", width: 120 },
-        {
-            field: "price",
-            headerName: "Price",
-            type: "number",
-            width: 100,
-            valueGetter: ({ value }) => `$${value}`,
+  const handleRefresh = () => {
+    dispatch(
+      getListingsByField({
+        page: paginationModel.page,
+        pageSize: paginationModel.pageSize,
+        field: {
+          name: "eventId",
+          value: eventId,
         },
-        { field: "seller", headerName: "Seller", flex: 1 },
-    ];
-    const pageTitle = "Events";
-
-    return (
-        <PageContainer
-            title={pageTitle}
-            breadcrumbs={[{ title: pageTitle }]}
-        >
-            <Box sx={{ flex: 1, width: "100%" }}>
-                {error ? (
-                    <Box sx={{ flexGrow: 1 }}>
-                        <Alert severity="error">{error.message}</Alert>
-                    </Box>
-                ) : (
-                    <DataGridPage
-                        rows={rowsState.rows}
-                        rowCount={rowsState.rowCount}
-                        onRefresh={handleRefresh}
-                        isLoading={isLoading}
-                        error={error}
-                        paginationModel={paginationModel}
-                        setPaginationModel={handlePaginationModelChange}
-                        columns={columns}
-                    />
-                )}
-
-            </Box>
-        </PageContainer>
+      })
     );
+  };
+
+  const columns: GridColDef[] = [
+    { field: "eventId", headerName: "Event ID" },
+    // { field: "name", headerName: "Event Name", flex: 1 },
+
+    // Date & Time
+    // {
+    //   field: "localDate",
+    //   headerName: "Local Date & Time",
+    //   type: "dateTime",
+    //   valueFormatter: (params) => {
+    //     if (!params) return "";
+    //     const date = new Date(params);
+    //     return date.toLocaleString("en-US", {
+    //       year: "numeric",
+    //       month: "2-digit",
+    //       day: "2-digit",
+    //       hour: "2-digit",
+    //       minute: "2-digit",
+    //       hour12: true,
+    //     });
+    //   },
+    //   flex: 1,
+    // },
+
+    // Venue
+    { field: "venueId", headerName: "Venue ID" },
+
+    // Performer
+    // { field: "performerIds", headerName: "Performer Ids" },
+
+    // // Inventary
+    // {
+    //   field: "inventory",
+    //   headerName: "ListingCount",
+    //   valueGetter: (params: any) => params.row.inventory?.listingCount ?? 0,
+    //   filterable: false,
+    //   sortable: false,
+    // },
+    // {
+    //   field: "inventory",
+    //   headerName: "TicketCount",
+    //   valueGetter: (params: any) => params?.ticketCount ?? 0,
+    //   filterable: false,
+    //   sortable: false,
+    // },
+    // {
+    //   field: "inventory",
+    //   headerName: "ExclusiveListingCount",
+    //   valueGetter: (params: any) => params?.exclusiveListingCount ?? 0,
+    //   filterable: false,
+    //   sortable: false,
+    // },
+
+    // Actions
+    // {
+    //   field: "actions",
+    //   type: "actions",
+    //   width: 100,
+    //   getActions: (params) => [
+    //     <Button
+    //       key={params.row.eventId}
+    //       variant="contained"
+    //       color="info"
+    //       size="small"
+    //       onClick={() => navigate(`/event/${params.row.eventId}/listings`)}
+    //     >
+    //       View
+    //     </Button>,
+    //   ],
+    // },
+  ];
+
+  return (
+    <PageContainer title="" breadcrumbs={[{ title: "" }]}>
+      <Box sx={{ width: "100%" }}>
+        {error ? (
+          <Alert severity="error">{error}</Alert>
+        ) : (
+          <DataGridPage
+            rows={rows}
+            rowCount={total}
+            onRefresh={handleRefresh}
+            isLoading={loading}
+            error={error as any}
+            paginationModel={paginationModel}
+            setPaginationModel={handlePaginationModelChange}
+            columns={columns}
+          />
+        )}
+      </Box>
+    </PageContainer>
+  );
 }

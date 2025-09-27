@@ -66,13 +66,13 @@ export default function DashboardSidebar() {
           >
             <DashboardSidebarHeaderItem>Main</DashboardSidebarHeaderItem>
 
-            <DashboardSidebarPageItem
+            {/* <DashboardSidebarPageItem
               id="dashboard"
               title="Dashboard"
               icon={<DashboardIcon />}
               href="/dashboard"
               selected={!!matchPath("/dashboard/*", pathname) || pathname === "/"}
-            />
+            /> */}
 
             <DashboardSidebarPageItem
               id="events"
@@ -81,13 +81,7 @@ export default function DashboardSidebar() {
               href="/events"
               selected={!!matchPath("/events/*", pathname) || pathname === "/events"}
             />
-            <DashboardSidebarPageItem
-              id="listings"
-              title="Listings"
-              icon={<ListIcon />}
-              href="/listings"
-              selected={!!matchPath("/listings/*", pathname) || pathname === "/listings"}
-            />
+           
           </List>
         </Box>
       </Fragment>

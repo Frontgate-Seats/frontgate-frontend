@@ -4,7 +4,9 @@ import Loadable from "./shared/loadable/index.loadable";
 
 //
 const AuthProvider = Loadable(lazy(() => import("./provider/auth.provider")));
-const NoAuthProvider = Loadable(lazy(() => import("./provider/noAuth.provider")));
+const NoAuthProvider = Loadable(
+  lazy(() => import("./provider/noAuth.provider"))
+);
 const DashboardProvider = Loadable(
   lazy(() => import("./provider/dashboardLayout.provider"))
 );
@@ -48,7 +50,7 @@ export const route: RouteObject[] = [
         element: <EventsPage />,
       },
       {
-        path: "/listings/:id",
+        path: "/events/:eventId/listings",
         element: <ListingsPage />,
       },
       {

@@ -1,10 +1,10 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import eventApi, { type Event } from "../../apis/event.api";
+import eventsApi, { type IEvents } from "../../apis/events.api";
 import { setSnackbar } from "./snackbar.slice";
 
 export interface EventsState {
   loading: boolean;
-  rows: Event[];
+  rows: IEvents[];
   total: number;
   error: string | null;
 }
@@ -19,10 +19,10 @@ const initialState: EventsState = {
 
 // Async thunk to fetch events
 export const getEvents = createAsyncThunk(
-    "events/fetch",
+    "events",
     async ({ page, pageSize }: { page: number; pageSize: number }, { dispatch, rejectWithValue }) => {
         try {
-            const response = await eventApi.fetchEvents(page, pageSize);
+            const response = await eventsApi.fetchEvents(page, pageSize);
             return response.data;
         } catch (err: any) {
             const message = err?.message || "Failed to fetch events";
@@ -42,9 +42,9 @@ const eventsSlice = createSlice({
                 state.loading = true;
                 state.error = null;
             })
-            .addCase(getEvents.fulfilled, (state, action) => {
+            .addCase(getEvents.fulfilled, (state, action: PayloadAction<any>) => {
                 state.loading = false;
-                state.rows = action.payload.data as Event[];
+                state.rows = action.payload.data;
                 state.total = action.payload.total;
             })
             .addCase(getEvents.rejected, (state, action: PayloadAction<any>) => {

@@ -2,7 +2,6 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { setSnackbar } from "./snackbar.slice";
 import type { SignInProps, UserStateSlice } from "./types";
 import authApi from "../../apis/auth.api";
-import tokenApi from "../../apis/token.api";
 
 const initialState: UserStateSlice = {
   loading: false,
@@ -45,7 +44,7 @@ export const verifyToken = createAsyncThunk(
   `${name}/auth/verifyToken`,
   async (_, { rejectWithValue, dispatch }) => {
     try {
-      const response = await tokenApi.verifyToken();
+      const response = await authApi.verifyToken();
       if (!response.success) {
         // dispatch snackbar on error
         dispatch(
