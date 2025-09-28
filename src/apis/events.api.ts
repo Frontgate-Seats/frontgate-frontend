@@ -1,19 +1,26 @@
-import type { AxiosError } from "axios";
 import httpClient from "../clients/http.client";
 
-export const fetchEvents = async (page: number, pageSize: number) => {
-  try {
-    const response = await httpClient.get("/events", {
-      params: { page, pageSize },
-    });
-    return response.data;
-  } catch (err) {
-    const error = err as AxiosError;
-    throw error.response?.data || new Error("Failed to fetch events");
-  }
+const eventsApi = {
+  fetchEvents: async (
+    page: number,
+    pageSize: number,
+    sortField?: string,
+    sortOrder?: "asc" | "desc",
+    filters?: any,
+    search?: string
+  ) => {
+    const params: any = {
+      page,
+      pageSize,
+    };
+
+    if (sortField) params.sortField = sortField;
+    if (sortOrder) params.sortOrder = sortOrder;
+    if (filters) params.filters = JSON.stringify(filters); // serialize DataGrid filter model
+    if (search) params.search = search;
+
+    return httpClient.get("/events", { params });
+  },
 };
 
-const eventsApi = {
-  fetchEvents,
-};
 export default eventsApi;

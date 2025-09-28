@@ -1,8 +1,13 @@
 import * as React from "react";
 import { useSelector } from "react-redux";
-import { Box, Alert, Button, Typography } from "@mui/material";
+import { Box, Alert, Button } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import type { GridColDef, GridPaginationModel } from "@mui/x-data-grid";
+import type {
+  GridColDef,
+  GridPaginationModel,
+  GridSortModel,
+  GridFilterModel,
+} from "@mui/x-data-grid";
 
 import DataGridPage from "../components/common/datagrid.comon";
 import PageContainer from "./PageContainer";
@@ -14,9 +19,11 @@ export default function EventsPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
-  const { rows, total, loading, error } = useSelector(
-    (state: RootState) => state.events
-  );
+  const {
+    rows: { data, total },
+    loading,
+    error,
+  } = useSelector((state: RootState) => state.events);
 
   const [paginationModel, setPaginationModel] =
     React.useState<GridPaginationModel>({
@@ -24,25 +31,37 @@ export default function EventsPage() {
       pageSize: 10,
     });
 
-  // Fetch events whenever pagination changes
+  const [sortModel, setSortModel] = React.useState<GridSortModel>([]);
+  const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
+    items: [],
+  });
+
+  // 🔑 Extract values for backend
+  const sortField = sortModel[0]?.field || undefined;
+  const sortOrder = sortModel[0]?.sort || undefined;
+  const filters = filterModel?.items?.length ? filterModel : undefined;
+
+  // Fetch events whenever pagination, sort, filter, or search changes
   React.useEffect(() => {
     dispatch(
       getEvents({
         page: paginationModel.page,
         pageSize: paginationModel.pageSize,
+        sortField,
+        sortOrder,
+        filters,
       })
     );
-  }, [dispatch, paginationModel]);
-
-  const handlePaginationModelChange = (model: GridPaginationModel) => {
-    setPaginationModel(model);
-  };
+  }, [dispatch, paginationModel, sortField, sortOrder, filters]);
 
   const handleRefresh = () => {
     dispatch(
       getEvents({
         page: paginationModel.page,
         pageSize: paginationModel.pageSize,
+        sortField,
+        sortOrder,
+        filters,
       })
     );
   };
@@ -71,43 +90,15 @@ export default function EventsPage() {
       flex: 1,
     },
 
-    // Venue
     { field: "venueId", headerName: "Venue ID" },
-
-    // Performer
     { field: "performerIds", headerName: "Performer Ids" },
+    { field: "exclusiveListingCount", headerName: "Exclusive Listings" },
+    { field: "listingCount", headerName: "Listings" },
+    { field: "ticketCount", headerName: "Tickets" },
+    { field: "category", headerName: "Category" },
+    { field: "maxPrice", headerName: "Max Price" },
+    { field: "minPrice", headerName: "Min Price" },
 
-    // // Inventary
-    {
-      field: "exclusiveListingCount",
-      headerName: "Exclusive Listings",
-    },
-    {
-      field: "listingCount",
-      headerName: "Listings",
-    },
-    {
-      field: "ticketCount",
-      headerName: "Tickets",
-    },
-
-    // Category
-    {
-      field: "category",
-      headerName: "Category",
-    },
-
-    // Price
-    {
-      field: "maxPrice",
-      headerName: "MaxPrice",
-    },
-    {
-      field: "minPrice",
-      headerName: "MinPrice",
-    },
-
-    // Actions
     {
       field: "actions",
       type: "actions",
@@ -127,20 +118,26 @@ export default function EventsPage() {
   ];
 
   return (
-    <PageContainer title="" breadcrumbs={[{ title: "" }]}>
+    <PageContainer title="Events" breadcrumbs={[{ title: "Events" }]}>
       <Box sx={{ width: "100%" }}>
         {error ? (
           <Alert severity="error">{error}</Alert>
         ) : (
           <DataGridPage
-            rows={rows}
+            rows={data}
             rowCount={total}
             onRefresh={handleRefresh}
             isLoading={loading}
             error={error as any}
             paginationModel={paginationModel}
-            setPaginationModel={handlePaginationModelChange}
+            setPaginationModel={setPaginationModel}
             columns={columns}
+            sortingModel={sortModel}
+            setSortingModel={setSortModel}
+            filterModel={filterModel}
+            setFilterModel={setFilterModel}
+            showToolbar
+            autoHeight
           />
         )}
       </Box>

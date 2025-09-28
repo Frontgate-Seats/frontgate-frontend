@@ -8,13 +8,32 @@ import {
   DataGrid,
   type GridColDef,
   type GridPaginationModel,
+  type GridSortModel,
+  type GridFilterModel,
   type GridEventListener,
+  GridToolbar,
 } from "@mui/x-data-grid";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
 const INITIAL_PAGE_SIZE = 10;
 
-// ✅ Reusable DataGrid Page (for both Events and Listings)
+interface DataGridPageProps {
+  rows: any[];
+  rowCount: number;
+  onRefresh: () => void;
+  isLoading: boolean;
+  error: Error | null;
+  paginationModel: GridPaginationModel;
+  setPaginationModel: (model: GridPaginationModel) => void;
+  sortingModel?: GridSortModel;
+  setSortingModel?: (model: GridSortModel) => void;
+  filterModel?: GridFilterModel;
+  setFilterModel?: (model: GridFilterModel) => void;
+  columns: GridColDef[];
+  showToolbar?: boolean;
+  autoHeight?: boolean;
+}
+
 export default function DataGridPage({
   rows,
   rowCount,
@@ -23,17 +42,14 @@ export default function DataGridPage({
   error,
   paginationModel,
   setPaginationModel,
+  sortingModel,
+  setSortingModel,
+  filterModel,
+  setFilterModel,
   columns,
-}: {
-  rows: any[];
-  rowCount: number;
-  onRefresh: () => void;
-  isLoading: boolean;
-  error: Error | null;
-  paginationModel: GridPaginationModel;
-  setPaginationModel: (m: GridPaginationModel) => void;
-  columns: GridColDef[];
-}) {
+  showToolbar = false,
+  autoHeight =false
+}: DataGridPageProps) {
   const initialState = React.useMemo(
     () => ({
       pagination: { paginationModel: { pageSize: INITIAL_PAGE_SIZE } },
@@ -41,9 +57,7 @@ export default function DataGridPage({
     []
   );
 
-  const handleRowClick = React.useCallback<
-    GridEventListener<"rowClick">
-  >(() => {}, []);
+  const handleRowClick = React.useCallback<GridEventListener<"rowClick">>(() => {}, []);
 
   return (
     <Box sx={{ flex: 1, width: "100%", p: 2 }}>
@@ -64,19 +78,26 @@ export default function DataGridPage({
       ) : (
         <DataGrid
           rows={rows}
-          getRowId={(row) => row._id}
+          getRowId={(row) => row._id || row.eventId}
           rowCount={rowCount}
           columns={columns}
           pagination
           paginationMode="server"
           paginationModel={paginationModel}
           onPaginationModelChange={setPaginationModel}
+          sortingMode="server"
+          sortModel={sortingModel}
+          onSortModelChange={setSortingModel}
+          filterMode="server"
+          filterModel={filterModel}
+          onFilterModelChange={setFilterModel}
           disableRowSelectionOnClick
           onRowClick={handleRowClick}
           loading={isLoading}
           initialState={initialState}
           pageSizeOptions={[5, INITIAL_PAGE_SIZE, 25]}
-          autoHeight
+          showToolbar={showToolbar}
+          autoHeight={autoHeight}
         />
       )}
     </Box>
