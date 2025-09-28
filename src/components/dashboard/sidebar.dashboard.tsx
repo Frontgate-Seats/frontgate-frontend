@@ -5,14 +5,17 @@ import List from "@mui/material/List";
 import Toolbar from "@mui/material/Toolbar";
 import { matchPath, useLocation } from "react-router";
 import DashboardIcon from "@mui/icons-material/Dashboard";
-import EventIcon from '@mui/icons-material/Event';
-import ListIcon from '@mui/icons-material/List';
+import EventIcon from "@mui/icons-material/Event";
+import ListIcon from "@mui/icons-material/List";
 
 import {
   getDrawerSxTransitionMixin,
   getDrawerWidthTransitionMixin,
 } from "../../shared/utils/mixin.util";
-import { DRAWER_WIDTH, MINI_DRAWER_WIDTH } from "../../shared/constants/layout.constant";
+import {
+  DRAWER_WIDTH,
+  MINI_DRAWER_WIDTH,
+} from "../../shared/constants/layout.constant";
 
 import DashboardSidebarHeaderItem from "./headerItem.dashboard";
 import DashboardSidebarPageItem from "./pageItem.dashboard";
@@ -41,7 +44,9 @@ export default function DashboardSidebar() {
         <Toolbar />
         <Box
           component="nav"
-          aria-label={`${viewport.charAt(0).toUpperCase() + viewport.slice(1)} navigation`}
+          aria-label={`${
+            viewport.charAt(0).toUpperCase() + viewport.slice(1)
+          } navigation`}
           sx={{
             height: "100%",
             display: "flex",
@@ -79,9 +84,19 @@ export default function DashboardSidebar() {
               title="Events"
               icon={<EventIcon />}
               href="/events"
-              selected={!!matchPath("/events/*", pathname) || pathname === "/events"}
+              selected={
+                !!matchPath("/events/*", pathname) || pathname === "/events"
+              }
             />
-           
+            <DashboardSidebarPageItem
+              id="listings"
+              title="Listings"
+              icon={<ListIcon />}
+              href="/listings"
+              selected={
+                !!matchPath("/listings/*", pathname) || pathname === "/events"
+              }
+            />
           </List>
         </Box>
       </Fragment>

@@ -11,13 +11,13 @@ import {
   type GridSortModel,
   type GridFilterModel,
   type GridEventListener,
-  GridToolbar,
 } from "@mui/x-data-grid";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
 const INITIAL_PAGE_SIZE = 10;
 
 interface DataGridPageProps {
+  title: string;
   rows: any[];
   rowCount: number;
   onRefresh: () => void;
@@ -35,6 +35,7 @@ interface DataGridPageProps {
 }
 
 export default function DataGridPage({
+  title,
   rows,
   rowCount,
   onRefresh,
@@ -48,7 +49,7 @@ export default function DataGridPage({
   setFilterModel,
   columns,
   showToolbar = false,
-  autoHeight =false
+  autoHeight = false,
 }: DataGridPageProps) {
   const initialState = React.useMemo(
     () => ({
@@ -57,17 +58,27 @@ export default function DataGridPage({
     []
   );
 
-  const handleRowClick = React.useCallback<GridEventListener<"rowClick">>(() => {}, []);
+  const handleRowClick = React.useCallback<
+    GridEventListener<"rowClick">
+  >(() => {}, []);
 
   return (
     <Box sx={{ flex: 1, width: "100%", p: 2 }}>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        spacing={1}
+        sx={{ mb: 2 }}
+      >
+        <Box component="h2" sx={{ m: 0 }}>
+          {title}
+        </Box>
+
         <Tooltip title="Reload data" placement="right" enterDelay={1000}>
-          <div>
-            <IconButton size="small" aria-label="refresh" onClick={onRefresh}>
-              <RefreshIcon />
-            </IconButton>
-          </div>
+          <IconButton size="small" aria-label="refresh" onClick={onRefresh}>
+            <RefreshIcon />
+          </IconButton>
         </Tooltip>
       </Stack>
 
@@ -95,9 +106,10 @@ export default function DataGridPage({
           onRowClick={handleRowClick}
           loading={isLoading}
           initialState={initialState}
-          pageSizeOptions={[5, INITIAL_PAGE_SIZE, 25]}
+          pageSizeOptions={[5, INITIAL_PAGE_SIZE, 25, 50, 100]}
           showToolbar={showToolbar}
           autoHeight={autoHeight}
+          filterDebounceMs={1000}
         />
       )}
     </Box>

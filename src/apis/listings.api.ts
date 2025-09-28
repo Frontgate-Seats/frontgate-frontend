@@ -1,111 +1,62 @@
 import type { AxiosError } from "axios";
 import httpClient from "../clients/http.client";
+import type { DataGridQueryOptions } from "../shared/types/mui.type";
 
-// Main Listing document
-export type IListing = {
-  eventId: string;
-  venueId: string;
-  performerId: string;
-
-  // Meta info about the event/listings
-  meta: IListingMeta;
-
-  // Array of individual listings
-  listings: IListingLinstings[];
-};
-export type PriceBreakdown = {
-  price: number;
-  serviceFee: unknown;
-  total: number;
-};
-
-export type Section = {
-  id: number;
-  name: string;
-  longSectionName: string;
-};
-
-// Price stats
-export type PriceStats = {
+export type IPriceStats = {
   average: number;
   max: number;
   min: number;
   median: number;
 };
 
-export type IListingMeta = {
+export type IListing = {
+  eventId: string;
+  venueId: string;
+  performerId: string;
+
+  providerDBId: string; // in frontend, usually just the ID or you can type a provider object
+
+  // Meta info about the event/listings
   listingCount: number;
   ticketCount: number;
   maxTicketCount: number;
   daysToEvent: number;
-  pageColor: string;
+
   showAllInPrice: boolean;
   showFaceValue: boolean;
   showServiceCharge: boolean;
-  allInPrice: PriceStats;
-  price: PriceStats;
   showAipIncludedPrices: boolean;
-  aipIncludedPrices: string;
-};
 
-export type IListingLinstings = {
-  id: string;
-  row: string;
-  notes: string;
-  quantity: number;
-  splits: number[];
-  price: number;
-  allInPrice: number;
-  faceValue: unknown;
-  stockType: string;
-  inHandDate: string;
-  groupId: string;
-  isElectronicDelivery: boolean;
-  isEticket: boolean;
-  isFlashSeats: boolean;
-  isInstantDownload: boolean;
-  isInstantElectronicTransfer: boolean;
-  isMobileScreencap: boolean;
-  isWillCall: boolean;
-  isZoneSeating: boolean;
-  priceBreakdown: PriceBreakdown;
-  section: Section;
-  featured: boolean;
-  tags: string[];
-  vs: number;
+  aipIncludedPrices: string;
+
+  allInPrice: IPriceStats;
+  price: IPriceStats;
+  getInPrice: IPriceStats;
+  twoPlusPrice: IPriceStats;
 };
 
 // Backend is expected to return: { data: Event[], total: number }
-export const fetchListings = async (
-  page: number,
-  pageSize: number
-): Promise<{ data: IListing[]; total: number }> => {
+export const fetchListings = async ({
+  page,
+  pageSize,
+  sortField,
+  sortOrder,
+  filters,
+  search,
+}: DataGridQueryOptions) => {
   try {
-    const response = await httpClient.get("/listings", {
-      params: { page, pageSize },
-    });
-    return response.data;
-  } catch (err) {
-    const error = err as AxiosError;
-    throw error.response?.data || new Error("Failed to fetch listings");
-  }
-};
+    const params: any = {
+      page,
+      pageSize,
+    };
 
-export const fetchListingsByField = async (
-  page: number,
-  pageSize: number,
-  field: {
-    name: string;
-    value: any;
-  }
-): Promise<{ data: IListing[]; total: number }> => {
-  try {
-    const response = await httpClient.get(
-      `/listings/${field.name}/${field.value}`,
-      {
-        params: { page, pageSize },
-      }
-    );
+    if (sortField) params.sortField = sortField;
+    if (sortOrder) params.sortOrder = sortOrder;
+    if (filters) params.filters = JSON.stringify(filters); // serialize DataGrid filter model
+    if (search) params.search = search;
+
+    console.log("params : ",params)
+    const response = await httpClient.get("/listings", { params });
     return response.data;
   } catch (err) {
     const error = err as AxiosError;
@@ -115,6 +66,5 @@ export const fetchListingsByField = async (
 
 const listingsApi = {
   fetchListings,
-  fetchListingsByField
 };
 export default listingsApi;

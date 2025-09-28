@@ -10,7 +10,6 @@ import type {
 } from "@mui/x-data-grid";
 
 import DataGridPage from "../components/common/datagrid.comon";
-import PageContainer from "./PageContainer";
 import type { RootState } from "../store";
 import { getEvents } from "../store/slices/events.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
@@ -90,11 +89,12 @@ export default function EventsPage() {
       flex: 1,
     },
 
-    { field: "venueId", headerName: "Venue ID" },
-    { field: "performerIds", headerName: "Performer Ids" },
+    // { field: "venueId", headerName: "Venue ID" },
+    // { field: "performerIds", headerName: "Performer Ids" },
     { field: "exclusiveListingCount", headerName: "Exclusive Listings" },
     { field: "listingCount", headerName: "Listings" },
     { field: "ticketCount", headerName: "Tickets" },
+
     { field: "category", headerName: "Category" },
     { field: "maxPrice", headerName: "Max Price" },
     { field: "minPrice", headerName: "Min Price" },
@@ -118,29 +118,28 @@ export default function EventsPage() {
   ];
 
   return (
-    <PageContainer title="Events" breadcrumbs={[{ title: "Events" }]}>
-      <Box sx={{ width: "100%" }}>
-        {error ? (
-          <Alert severity="error">{error}</Alert>
-        ) : (
-          <DataGridPage
-            rows={data}
-            rowCount={total}
-            onRefresh={handleRefresh}
-            isLoading={loading}
-            error={error as any}
-            paginationModel={paginationModel}
-            setPaginationModel={setPaginationModel}
-            columns={columns}
-            sortingModel={sortModel}
-            setSortingModel={setSortModel}
-            filterModel={filterModel}
-            setFilterModel={setFilterModel}
-            showToolbar
-            autoHeight
-          />
-        )}
-      </Box>
-    </PageContainer>
+    <Box>
+      {error ? (
+        <Alert severity="error">{error}</Alert>
+      ) : (
+        <DataGridPage
+          title={"Events"}
+          rows={data}
+          rowCount={total}
+          onRefresh={handleRefresh}
+          isLoading={loading}
+          error={error as any}
+          paginationModel={paginationModel}
+          setPaginationModel={setPaginationModel}
+          columns={columns}
+          sortingModel={sortModel}
+          setSortingModel={setSortModel}
+          filterModel={filterModel}
+          setFilterModel={setFilterModel}
+          showToolbar
+          // autoHeight
+        />
+      )}
+    </Box>
   );
 }

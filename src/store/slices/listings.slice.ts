@@ -1,22 +1,25 @@
-import {
-  createAsyncThunk,
-  createSlice,
-  type PayloadAction,
-} from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { setSnackbar } from "./snackbar.slice";
 import type { IListing } from "../../apis/listings.api";
 import listingsApi from "../../apis/listings.api";
+import type { DataGridQueryOptions } from "../../shared/types/mui.type";
 
 export interface EventsState {
   loading: boolean;
-  rows: IListing[];
+  rows: {
+    data: IListing[];
+    total: number;
+  };
   total: number;
-  error: string | null;
+  error: any;
 }
 
 const initialState: EventsState = {
   loading: false,
-  rows: [],
+  rows: {
+    data: [],
+    total: 0,
+  },
   total: 0,
   error: null,
 };
@@ -24,38 +27,9 @@ const initialState: EventsState = {
 // Async thunk to fetch listings
 export const getListings = createAsyncThunk(
   "listings",
-  async (
-    { page, pageSize }: { page: number; pageSize: number },
-    { dispatch, rejectWithValue }
-  ) => {
+  async (data: DataGridQueryOptions, { dispatch, rejectWithValue }) => {
     try {
-      const response = await listingsApi.fetchListings(page, pageSize);
-      return response.data;
-    } catch (err: any) {
-      const message = err?.message || "Failed to fetch listings";
-      dispatch(setSnackbar({ message, severity: "error" }));
-      return rejectWithValue(message);
-    }
-  }
-);
-
-//
-export const getListingsByField = createAsyncThunk(
-  "listings/:name/:field",
-  async (
-    {
-      page,
-      pageSize,
-      field,
-    }: { page: number; pageSize: number; field: { name: string; value: any } },
-    { dispatch, rejectWithValue }
-  ) => {
-    try {
-      const response = await listingsApi.fetchListingsByField(
-        page,
-        pageSize,
-        field
-      );
+      const response = await listingsApi.fetchListings(data);
       return response.data;
     } catch (err: any) {
       const message = err?.message || "Failed to fetch listings";
@@ -75,34 +49,14 @@ const listingsSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(getListings.fulfilled, (state, action: PayloadAction<any>) => {
+      .addCase(getListings.fulfilled, (state, action) => {
         state.loading = false;
-        state.rows = action.payload.data;
-        state.total = action.payload.total;
+        state.rows = action.payload;
       })
-      .addCase(getListings.rejected, (state, action: PayloadAction<any>) => {
+      .addCase(getListings.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || "Something went wrong";
-      })
-      .addCase(getListingsByField.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(
-        getListingsByField.fulfilled,
-        (state, action: PayloadAction<any>) => {
-          state.loading = false;
-          state.rows = action.payload.data;
-          state.total = action.payload.total;
-        }
-      )
-      .addCase(
-        getListingsByField.rejected,
-        (state, action: PayloadAction<any>) => {
-          state.loading = false;
-          state.error = action.payload || "Something went wrong";
-        }
-      );
+      });
   },
 });
 

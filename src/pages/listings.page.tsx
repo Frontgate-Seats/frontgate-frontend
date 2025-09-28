@@ -2,55 +2,88 @@ import * as React from "react";
 import { useSelector } from "react-redux";
 import { Box, Alert, Button } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
-import type { GridColDef, GridPaginationModel } from "@mui/x-data-grid";
+import type {
+  GridColDef,
+  GridPaginationModel,
+  GridSortModel,
+  GridFilterModel,
+} from "@mui/x-data-grid";
 
 import DataGridPage from "../components/common/datagrid.comon";
-import PageContainer from "./PageContainer";
 import type { RootState } from "../store";
+import { getListings } from "../store/slices/listings.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
-import { getListingsByField } from "../store/slices/listings.slice";
 
 export default function ListingsPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { eventId } = useParams();
 
-  const { rows, total, loading, error } = useSelector(
-    (state: RootState) => state.listings
-  );
+  const {
+    rows: { data, total },
+    loading,
+    error,
+  } = useSelector((state: RootState) => state.listings);
 
+  console.log("rows : ", { data, total })
   const [paginationModel, setPaginationModel] =
     React.useState<GridPaginationModel>({
       page: 0,
       pageSize: 10,
     });
 
-  // Fetch events whenever pagination changes
+  const [sortModel, setSortModel] = React.useState<GridSortModel>([]);
+  const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
+    items: [],
+  });
+
+  // 🔑 Extract values for backend
+  const sortField = sortModel[0]?.field || undefined;
+  const sortOrder = sortModel[0]?.sort || undefined;
+  const filters = filterModel?.items?.length ? filterModel : undefined;
+
+  // Fetch  whenever pagination, sort, filter, or search changes
   React.useEffect(() => {
     dispatch(
-      getListingsByField({
+      getListings({
         page: paginationModel.page,
         pageSize: paginationModel.pageSize,
-        field: {
-          name: "eventId",
-          value: eventId,
+        sortField,
+        sortOrder,
+        filters: {
+          ...filters,
+          items: [
+            {
+              id: "default",
+              field: "eventId",
+              operator: "equals",
+              value: eventId,
+            },
+            ...filterModel.items,
+          ],
         },
       })
     );
-  }, [dispatch, paginationModel, eventId]);
-
-  const handlePaginationModelChange = (model: GridPaginationModel) => {
-    setPaginationModel(model);
-  };
+  }, [dispatch, paginationModel, sortField, sortOrder, filters]);
 
   const handleRefresh = () => {
     dispatch(
-      getListingsByField({
+      getListings({
         page: paginationModel.page,
         pageSize: paginationModel.pageSize,
-        field: {
-          name: "eventId",
-          value: eventId,
+        sortField,
+        sortOrder,
+        filters: {
+          ...filters,
+          items: [
+            {
+              id: "default",
+              field: "eventId",
+              operator: "equals",
+              value: eventId,
+            },
+            ...filterModel.items,
+          ],
         },
       })
     );
@@ -58,94 +91,79 @@ export default function ListingsPage() {
 
   const columns: GridColDef[] = [
     { field: "eventId", headerName: "Event ID" },
-    // { field: "name", headerName: "Event Name", flex: 1 },
+    { field: "name", headerName: "Event Name", flex: 1 },
 
     // Date & Time
-    // {
-    //   field: "localDate",
-    //   headerName: "Local Date & Time",
-    //   type: "dateTime",
-    //   valueFormatter: (params) => {
-    //     if (!params) return "";
-    //     const date = new Date(params);
-    //     return date.toLocaleString("en-US", {
-    //       year: "numeric",
-    //       month: "2-digit",
-    //       day: "2-digit",
-    //       hour: "2-digit",
-    //       minute: "2-digit",
-    //       hour12: true,
-    //     });
-    //   },
-    //   flex: 1,
-    // },
+    {
+      field: "localDate",
+      headerName: "Local Date & Time",
+      type: "dateTime",
+      valueFormatter: (params) => {
+        if (!params) return "";
+        const date = new Date(params);
+        return date.toLocaleString("en-US", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        });
+      },
+      flex: 1,
+    },
 
-    // Venue
-    { field: "venueId", headerName: "Venue ID" },
-
-    // Performer
+    // { field: "venueId", headerName: "Venue ID" },
     // { field: "performerIds", headerName: "Performer Ids" },
+    { field: "exclusiveListingCount", headerName: "Exclusive Listings" },
+    { field: "listingCount", headerName: "Listings" },
+    { field: "ticketCount", headerName: "Tickets" },
 
-    // // Inventary
-    // {
-    //   field: "inventory",
-    //   headerName: "ListingCount",
-    //   valueGetter: (params: any) => params.row.inventory?.listingCount ?? 0,
-    //   filterable: false,
-    //   sortable: false,
-    // },
-    // {
-    //   field: "inventory",
-    //   headerName: "TicketCount",
-    //   valueGetter: (params: any) => params?.ticketCount ?? 0,
-    //   filterable: false,
-    //   sortable: false,
-    // },
-    // {
-    //   field: "inventory",
-    //   headerName: "ExclusiveListingCount",
-    //   valueGetter: (params: any) => params?.exclusiveListingCount ?? 0,
-    //   filterable: false,
-    //   sortable: false,
-    // },
+    { field: "category", headerName: "Category" },
+    { field: "maxPrice", headerName: "Max Price" },
+    { field: "minPrice", headerName: "Min Price" },
 
-    // Actions
-    // {
-    //   field: "actions",
-    //   type: "actions",
-    //   width: 100,
-    //   getActions: (params) => [
-    //     <Button
-    //       key={params.row.eventId}
-    //       variant="contained"
-    //       color="info"
-    //       size="small"
-    //       onClick={() => navigate(`/event/${params.row.eventId}/listings`)}
-    //     >
-    //       View
-    //     </Button>,
-    //   ],
-    // },
+    {
+      field: "actions",
+      type: "actions",
+      width: 100,
+      getActions: (params) => [
+        <Button
+          key={params.row.eventId}
+          variant="contained"
+          color="info"
+          size="small"
+          onClick={() => navigate(`//${params.row.eventId}/listings`)}
+        >
+          View
+        </Button>,
+      ],
+    },
   ];
 
   return (
-    <PageContainer title="" breadcrumbs={[{ title: "" }]}>
-      <Box sx={{ width: "100%" }}>
-        {error ? (
-          <Alert severity="error">{error}</Alert>
-        ) : (
-          <DataGridPage
-            rows={rows}
-            rowCount={total}
-            onRefresh={handleRefresh}
-            isLoading={loading}
-            error={error as any}
-            paginationModel={paginationModel}
-            setPaginationModel={handlePaginationModelChange}
-            columns={columns}
-          />
-        )}
-      </Box>
-    </PageContainer>
+    <Box>
+      {error ? (
+        <Alert severity="error">{error}</Alert>
+      ) : (
+        <DataGridPage
+          title={"Listings"}
+          rows={data}
+          rowCount={total}
+          onRefresh={handleRefresh}
+          isLoading={loading}
+          error={error as any}
+          paginationModel={paginationModel}
+          setPaginationModel={setPaginationModel}
+          columns={columns}
+          sortingModel={sortModel}
+          setSortingModel={setSortModel}
+          filterModel={filterModel}
+          setFilterModel={setFilterModel}
+          showToolbar
+          // autoHeight
+        />
+      )}
+    </Box>
   );
 }

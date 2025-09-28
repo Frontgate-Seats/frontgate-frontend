@@ -1,14 +1,12 @@
-import {
-  createAsyncThunk,
-  createSlice,
-} from "@reduxjs/toolkit";
-import eventsApi from "../../apis/events.api";
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import eventsApi, { type IEvent } from "../../apis/events.api";
 import { setSnackbar } from "./snackbar.slice";
+import type { DataGridQueryOptions } from "../../shared/types/mui.type";
 
 export interface EventsState {
   loading: boolean;
   rows: {
-    data: unknown[];
+    data: IEvent[];
     total: number;
   };
   error: any | null;
@@ -25,34 +23,13 @@ const initialState: EventsState = {
 
 // Async thunk to fetch events
 export const getEvents = createAsyncThunk(
-  "events/fetch",
+  "events",
   async (
-    {
-      page,
-      pageSize,
-      sortField,
-      sortOrder,
-      filters,
-      search,
-    }: {
-      page: number;
-      pageSize: number;
-      sortField?: string;
-      sortOrder?: "asc" | "desc";
-      filters?: any;
-      search?: string;
-    },
+    data: DataGridQueryOptions,
     { dispatch, rejectWithValue }
   ) => {
     try {
-      const response = await eventsApi.fetchEvents(
-        page,
-        pageSize,
-        sortField,
-        sortOrder,
-        filters,
-        search
-      );
+      const response = await eventsApi.fetchEvents(data);
       return response.data;
     } catch (err: any) {
       const message = err?.message || "Failed to fetch events";
