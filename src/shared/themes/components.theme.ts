@@ -7,14 +7,31 @@ const components: Components<Theme> = {
   MuiCssBaseline: {
     styleOverrides: {
       body: {
-        transition: "all 0.5s ease", 
+        transition: `
+          opacity 0.3s ease-in-out,
+          height 0.3s ease-in-out,
+          width 0.3s ease-in-out,
+          padding 0.3s ease-in-out,
+          margin 0.3s ease-in-out,
+          box-shadow 0.3s ease-in-out
+        `,
+      },
+      "*": {
+        transition: `
+          opacity 0.3s ease-in-out,
+          height 0.3s ease-in-out,
+          width 0.3s ease-in-out,
+          padding 0.3s ease-in-out,
+          margin 0.3s ease-in-out,
+          box-shadow 0.3s ease-in-out
+        `,
       },
     },
   },
   MuiButton: {
     styleOverrides: {
       root: {
-        textTransform: 'none',
+        textTransform: "none",
       },
     },
     defaultProps: {
@@ -23,6 +40,5 @@ const components: Components<Theme> = {
   },
   // Add more component overrides as needed...
 };
-
 
 export default components;

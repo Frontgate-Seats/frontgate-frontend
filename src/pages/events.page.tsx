@@ -78,27 +78,34 @@ export default function EventsPage() {
     { field: "performerIds", headerName: "Performer Ids" },
 
     // // Inventary
-    // {
-    //   field: "inventory",
-    //   headerName: "ListingCount",
-    //   valueGetter: (params: any) => params.row.inventory?.listingCount ?? 0,
-    //   filterable: false,
-    //   sortable: false,
-    // },
-    // {
-    //   field: "inventory",
-    //   headerName: "TicketCount",
-    //   valueGetter: (params: any) => params?.ticketCount ?? 0,
-    //   filterable: false,
-    //   sortable: false,
-    // },
-    // {
-    //   field: "inventory",
-    //   headerName: "ExclusiveListingCount",
-    //   valueGetter: (params: any) => params?.exclusiveListingCount ?? 0,
-    //   filterable: false,
-    //   sortable: false,
-    // },
+    {
+      field: "exclusiveListingCount",
+      headerName: "Exclusive Listings",
+    },
+    {
+      field: "listingCount",
+      headerName: "Listings",
+    },
+    {
+      field: "ticketCount",
+      headerName: "Tickets",
+    },
+
+    // Category
+    {
+      field: "category",
+      headerName: "Category",
+    },
+
+    // Price
+    {
+      field: "maxPrice",
+      headerName: "MaxPrice",
+    },
+    {
+      field: "minPrice",
+      headerName: "MinPrice",
+    },
 
     // Actions
     {

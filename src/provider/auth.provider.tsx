@@ -23,7 +23,7 @@ const AuthProvider: React.FC<ReactNodeProps> = ({ children }) => {
   useEffect(() => {
     const interval = setInterval(() => {
       dispatch(verifyToken());
-    }, 60000 * 5);
+    }, 5000);
     return () => clearInterval(interval);
   }, [dispatch]);
 
