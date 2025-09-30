@@ -1,12 +1,12 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import eventsApi, { type IEvent } from "../../apis/events.api";
+import eventsApi from "../../apis/events.api";
 import { setSnackbar } from "./snackbar.slice";
 import type { DataGridQueryOptions } from "../../shared/types/mui.type";
 
 export interface EventsState {
   loading: boolean;
   rows: {
-    data: IEvent[];
+    data: any[];
     total: number;
   };
   error: any | null;

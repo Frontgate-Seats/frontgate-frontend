@@ -1,7 +1,6 @@
 import * as React from "react";
 import { useSelector } from "react-redux";
-import { Box, Alert, Button } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { Box, Alert, Button, CircularProgress } from "@mui/material";
 import type {
   GridColDef,
   GridPaginationModel,
@@ -9,38 +8,57 @@ import type {
   GridFilterModel,
 } from "@mui/x-data-grid";
 
+import { LineChart } from "@mui/x-charts/LineChart";
+import { BarChart } from "@mui/x-charts/BarChart";
+
 import DataGridPage from "../components/common/datagrid.comon";
 import type { RootState } from "../store";
-import { getEvents } from "../store/slices/events.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
+import { getEvents } from "../store/slices/events.slice"; // generalized slice
 
 export default function EventsPage() {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
 
   const {
     rows: { data, total },
     loading,
     error,
   } = useSelector((state: RootState) => state.events);
+  const {
+    rows: listingsMetaRows,
+    loading: listingsMetaLoading,
+    error: listingsMetaError,
+  } = useSelector((state: RootState) => state.listingsMeta);
+
+  const [selectedEvent, setSelectedEvent] = React.useState<any | null>(null);
 
   const [paginationModel, setPaginationModel] =
     React.useState<GridPaginationModel>({
       page: 0,
       pageSize: 10,
     });
-
   const [sortModel, setSortModel] = React.useState<GridSortModel>([]);
   const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
     items: [],
   });
 
-  // 🔑 Extract values for backend
   const sortField = sortModel[0]?.field || undefined;
   const sortOrder = sortModel[0]?.sort || undefined;
   const filters = filterModel?.items?.length ? filterModel : undefined;
 
-  // Fetch events whenever pagination, sort, filter, or search changes
+  // Fetch events
+  React.useEffect(() => {
+    dispatch(
+      getEvents({
+        page: paginationModel.page,
+        pageSize: paginationModel.pageSize,
+        sortField,
+        sortOrder,
+        filters,
+      })
+    );
+  }, [dispatch, paginationModel, sortField, sortOrder, filters]);
+
   React.useEffect(() => {
     dispatch(
       getEvents({
@@ -65,11 +83,39 @@ export default function EventsPage() {
     );
   };
 
+  const handleRowClick = (event: any) => {
+    setSelectedEvent(event.row);
+    // dispatch analytics here if needed
+  };
+
+  // Chart support
+  const ranges = ["1m", "2m", "5m", "10m"];
+  const chartData =
+    selectedEvent?.listings?.map((l: any) => ({
+      time: new Date(l.createdAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      tickets: l.ticketCount,
+      min: l.priceMin,
+      max: l.priceMax,
+      median: l.priceMedian,
+      createdAt: l.createdAt,
+    })) || [];
+
+  const filterByRange = (range: string) => {
+    const now = new Date().getTime();
+    const cutoffMinutes = parseInt(range.replace("m", ""), 10);
+    return chartData.filter(
+      (d: any) =>
+        new Date(d.createdAt).getTime() >= now - cutoffMinutes * 60 * 1000
+    );
+  };
+
+  // Columns for DataGrid
   const columns: GridColDef[] = [
     { field: "eventId", headerName: "Event ID" },
     { field: "name", headerName: "Event Name", flex: 1 },
-
-    // Date & Time
     {
       field: "localDate",
       headerName: "Local Date & Time",
@@ -88,17 +134,12 @@ export default function EventsPage() {
       },
       flex: 1,
     },
-
-    // { field: "venueId", headerName: "Venue ID" },
-    // { field: "performerIds", headerName: "Performer Ids" },
     { field: "exclusiveListingCount", headerName: "Exclusive Listings" },
     { field: "listingCount", headerName: "Listings" },
     { field: "ticketCount", headerName: "Tickets" },
-
     { field: "category", headerName: "Category" },
     { field: "maxPrice", headerName: "Max Price" },
     { field: "minPrice", headerName: "Min Price" },
-
     {
       field: "actions",
       type: "actions",
@@ -109,7 +150,7 @@ export default function EventsPage() {
           variant="contained"
           color="info"
           size="small"
-          onClick={() => navigate(`/events/${params.row.eventId}/listings`)}
+          onClick={() => handleRowClick(params)}
         >
           View
         </Button>,
@@ -122,23 +163,77 @@ export default function EventsPage() {
       {error ? (
         <Alert severity="error">{error}</Alert>
       ) : (
-        <DataGridPage
-          title={"Events"}
-          rows={data}
-          rowCount={total}
-          onRefresh={handleRefresh}
-          isLoading={loading}
-          error={error as any}
-          paginationModel={paginationModel}
-          setPaginationModel={setPaginationModel}
-          columns={columns}
-          sortingModel={sortModel}
-          setSortingModel={setSortModel}
-          filterModel={filterModel}
-          setFilterModel={setFilterModel}
-          showToolbar
-          // autoHeight
-        />
+        <>
+          {selectedEvent && (
+            <Box mb={3}>
+              <h3>{selectedEvent.name} – Analytics</h3>
+              {/* Charts per range */}
+              {ranges.map((r) => {
+                const rangeData = filterByRange(r);
+                return (
+                  <Box key={r} mb={4}>
+                    <h4>{r} Range</h4>
+                    <LineChart
+                      height={300}
+                      series={[
+                        {
+                          data: rangeData.map((d: any) => d.min),
+                          label: "Min",
+                        },
+                        {
+                          data: rangeData.map((d: any) => d.median),
+                          label: "Median",
+                        },
+                        {
+                          data: rangeData.map((d: any) => d.max),
+                          label: "Max",
+                        },
+                      ]}
+                      xAxis={[
+                        {
+                          scaleType: "point",
+                          data: rangeData.map((d: any) => d.time),
+                        },
+                      ]}
+                    />
+                    <BarChart
+                      height={200}
+                      series={[
+                        {
+                          data: rangeData.map((d: any) => d.tickets),
+                          label: "Tickets",
+                        },
+                      ]}
+                      xAxis={[
+                        {
+                          scaleType: "point",
+                          data: rangeData.map((d: any) => d.time),
+                        },
+                      ]}
+                    />
+                  </Box>
+                );
+              })}
+            </Box>
+          )}
+
+          <DataGridPage
+            title={"Events"}
+            rows={data}
+            rowCount={total}
+            onRefresh={handleRefresh}
+            isLoading={loading}
+            error={error as any}
+            paginationModel={paginationModel}
+            setPaginationModel={setPaginationModel}
+            columns={columns}
+            sortingModel={sortModel}
+            setSortingModel={setSortModel}
+            filterModel={filterModel}
+            setFilterModel={setFilterModel}
+            showToolbar
+          />
+        </>
       )}
     </Box>
   );

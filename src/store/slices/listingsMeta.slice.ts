@@ -24,41 +24,41 @@ const initialState: EventsState = {
 };
 
 // Async thunk to fetch listings
-export const getListings = createAsyncThunk(
-  "listings",
+export const getListingsMeta = createAsyncThunk(
+  "listingsMeta",
   async (data: DataGridQueryOptions, { dispatch, rejectWithValue }) => {
     try {
       const response = await listingsApi.fetchListings(data);
       return response.data;
     } catch (err: any) {
-      const message = err?.message || "Failed to fetch listings";
+      const message = err?.message || "Failed to fetch listingsMeta";
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
   }
 );
 
-const listingsSlice = createSlice({
-  name: "listings",
+const listingsMetaSlice = createSlice({
+  name: "listingsMeta",
   initialState,
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(getListings.pending, (state) => {
+      .addCase(getListingsMeta.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(getListings.fulfilled, (state, action) => {
+      .addCase(getListingsMeta.fulfilled, (state, action) => {
         state.loading = false;
         state.rows = action.payload;
       })
-      .addCase(getListings.rejected, (state, action) => {
+      .addCase(getListingsMeta.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || "Something went wrong";
       });
   },
 });
 
-export const {} = listingsSlice.actions;
+export const {} = listingsMetaSlice.actions;
 
-export default listingsSlice.reducer;
+export default listingsMetaSlice.reducer;

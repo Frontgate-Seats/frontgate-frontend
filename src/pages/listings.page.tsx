@@ -25,7 +25,6 @@ export default function ListingsPage() {
     error,
   } = useSelector((state: RootState) => state.listings);
 
-  console.log("rows : ", { data, total })
   const [paginationModel, setPaginationModel] =
     React.useState<GridPaginationModel>({
       page: 0,

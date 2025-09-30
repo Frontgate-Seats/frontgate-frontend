@@ -3,7 +3,7 @@ import httpClient from "../clients/http.client";
 import type { DataGridQueryOptions } from "../shared/types/mui.type";
 
 // Backend is expected to return: { data: Event[], total: number }
-export const fetchListings = async ({
+export const fetchListingsMeta = async ({
   page,
   pageSize,
   sortField,
@@ -21,15 +21,15 @@ export const fetchListings = async ({
       search,
     };
 
-    const response = await httpClient.get("/listings", { params });
+    const response = await httpClient.get("/listingsMeta", { params });
     return response.data;
   } catch (err) {
     const error = err as AxiosError;
-    throw error.response?.data || new Error("Failed to fetch listings");
+    throw error.response?.data || new Error("Failed to fetch listingsMeta");
   }
 };
 
-const listingsApi = {
-  fetchListings,
+const listingsMEtaApi = {
+  fetchListingsMeta,
 };
-export default listingsApi;
+export default listingsMEtaApi;
