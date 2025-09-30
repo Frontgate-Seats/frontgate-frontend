@@ -1,21 +1,15 @@
 import * as React from "react";
-import { Box } from "@mui/material";
+import { Alert, Box } from "@mui/material";
 import { useSelector } from "react-redux";
 import DataGridPage from "../components/common/datagrid.comon";
-import type {
-  GridColDef,
-  GridPaginationModel,
-  GridSortModel,
-  GridFilterModel,
-} from "@mui/x-data-grid";
+import type { GridColDef } from "@mui/x-data-grid";
 import type { RootState } from "../store";
 import { getListings } from "../store/slices/listings.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 export default function ListingsPage() {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
   const { eventId } = useParams();
 
   const {
@@ -41,6 +35,7 @@ export default function ListingsPage() {
           quantity: ld.quantity,
           allInPrice: ld.allInPrice,
           price: ld.price,
+          total: ld.total,
           serviceFee: ld.serviceFee,
           faceValue: ld.faceValue,
           tags: ld.tags?.join(", "),
@@ -50,7 +45,6 @@ export default function ListingsPage() {
     });
     return result;
   }, [data]);
-
 
   // Fetch listings whenever eventId/filter changes
   React.useEffect(() => {
@@ -91,42 +85,34 @@ export default function ListingsPage() {
 
   // all possible columns
   const allColumns: GridColDef[] = [
-    { field: "row", headerName: "Row", flex: 1 },
+    { field: "row", headerName: "Row" },
     { field: "sectionName", headerName: "Section" },
     { field: "quantity", headerName: "Quantity", type: "number" },
+
     { field: "allInPrice", headerName: "All-In Price", type: "number" },
     { field: "price", headerName: "Price", type: "number" },
-    { field: "serviceFee", headerName: "Service Fee", type: "number" },
-    { field: "faceValue", headerName: "Face Value" },
-    { field: "tags", headerName: "Tags" },
-    { field: "vs", headerName: "Vs" },
-  ];
+    { field: "total", headerName: "Total", type: "number" },
 
-  // only keep columns where at least one row has value
-  const availableColumns = React.useMemo(() => {
-    return allColumns.filter((col) =>
-      flattenedRows.some(
-        (row) =>
-          row[col.field] !== null &&
-          row[col.field] !== undefined &&
-          row[col.field] !== ""
-      )
-    );
-  }, [flattenedRows]);
+    { field: "serviceFee", headerName: "Service Fee", type: "number" },
+  ];
 
   return (
     <Box>
-      <DataGridPage
-        title="Listings"
-        rows={flattenedRows}
-        rowCount={flattenedRows.length}
-        onRefresh={handleRefresh}
-        isLoading={loading}
-        error={error}
-        columns={availableColumns} // ✅ dynamic columns
-        showToolbar
-        autoHeight
-      />
+      {error ? (
+        <Alert severity="error">{error}</Alert>
+      ) : (
+        <DataGridPage
+          title="Listings"
+          rows={flattenedRows}
+          rowCount={flattenedRows.length}
+          onRefresh={handleRefresh}
+          isLoading={loading}
+          error={error}
+          columns={allColumns}
+          showToolbar
+          autoHeight
+        />
+      )}
     </Box>
   );
 }

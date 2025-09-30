@@ -1,8 +1,8 @@
 import * as React from "react";
 import { useSelector } from "react-redux";
-import { Box, Alert } from "@mui/material";
+import { Box, Alert, Typography } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { BarChart } from "@mui/x-charts/BarChart";
+import { LineChart } from "@mui/x-charts";
 import type {
   GridColDef,
   GridPaginationModel,
@@ -15,7 +15,6 @@ import type { RootState } from "../store";
 import { getEvents } from "../store/slices/events.slice";
 import { getListingsMeta } from "../store/slices/listingsMeta.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
-import { ChartsTooltip, LineChart } from "@mui/x-charts";
 
 export default function EventsPage() {
   const dispatch = useAppDispatch();
@@ -33,23 +32,17 @@ export default function EventsPage() {
   } = useSelector((state: RootState) => state.listingsMeta);
 
   const [paginationModel, setPaginationModel] =
-    React.useState<GridPaginationModel>({
-      page: 0,
-      pageSize: 10,
-    });
+    React.useState<GridPaginationModel>({ page: 0, pageSize: 10 });
   const [sortModel, setSortModel] = React.useState<GridSortModel>([]);
   const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
     items: [],
   });
-  const [selectedEventId, setSelectedEventId] = React.useState<string | null>(
-    null
-  );
+  const [selectedEvent, setSelectedEvent] = React.useState<string | null>(null);
 
   const sortField = sortModel[0]?.field ?? undefined;
   const sortOrder = sortModel[0]?.sort ?? undefined;
   const filters = filterModel?.items?.length ? filterModel : undefined;
 
-  // Fetch events whenever pagination, sort, filter changes
   React.useEffect(() => {
     dispatch(
       getEvents({
@@ -74,9 +67,8 @@ export default function EventsPage() {
     );
   };
 
-  // Row click: fetch listingsMeta
   const handleRowClick = (row: any) => {
-    setSelectedEventId(row.eventId);
+    setSelectedEvent(row);
     dispatch(
       getListingsMeta({
         filters: {
@@ -112,12 +104,11 @@ export default function EventsPage() {
     {
       field: "venueDBId",
       headerName: "Venue Location",
-      type: "string",
-      valueGetter: (params: any) => {
-        if (!params) return "-";
-        return `${params.addressLine}, ${params.city}, ${params.stateCode} ${params.postalCode}, ${params.countryCode}`;
-      },
       flex: 1,
+      valueGetter: (params: any) =>
+        params
+          ? `${params.addressLine}, ${params.city}, ${params.stateCode} ${params.postalCode}, ${params.countryCode}`
+          : "-",
     },
     { field: "category", headerName: "Category" },
     {
@@ -135,15 +126,11 @@ export default function EventsPage() {
     },
   ];
 
-  console.log("listingsMeta : ", listingsMeta);
-  // Prepare chart data
-
   return (
     <Box>
       {/* ListingsMeta Chart */}
-
-      {selectedEventId && (
-        <Box sx={{ height: 400, mb: 2, position: "relative" }}>
+      {selectedEvent && (
+        <Box sx={{ mb: 3, position: "relative" }}>
           {listingsMeta.length === 0 && (
             <Box
               sx={{
@@ -166,104 +153,129 @@ export default function EventsPage() {
             </Box>
           )}
 
-          <LineChart
-            dataset={listingsMeta.map((item) => ({
-              time: new Date(item.createdAt),
-              tickets: item.ticketCount,
-              medianPrice: item.priceMedian,
-              priceMin: item.priceMin,
-              twoPlusPriceMin: item.twoPlusPriceMin,
-              getInPriceMin: item.getInPriceMin,
-            }))}
-            xAxis={[
-              {
-                dataKey: "time",
-                scaleType: "time",
-                label: "Date & Time",
-                valueFormatter: (v: Date) =>
-                  v.toLocaleString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: true,
-                  }),
-              },
-            ]}
-            yAxis={[
-              { id: "price", label: "Price ($)" },
-              { id: "tickets", label: "Tickets Qty", position: "right" },
-            ]}
-            series={[
-              {
-                dataKey: "tickets",
-                label: "Tickets Qty",
-                yAxisId: "tickets",
-                color: "#757575",
-                valueFormatter: (v) => (v != null ? `${v}` : "-"),
-              },
-              {
-                dataKey: "medianPrice",
-                label: "Median Price",
-                yAxisId: "price",
-                color: "#1976d2",
-                valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-                curve: "monotoneX", // smooth line
-              },
-              {
-                dataKey: "priceMin",
-                label: "Min Price",
-                yAxisId: "price",
-                color: "#9c27b0",
-                valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-                curve: "monotoneX",
-              },
-              {
-                dataKey: "twoPlusPriceMin",
-                label: "Price Min 2+",
-                yAxisId: "price",
-                color: "#ff5722",
-                valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-                curve: "monotoneX",
-              },
-              {
-                dataKey: "getInPriceMin",
-                label: "Get-In Price Min 2+",
-                yAxisId: "price",
-                color: "#009688",
-                valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-                curve: "monotoneX",
-              },
-            ]}
-            height={450}
-            slotProps={{
-              legend: {
-                position: { vertical: "bottom", horizontal: "center" },
-              },
-              tooltip: {
-                sx: {
-                  padding: 10,
-                  backgroundColor: "#fff",
-                  border: "1px solid #e0e0e0",
-                  borderRadius: 1,
-                  typography: "body2",
-                },
-              },
-            }}
-            sx={{
-              "& .MuiLineChart-root": {
-                backgroundColor: "#fafafa",
-                borderRadius: 2,
-                p: 2,
-              },
-              "& .MuiChartsLegend-root": {
+          <Box sx={{ position: "relative", height: 450, mb: 3 }}>
+            {/* Title inside chart */}
+            <Typography
+              variant="h6"
+              sx={{
+                position: "absolute",
+                top: 16, // distance from top of chart
+                left: "50%",
+                transform: "translateX(-50%)",
                 fontWeight: 600,
-              },
-              "& .MuiLineSeries-root": {
-                strokeWidth: 3, // apply stroke width globally for lines
-              },
-            }}
-          />
+                color: "#424242",
+                zIndex: 10,
+                pointerEvents: "none", // ensures chart interactions still work
+              }}
+            >
+              Trands
+            </Typography>
+
+            <LineChart
+              dataset={listingsMeta.map((item) => ({
+                time: new Date(item.createdAt),
+                tickets: item.ticketCount,
+                medianPrice: item.priceMedian,
+                priceMin: item.priceMin,
+                twoPlusPriceMin: item.twoPlusPriceMin,
+                getInPriceMin: item.getInPriceMin,
+              }))}
+              xAxis={[
+                { dataKey: "time", scaleType: "time", label: "Date & Time" },
+              ]}
+              yAxis={[
+                { id: "price", label: "Price ($)" },
+                { id: "tickets", label: "Tickets Qty", position: "right" },
+              ]}
+              series={[
+                {
+                  dataKey: "tickets",
+                  label: "Tickets Qty",
+                  yAxisId: "tickets",
+                  color: "#90a4ae",
+                  curve: "monotoneX",
+                },
+                {
+                  dataKey: "medianPrice",
+                  label: "Median Price",
+                  yAxisId: "price",
+                  color: "#1976d2",
+                  curve: "monotoneX",
+                  valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+                },
+                {
+                  dataKey: "priceMin",
+                  label: "Min Price",
+                  yAxisId: "price",
+                  color: "#9c27b0",
+                  curve: "monotoneX",
+                  valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+                },
+                {
+                  dataKey: "twoPlusPriceMin",
+                  label: "Price Min 2+",
+                  yAxisId: "price",
+                  color: "#ff7043",
+                  curve: "monotoneX",
+                  valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+                },
+                {
+                  dataKey: "getInPriceMin",
+                  label: "Get-In Price Min 2+",
+                  yAxisId: "price",
+                  color: "#26a69a",
+                  curve: "monotoneX",
+                  valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+                },
+              ]}
+              height={400}
+              slotProps={{
+                legend: {
+                  position: { vertical: "bottom", horizontal: "center" },
+                  direction: "horizontal",
+                  sx: {
+                    "& .MuiChartsLegend-itemMark": { width: 14, height: 14 },
+                    "& .MuiChartsLegend-label": {
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: "#424242",
+                    },
+                  },
+                },
+                tooltip: {
+                  sx: {
+                    backgroundColor: "#fff",
+                    border: "1px solid #e0e0e0",
+                    borderRadius: 2,
+                    boxShadow: "0px 4px 12px rgba(0,0,0,0.1)",
+                    "& .MuiChartsTooltip-title": {
+                      fontWeight: 600,
+                      color: "#212121",
+                    },
+                    "& .MuiChartsTooltip-value": {
+                      fontWeight: 500,
+                      color: "#1976d2",
+                    },
+                  },
+                },
+              }}
+              sx={{
+                background: "linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%)",
+                borderRadius: 3,
+                boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
+                p: 3,
+                "& .MuiChartsGrid-line": {
+                  stroke: "#bdbdbd",
+                  strokeDasharray: "0",
+                },
+                "& .MuiChartsAxis-root .MuiChartsAxis-line": {
+                  stroke: "#9e9e9e",
+                },
+                "& .MuiChartsAxis-tickLabel": { fill: "#616161", fontSize: 12 },
+                "& .MuiLineSeries-root": { strokeWidth: 2.5 },
+              }}
+            />
+          </Box>
         </Box>
       )}
 
@@ -291,6 +303,7 @@ export default function EventsPage() {
           onRowClick={(params) => handleRowClick(params.row)}
           onRefresh={handleRefresh}
         />
+        
       )}
     </Box>
   );
