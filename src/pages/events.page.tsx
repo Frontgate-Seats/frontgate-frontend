@@ -1,6 +1,8 @@
 import * as React from "react";
 import { useSelector } from "react-redux";
-import { Box, Alert, Button, CircularProgress } from "@mui/material";
+import { Box, Alert } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import { BarChart } from "@mui/x-charts/BarChart";
 import type {
   GridColDef,
   GridPaginationModel,
@@ -8,29 +10,27 @@ import type {
   GridFilterModel,
 } from "@mui/x-data-grid";
 
-import { LineChart } from "@mui/x-charts/LineChart";
-import { BarChart } from "@mui/x-charts/BarChart";
-
 import DataGridPage from "../components/common/datagrid.comon";
 import type { RootState } from "../store";
+import { getEvents } from "../store/slices/events.slice";
+import { getListingsMeta } from "../store/slices/listingsMeta.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
-import { getEvents } from "../store/slices/events.slice"; // generalized slice
+import { ChartsTooltip, LineChart } from "@mui/x-charts";
 
 export default function EventsPage() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
 
   const {
-    rows: { data, total },
-    loading,
-    error,
+    rows: { data: events, total },
+    loading: eventsLoading,
+    error: eventsError,
   } = useSelector((state: RootState) => state.events);
-  const {
-    rows: listingsMetaRows,
-    loading: listingsMetaLoading,
-    error: listingsMetaError,
-  } = useSelector((state: RootState) => state.listingsMeta);
 
-  const [selectedEvent, setSelectedEvent] = React.useState<any | null>(null);
+  const {
+    rows: { data: listingsMeta },
+    loading: listingsMetaLoading,
+  } = useSelector((state: RootState) => state.listingsMeta);
 
   const [paginationModel, setPaginationModel] =
     React.useState<GridPaginationModel>({
@@ -41,24 +41,15 @@ export default function EventsPage() {
   const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
     items: [],
   });
+  const [selectedEventId, setSelectedEventId] = React.useState<string | null>(
+    null
+  );
 
-  const sortField = sortModel[0]?.field || undefined;
-  const sortOrder = sortModel[0]?.sort || undefined;
+  const sortField = sortModel[0]?.field ?? undefined;
+  const sortOrder = sortModel[0]?.sort ?? undefined;
   const filters = filterModel?.items?.length ? filterModel : undefined;
 
-  // Fetch events
-  React.useEffect(() => {
-    dispatch(
-      getEvents({
-        page: paginationModel.page,
-        pageSize: paginationModel.pageSize,
-        sortField,
-        sortOrder,
-        filters,
-      })
-    );
-  }, [dispatch, paginationModel, sortField, sortOrder, filters]);
-
+  // Fetch events whenever pagination, sort, filter changes
   React.useEffect(() => {
     dispatch(
       getEvents({
@@ -83,36 +74,20 @@ export default function EventsPage() {
     );
   };
 
-  const handleRowClick = (event: any) => {
-    setSelectedEvent(event.row);
-    // dispatch analytics here if needed
-  };
-
-  // Chart support
-  const ranges = ["1m", "2m", "5m", "10m"];
-  const chartData =
-    selectedEvent?.listings?.map((l: any) => ({
-      time: new Date(l.createdAt).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      tickets: l.ticketCount,
-      min: l.priceMin,
-      max: l.priceMax,
-      median: l.priceMedian,
-      createdAt: l.createdAt,
-    })) || [];
-
-  const filterByRange = (range: string) => {
-    const now = new Date().getTime();
-    const cutoffMinutes = parseInt(range.replace("m", ""), 10);
-    return chartData.filter(
-      (d: any) =>
-        new Date(d.createdAt).getTime() >= now - cutoffMinutes * 60 * 1000
+  // Row click: fetch listingsMeta
+  const handleRowClick = (row: any) => {
+    setSelectedEventId(row.eventId);
+    dispatch(
+      getListingsMeta({
+        filters: {
+          items: [{ field: "eventId", operator: "equals", value: row.eventId }],
+        },
+        page: 0,
+        pageSize: 1000,
+      })
     );
   };
 
-  // Columns for DataGrid
   const columns: GridColDef[] = [
     { field: "eventId", headerName: "Event ID" },
     { field: "name", headerName: "Event Name", flex: 1 },
@@ -134,106 +109,188 @@ export default function EventsPage() {
       },
       flex: 1,
     },
-    { field: "exclusiveListingCount", headerName: "Exclusive Listings" },
-    { field: "listingCount", headerName: "Listings" },
-    { field: "ticketCount", headerName: "Tickets" },
+    {
+      field: "venueDBId",
+      headerName: "Venue Location",
+      type: "string",
+      valueGetter: (params: any) => {
+        if (!params) return "-";
+        return `${params.addressLine}, ${params.city}, ${params.stateCode} ${params.postalCode}, ${params.countryCode}`;
+      },
+      flex: 1,
+    },
     { field: "category", headerName: "Category" },
-    { field: "maxPrice", headerName: "Max Price" },
-    { field: "minPrice", headerName: "Min Price" },
     {
       field: "actions",
       type: "actions",
       width: 100,
       getActions: (params) => [
-        <Button
+        <button
           key={params.row.eventId}
-          variant="contained"
-          color="info"
-          size="small"
-          onClick={() => handleRowClick(params)}
+          onClick={() => navigate(`/events/${params.row.eventId}/listings`)}
         >
           View
-        </Button>,
+        </button>,
       ],
     },
   ];
 
+  console.log("listingsMeta : ", listingsMeta);
+  // Prepare chart data
+
   return (
     <Box>
-      {error ? (
-        <Alert severity="error">{error}</Alert>
-      ) : (
-        <>
-          {selectedEvent && (
-            <Box mb={3}>
-              <h3>{selectedEvent.name} – Analytics</h3>
-              {/* Charts per range */}
-              {ranges.map((r) => {
-                const rangeData = filterByRange(r);
-                return (
-                  <Box key={r} mb={4}>
-                    <h4>{r} Range</h4>
-                    <LineChart
-                      height={300}
-                      series={[
-                        {
-                          data: rangeData.map((d: any) => d.min),
-                          label: "Min",
-                        },
-                        {
-                          data: rangeData.map((d: any) => d.median),
-                          label: "Median",
-                        },
-                        {
-                          data: rangeData.map((d: any) => d.max),
-                          label: "Max",
-                        },
-                      ]}
-                      xAxis={[
-                        {
-                          scaleType: "point",
-                          data: rangeData.map((d: any) => d.time),
-                        },
-                      ]}
-                    />
-                    <BarChart
-                      height={200}
-                      series={[
-                        {
-                          data: rangeData.map((d: any) => d.tickets),
-                          label: "Tickets",
-                        },
-                      ]}
-                      xAxis={[
-                        {
-                          scaleType: "point",
-                          data: rangeData.map((d: any) => d.time),
-                        },
-                      ]}
-                    />
-                  </Box>
-                );
-              })}
+      {/* ListingsMeta Chart */}
+
+      {selectedEventId && (
+        <Box sx={{ height: 400, mb: 2, position: "relative" }}>
+          {listingsMeta.length === 0 && (
+            <Box
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: "#f5f5f5",
+                color: "#999",
+                fontSize: "1.2rem",
+                fontWeight: 500,
+                zIndex: 1,
+              }}
+            >
+              No data available
             </Box>
           )}
 
-          <DataGridPage
-            title={"Events"}
-            rows={data}
-            rowCount={total}
-            onRefresh={handleRefresh}
-            isLoading={loading}
-            error={error as any}
-            paginationModel={paginationModel}
-            setPaginationModel={setPaginationModel}
-            columns={columns}
-            sortingModel={sortModel}
-            setSortingModel={setSortModel}
-            filterModel={filterModel}
-            setFilterModel={setFilterModel}
-            showToolbar
+          <LineChart
+            dataset={listingsMeta.map((item) => ({
+              time: new Date(item.createdAt),
+              tickets: item.ticketCount,
+              medianPrice: item.priceMedian,
+              priceMin: item.priceMin,
+              twoPlusPriceMin: item.twoPlusPriceMin,
+              getInPriceMin: item.getInPriceMin,
+            }))}
+            xAxis={[
+              {
+                dataKey: "time",
+                scaleType: "time",
+                label: "Date & Time",
+                valueFormatter: (v: Date) =>
+                  v.toLocaleString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  }),
+              },
+            ]}
+            yAxis={[
+              { id: "price", label: "Price ($)" },
+              { id: "tickets", label: "Tickets Qty", position: "right" },
+            ]}
+            series={[
+              {
+                dataKey: "tickets",
+                label: "Tickets Qty",
+                yAxisId: "tickets",
+                color: "#757575",
+                valueFormatter: (v) => (v != null ? `${v}` : "-"),
+              },
+              {
+                dataKey: "medianPrice",
+                label: "Median Price",
+                yAxisId: "price",
+                color: "#1976d2",
+                valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+                curve: "monotoneX", // smooth line
+              },
+              {
+                dataKey: "priceMin",
+                label: "Min Price",
+                yAxisId: "price",
+                color: "#9c27b0",
+                valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+                curve: "monotoneX",
+              },
+              {
+                dataKey: "twoPlusPriceMin",
+                label: "Price Min 2+",
+                yAxisId: "price",
+                color: "#ff5722",
+                valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+                curve: "monotoneX",
+              },
+              {
+                dataKey: "getInPriceMin",
+                label: "Get-In Price Min 2+",
+                yAxisId: "price",
+                color: "#009688",
+                valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+                curve: "monotoneX",
+              },
+            ]}
+            height={450}
+            slotProps={{
+              legend: {
+                position: { vertical: "bottom", horizontal: "center" },
+              },
+              tooltip: {
+                sx: {
+                  padding: 10,
+                  backgroundColor: "#fff",
+                  border: "1px solid #e0e0e0",
+                  borderRadius: 1,
+                  typography: "body2",
+                },
+              },
+            }}
+            sx={{
+              "& .MuiLineChart-root": {
+                backgroundColor: "#fafafa",
+                borderRadius: 2,
+                p: 2,
+              },
+              "& .MuiChartsLegend-root": {
+                fontWeight: 600,
+              },
+              "& .MuiLineSeries-root": {
+                strokeWidth: 3, // apply stroke width globally for lines
+              },
+            }}
           />
-        </>
+        </Box>
+      )}
+
+      {eventsError ? (
+        <Alert severity="error">{eventsError}</Alert>
+      ) : (
+        <DataGridPage
+          title="Events"
+          rows={events}
+          rowCount={total}
+          columns={columns}
+          isLoading={eventsLoading || listingsMetaLoading}
+          error={eventsError as any}
+          paginationModel={paginationModel}
+          setPaginationModel={setPaginationModel}
+          sortingModel={sortModel}
+          setSortingModel={setSortModel}
+          filterModel={filterModel}
+          setFilterModel={setFilterModel}
+          showToolbar
+          autoHeight
+          paginationMode="server"
+          sortingMode="server"
+          filterMode="server"
+          onRowClick={(params) => handleRowClick(params.row)}
+          onRefresh={handleRefresh}
+        />
       )}
     </Box>
   );

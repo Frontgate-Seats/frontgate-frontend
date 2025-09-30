@@ -1,7 +1,7 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { setSnackbar } from "./snackbar.slice";
-import listingsApi from "../../apis/listings.api";
 import type { DataGridQueryOptions } from "../../shared/types/mui.type";
+import listingsMetaApi from "../../apis/listingsMeta.api";
 
 export interface EventsState {
   loading: boolean;
@@ -28,7 +28,7 @@ export const getListingsMeta = createAsyncThunk(
   "listingsMeta",
   async (data: DataGridQueryOptions, { dispatch, rejectWithValue }) => {
     try {
-      const response = await listingsApi.fetchListings(data);
+      const response = await listingsMetaApi.fetchListingsMeta(data);
       return response.data;
     } catch (err: any) {
       const message = err?.message || "Failed to fetch listingsMeta";

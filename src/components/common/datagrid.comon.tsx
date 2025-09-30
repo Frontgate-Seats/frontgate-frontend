@@ -23,8 +23,8 @@ interface DataGridPageProps {
   onRefresh: () => void;
   isLoading: boolean;
   error: Error | null;
-  paginationModel: GridPaginationModel;
-  setPaginationModel: (model: GridPaginationModel) => void;
+  paginationModel?: GridPaginationModel;
+  setPaginationModel?: (model: GridPaginationModel) => void;
   sortingModel?: GridSortModel;
   setSortingModel?: (model: GridSortModel) => void;
   filterModel?: GridFilterModel;
@@ -32,6 +32,10 @@ interface DataGridPageProps {
   columns: GridColDef[];
   showToolbar?: boolean;
   autoHeight?: boolean;
+  paginationMode?: "server" | "client";
+  sortingMode?: "server" | "client";
+  filterMode?: "server" | "client";
+  onRowClick?: GridEventListener<"rowClick">;
 }
 
 export default function DataGridPage({
@@ -50,6 +54,10 @@ export default function DataGridPage({
   columns,
   showToolbar = false,
   autoHeight = false,
+  paginationMode = "client",
+  sortingMode = "client",
+  filterMode = "client",
+  onRowClick,
 }: DataGridPageProps) {
   const initialState = React.useMemo(
     () => ({
@@ -57,10 +65,6 @@ export default function DataGridPage({
     }),
     []
   );
-
-  const handleRowClick = React.useCallback<
-    GridEventListener<"rowClick">
-  >(() => {}, []);
 
   return (
     <Box sx={{ flex: 1, width: "100%", p: 2 }}>
@@ -93,23 +97,35 @@ export default function DataGridPage({
           rowCount={rowCount}
           columns={columns}
           pagination
-          paginationMode="server"
+          paginationMode={paginationMode}
           paginationModel={paginationModel}
           onPaginationModelChange={setPaginationModel}
-          sortingMode="server"
+          sortingMode={sortingMode}
           sortModel={sortingModel}
           onSortModelChange={setSortingModel}
-          filterMode="server"
+          filterMode={filterMode}
           filterModel={filterModel}
           onFilterModelChange={setFilterModel}
           disableRowSelectionOnClick
-          onRowClick={handleRowClick}
+          onRowClick={onRowClick}
           loading={isLoading}
           initialState={initialState}
           pageSizeOptions={[5, INITIAL_PAGE_SIZE, 25, 50, 100]}
           showToolbar={showToolbar}
           autoHeight={autoHeight}
           filterDebounceMs={1000}
+          sx={{
+            "& .MuiDataGrid-cell": {
+              whiteSpace: "normal !important",
+              wordWrap: "break-word !important",
+              lineHeight: "1.4rem",
+              alignItems: "flex-start",
+            },
+            "& .MuiDataGrid-columnHeaderTitle": {
+              whiteSpace: "normal !important",
+              lineHeight: "1.2rem",
+            },
+          }}
         />
       )}
     </Box>

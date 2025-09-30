@@ -29,7 +29,7 @@ export const fetchListingsMeta = async ({
   }
 };
 
-const listingsMEtaApi = {
+const listingsMetaApi = {
   fetchListingsMeta,
 };
-export default listingsMEtaApi;
+export default listingsMetaApi;

@@ -1,18 +1,17 @@
 import * as React from "react";
+import { Box } from "@mui/material";
 import { useSelector } from "react-redux";
-import { Box, Alert, Button } from "@mui/material";
-import { useNavigate, useParams } from "react-router-dom";
+import DataGridPage from "../components/common/datagrid.comon";
 import type {
   GridColDef,
   GridPaginationModel,
   GridSortModel,
   GridFilterModel,
 } from "@mui/x-data-grid";
-
-import DataGridPage from "../components/common/datagrid.comon";
 import type { RootState } from "../store";
 import { getListings } from "../store/slices/listings.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
+import { useNavigate, useParams } from "react-router-dom";
 
 export default function ListingsPage() {
   const dispatch = useAppDispatch();
@@ -20,37 +19,45 @@ export default function ListingsPage() {
   const { eventId } = useParams();
 
   const {
-    rows: { data, total },
+    rows: { data },
     loading,
     error,
   } = useSelector((state: RootState) => state.listings);
 
-  const [paginationModel, setPaginationModel] =
-    React.useState<GridPaginationModel>({
-      page: 0,
-      pageSize: 10,
+  // Flatten nested listingsData
+  const flattenedRows = React.useMemo(() => {
+    const result: any[] = [];
+    data.forEach((listing) => {
+      (listing.listingsData || []).forEach((ld: any) => {
+        result.push({
+          _id: listing._id,
+          eventId: listing.eventId,
+          eventName: listing.name,
+          venueId: listing.venueId,
+          performerId: listing.performerId,
+          row: ld.row,
+          sectionName: ld.sectionName,
+          longSectionName: ld.longSectionName,
+          quantity: ld.quantity,
+          allInPrice: ld.allInPrice,
+          price: ld.price,
+          serviceFee: ld.serviceFee,
+          faceValue: ld.faceValue,
+          tags: ld.tags?.join(", "),
+          vs: ld.vs,
+        });
+      });
     });
+    return result;
+  }, [data]);
 
-  const [sortModel, setSortModel] = React.useState<GridSortModel>([]);
-  const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
-    items: [],
-  });
 
-  // 🔑 Extract values for backend
-  const sortField = sortModel[0]?.field || undefined;
-  const sortOrder = sortModel[0]?.sort || undefined;
-  const filters = filterModel?.items?.length ? filterModel : undefined;
-
-  // Fetch  whenever pagination, sort, filter, or search changes
+  // Fetch listings whenever eventId/filter changes
   React.useEffect(() => {
+    if (!eventId) return;
     dispatch(
       getListings({
-        page: paginationModel.page,
-        pageSize: paginationModel.pageSize,
-        sortField,
-        sortOrder,
         filters: {
-          ...filters,
           items: [
             {
               id: "default",
@@ -58,22 +65,17 @@ export default function ListingsPage() {
               operator: "equals",
               value: eventId,
             },
-            ...filterModel.items,
           ],
         },
       })
     );
-  }, [dispatch, paginationModel, sortField, sortOrder, filters]);
+  }, [dispatch, eventId]);
 
   const handleRefresh = () => {
+    if (!eventId) return;
     dispatch(
       getListings({
-        page: paginationModel.page,
-        pageSize: paginationModel.pageSize,
-        sortField,
-        sortOrder,
         filters: {
-          ...filters,
           items: [
             {
               id: "default",
@@ -81,88 +83,50 @@ export default function ListingsPage() {
               operator: "equals",
               value: eventId,
             },
-            ...filterModel.items,
           ],
         },
       })
     );
   };
 
-  const columns: GridColDef[] = [
-    { field: "eventId", headerName: "Event ID" },
-    { field: "name", headerName: "Event Name", flex: 1 },
-
-    // Date & Time
-    {
-      field: "localDate",
-      headerName: "Local Date & Time",
-      type: "dateTime",
-      valueFormatter: (params) => {
-        if (!params) return "";
-        const date = new Date(params);
-        return date.toLocaleString("en-US", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        });
-      },
-      flex: 1,
-    },
-
-    // { field: "venueId", headerName: "Venue ID" },
-    // { field: "performerIds", headerName: "Performer Ids" },
-    { field: "exclusiveListingCount", headerName: "Exclusive Listings" },
-    { field: "listingCount", headerName: "Listings" },
-    { field: "ticketCount", headerName: "Tickets" },
-
-    { field: "category", headerName: "Category" },
-    { field: "maxPrice", headerName: "Max Price" },
-    { field: "minPrice", headerName: "Min Price" },
-
-    {
-      field: "actions",
-      type: "actions",
-      width: 100,
-      getActions: (params) => [
-        <Button
-          key={params.row.eventId}
-          variant="contained"
-          color="info"
-          size="small"
-          onClick={() => navigate(`//${params.row.eventId}/listings`)}
-        >
-          View
-        </Button>,
-      ],
-    },
+  // all possible columns
+  const allColumns: GridColDef[] = [
+    { field: "row", headerName: "Row", flex: 1 },
+    { field: "sectionName", headerName: "Section" },
+    { field: "quantity", headerName: "Quantity", type: "number" },
+    { field: "allInPrice", headerName: "All-In Price", type: "number" },
+    { field: "price", headerName: "Price", type: "number" },
+    { field: "serviceFee", headerName: "Service Fee", type: "number" },
+    { field: "faceValue", headerName: "Face Value" },
+    { field: "tags", headerName: "Tags" },
+    { field: "vs", headerName: "Vs" },
   ];
+
+  // only keep columns where at least one row has value
+  const availableColumns = React.useMemo(() => {
+    return allColumns.filter((col) =>
+      flattenedRows.some(
+        (row) =>
+          row[col.field] !== null &&
+          row[col.field] !== undefined &&
+          row[col.field] !== ""
+      )
+    );
+  }, [flattenedRows]);
 
   return (
     <Box>
-      {error ? (
-        <Alert severity="error">{error}</Alert>
-      ) : (
-        <DataGridPage
-          title={"Listings"}
-          rows={data}
-          rowCount={total}
-          onRefresh={handleRefresh}
-          isLoading={loading}
-          error={error as any}
-          paginationModel={paginationModel}
-          setPaginationModel={setPaginationModel}
-          columns={columns}
-          sortingModel={sortModel}
-          setSortingModel={setSortModel}
-          filterModel={filterModel}
-          setFilterModel={setFilterModel}
-          showToolbar
-          // autoHeight
-        />
-      )}
+      <DataGridPage
+        title="Listings"
+        rows={flattenedRows}
+        rowCount={flattenedRows.length}
+        onRefresh={handleRefresh}
+        isLoading={loading}
+        error={error}
+        columns={availableColumns} // ✅ dynamic columns
+        showToolbar
+        autoHeight
+      />
     </Box>
   );
 }
