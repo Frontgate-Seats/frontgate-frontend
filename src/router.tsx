@@ -18,7 +18,6 @@ const DashboardLayout = Loadable(
 );
 
 /* ****Pages**** */
-const DashboardPage = Loadable(lazy(() => import("./pages/dashboard.page")));
 const EventsPage = Loadable(lazy(() => import("./pages/events.page")));
 const ListingsPage = Loadable(lazy(() => import("./pages/listings.page")));
 
