@@ -93,7 +93,7 @@ export default function DataGridPage({
       ) : (
         <DataGrid
           rows={rows}
-          getRowId={(row) => row._id || row.eventId}
+          getRowId={(row) => row._id || row.id}
           rowCount={rowCount}
           columns={columns}
           pagination
@@ -113,17 +113,21 @@ export default function DataGridPage({
           pageSizeOptions={[5, INITIAL_PAGE_SIZE, 25, 50, 100]}
           showToolbar={showToolbar}
           autoHeight={autoHeight}
-          filterDebounceMs={1000}
+          filterDebounceMs={500}
           sx={{
+            minWidth: 1000, 
             "& .MuiDataGrid-cell": {
               whiteSpace: "normal !important",
               wordWrap: "break-word !important",
               lineHeight: "1.4rem",
-              alignItems: "flex-start",
+              display: "flex",
+              alignItems: "center", // <-- vertical center
             },
             "& .MuiDataGrid-columnHeaderTitle": {
               whiteSpace: "normal !important",
               lineHeight: "1.2rem",
+              display: "flex",
+              alignItems: "center", // <-- vertical center header
             },
           }}
         />

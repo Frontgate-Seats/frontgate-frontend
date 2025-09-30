@@ -1,5 +1,15 @@
 import * as React from "react";
-import { Alert, Box } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Divider,
+  Grid,
+  Stack,
+  Typography,
+} from "@mui/material";
 import { useSelector } from "react-redux";
 import DataGridPage from "../components/common/datagrid.comon";
 import type { GridColDef } from "@mui/x-data-grid";
@@ -18,13 +28,19 @@ export default function ListingsPage() {
     error,
   } = useSelector((state: RootState) => state.listings);
 
+  const eventInfo = React.useMemo(() => {
+    if (!data.length) return null;
+    return data[0].eventDBId || null;
+  }, [data]);
+
   // Flatten nested listingsData
   const flattenedRows = React.useMemo(() => {
     const result: any[] = [];
     data.forEach((listing) => {
       (listing.listingsData || []).forEach((ld: any) => {
         result.push({
-          _id: listing._id,
+          id: ld.id,
+          listingId: listing.id,
           eventId: listing.eventId,
           eventName: listing.name,
           venueId: listing.venueId,
@@ -85,15 +101,24 @@ export default function ListingsPage() {
 
   // all possible columns
   const allColumns: GridColDef[] = [
-    { field: "row", headerName: "Row" },
-    { field: "sectionName", headerName: "Section" },
-    { field: "quantity", headerName: "Quantity", type: "number" },
-
-    { field: "allInPrice", headerName: "All-In Price", type: "number" },
-    { field: "price", headerName: "Price", type: "number" },
-    { field: "total", headerName: "Total", type: "number" },
-
-    { field: "serviceFee", headerName: "Service Fee", type: "number" },
+    { field: "row", headerName: "Row", flex: 1 },
+    { field: "sectionName", headerName: "Section", flex: 1 },
+    { field: "quantity", headerName: "Quantity", type: "number", flex: 1 },
+    { field: "allInPrice", headerName: "All-In Price", type: "number", flex: 1 },
+    { field: "price", headerName: "Price", type: "number", flex: 1 },
+    { field: "total", headerName: "Total", type: "number", flex: 1 },
+    { field: "serviceFee", headerName: "Service Fee", type: "number", flex: 1 },
+    {
+      field: "actions",
+      type: "actions",
+      width: 100,
+      flex: 1,
+      getActions: (params) => [
+        <Button key={params.row.eventId} onClick={() => {}} variant="outlined">
+          Buy
+        </Button>,
+      ],
+    },
   ];
 
   return (
@@ -101,17 +126,84 @@ export default function ListingsPage() {
       {error ? (
         <Alert severity="error">{error}</Alert>
       ) : (
-        <DataGridPage
-          title="Listings"
-          rows={flattenedRows}
-          rowCount={flattenedRows.length}
-          onRefresh={handleRefresh}
-          isLoading={loading}
-          error={error}
-          columns={allColumns}
-          showToolbar
-          autoHeight
-        />
+        <Box>
+          {eventInfo && (
+            <Card variant="outlined" sx={{ mb: 3 }}>
+              <CardContent>
+                {/* Event name */}
+                <Typography variant="h4" fontWeight="bold" gutterBottom>
+                  {eventInfo.name}
+                </Typography>
+
+                <Divider sx={{ mb: 2 }} />
+
+                <Grid container spacing={2}>
+                  {/* Date & Time */}
+                  <Grid size={{xs:12, sm: 6, md: 4}}>
+                    <Stack spacing={0.5}>
+                      <Typography variant="body2" color="text.secondary">
+                        Date & Time
+                      </Typography>
+                      <Typography variant="body1">
+                        {new Date(eventInfo.utcDate).toLocaleString()}
+                      </Typography>
+                    </Stack>
+                  </Grid>
+
+                  {/* Venue */}
+                  <Grid size={{xs:12, sm: 6, md: 4}}>
+                    <Stack spacing={0.5}>
+                      <Typography variant="body2" color="text.secondary">
+                        Venue
+                      </Typography>
+                      <Typography variant="body1">
+                        {/* ideally populate venueDBId.name in backend */}
+                        {eventInfo.venue?.name || eventInfo.venueId}
+                      </Typography>
+                    </Stack>
+                  </Grid>
+
+                  {/* Category */}
+                  <Grid size={{xs:12, sm: 6, md: 4}}>
+                    <Stack spacing={0.5}>
+                      <Typography variant="body2" color="text.secondary">
+                        Category
+                      </Typography>
+                      <Typography variant="body1">
+                        {eventInfo.category}
+                      </Typography>
+                    </Stack>
+                  </Grid>
+
+                  {/* Price Range */}
+                  <Grid size={{xs:12, sm: 6, md: 4}}>
+                    <Stack spacing={0.5}>
+                      <Typography variant="body2" color="text.secondary">
+                        Price Range
+                      </Typography>
+                      <Typography variant="body1">
+                        {eventInfo.currency} {eventInfo.minPrice} –{" "}
+                        {eventInfo.maxPrice}
+                      </Typography>
+                    </Stack>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+          )}
+
+          <DataGridPage
+            title="Listings"
+            rows={flattenedRows}
+            rowCount={flattenedRows.length}
+            onRefresh={handleRefresh}
+            isLoading={loading}
+            error={error}
+            columns={allColumns}
+            showToolbar
+            autoHeight
+          />
+        </Box>
       )}
     </Box>
   );
