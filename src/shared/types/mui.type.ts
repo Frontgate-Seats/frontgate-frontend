@@ -1,10 +1,9 @@
-import type { GridFilterModel } from "@mui/x-data-grid";
+import type { GridFilterModel, GridSortModel } from "@mui/x-data-grid";
 
 export type DataGridQueryOptions = {
   page?: number;
   pageSize?: number;
-  sortField?: string; 
-  sortOrder?: "asc" | "desc";
+  sortFields?: GridSortModel;
   filters?: GridFilterModel;
   search?: string; 
 };

@@ -27,7 +27,7 @@ export default function ListingsPage() {
     loading,
     error,
   } = useSelector((state: RootState) => state.listings);
-
+console.log("data : ", data)
   const eventInfo = React.useMemo(() => {
     if (!data.length) return null;
     return data[0].eventDBId || null;

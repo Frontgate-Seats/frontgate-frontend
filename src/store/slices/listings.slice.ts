@@ -50,7 +50,7 @@ const listingsSlice = createSlice({
       })
       .addCase(getListings.fulfilled, (state, action) => {
         state.loading = false;
-        state.rows = action.payload;
+        state.rows = action.payload.data;
       })
       .addCase(getListings.rejected, (state, action) => {
         state.loading = false;

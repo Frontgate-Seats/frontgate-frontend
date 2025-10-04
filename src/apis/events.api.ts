@@ -5,18 +5,15 @@ const eventsApi = {
   fetchEvents: async ({
     page,
     pageSize,
-    sortField,
-    sortOrder,
+    sortFields,
     filters,
     search,
   }: DataGridQueryOptions) => {
-
     const params = {
       page,
       pageSize,
-      sortField,
-      sortOrder,
-      filters: JSON.stringify(filters),
+      ...(sortFields ? { sortFields: JSON.stringify(sortFields) } : []),
+      ...(filters ? { filters: JSON.stringify(filters) } : []),
       search,
     };
 

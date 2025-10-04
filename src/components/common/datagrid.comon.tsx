@@ -113,7 +113,7 @@ export default function DataGridPage({
           pageSizeOptions={[5, INITIAL_PAGE_SIZE, 25, 50, 100]}
           showToolbar={showToolbar}
           autoHeight={autoHeight}
-          filterDebounceMs={500}
+          filterDebounceMs={500}          
           sx={{
             minWidth: 1000, 
             "& .MuiDataGrid-cell": {
