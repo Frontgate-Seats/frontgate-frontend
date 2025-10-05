@@ -50,7 +50,7 @@ const listingsMetaSlice = createSlice({
       })
       .addCase(getListingsMeta.fulfilled, (state, action) => {
         state.loading = false;
-        state.rows = action.payload;
+        state.rows = action.payload.data;
       })
       .addCase(getListingsMeta.rejected, (state, action) => {
         state.loading = false;

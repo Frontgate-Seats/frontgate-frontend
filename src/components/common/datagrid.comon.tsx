@@ -59,6 +59,7 @@ export default function DataGridPage({
   filterMode = "client",
   onRowClick,
 }: DataGridPageProps) {
+  
   const initialState = React.useMemo(
     () => ({
       pagination: { paginationModel: { pageSize: INITIAL_PAGE_SIZE } },
@@ -67,7 +68,9 @@ export default function DataGridPage({
   );
 
   return (
-    <Box sx={{ flex: 1, width: "100%", p: 2 }}>
+    <Box sx={{ flex: 1, width: "100%", p: 2, overflowX: "auto" }}>
+      {" "}
+      {/* Set desired height */}
       <Stack
         direction="row"
         alignItems="center"
@@ -85,52 +88,52 @@ export default function DataGridPage({
           </IconButton>
         </Tooltip>
       </Stack>
-
       {error ? (
         <Box sx={{ flexGrow: 1 }}>
           <Alert severity="error">{error.message}</Alert>
         </Box>
       ) : (
-        <DataGrid
-          rows={rows}
-          getRowId={(row) => row._id || row.id}
-          rowCount={rowCount}
-          columns={columns}
-          pagination
-          paginationMode={paginationMode}
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          sortingMode={sortingMode}
-          sortModel={sortingModel}
-          onSortModelChange={setSortingModel}
-          filterMode={filterMode}
-          filterModel={filterModel}
-          onFilterModelChange={setFilterModel}
-          disableRowSelectionOnClick
-          onRowClick={onRowClick}
-          loading={isLoading}
-          initialState={initialState}
-          pageSizeOptions={[5, INITIAL_PAGE_SIZE, 25, 50, 100]}
-          showToolbar={showToolbar}
-          autoHeight={autoHeight}
-          filterDebounceMs={500}
-          sx={{
-            minWidth: 1000, 
-            "& .MuiDataGrid-cell": {
-              whiteSpace: "normal !important",
-              wordWrap: "break-word !important",
-              lineHeight: "1.4rem",
-              display: "flex",
-              alignItems: "center", // <-- vertical center
-            },
-            "& .MuiDataGrid-columnHeaderTitle": {
-              whiteSpace: "normal !important",
-              lineHeight: "1.2rem",
-              display: "flex",
-              alignItems: "center", // <-- vertical center header
-            },
-          }}
-        />
+        <Box sx={{ height: 600, width: "100%" }}>
+          {/* Wrapper for scroll */}
+          <DataGrid
+            rows={rows}
+            getRowId={(row) => row._id || row.id}
+            rowCount={rowCount}
+            columns={columns}
+            initialState={initialState}
+            pagination
+            paginationMode={paginationMode}
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
+            sortingMode={sortingMode}
+            sortModel={sortingModel}
+            onSortModelChange={setSortingModel}
+            filterMode={filterMode}
+            filterModel={filterModel}
+            onFilterModelChange={setFilterModel}
+            disableRowSelectionOnClick
+            onRowClick={onRowClick}
+            loading={isLoading}
+            showToolbar={showToolbar}
+            pageSizeOptions={[5, INITIAL_PAGE_SIZE, 25, 50, 100]}
+            autoHeight={autoHeight}
+            sx={{
+              "& .MuiDataGrid-cell": {
+                whiteSpace: "normal !important",
+                wordWrap: "break-word !important",
+                lineHeight: "1.4rem",
+                display: "flex",
+                alignItems: "center",
+              },
+              "& .MuiDataGrid-columnHeaderTitle": {
+                whiteSpace: "normal !important",
+                lineHeight: "1.2rem",
+                display: "flex",
+                alignItems: "center",
+              },
+            }}
+          />
+        </Box>
       )}
     </Box>
   );

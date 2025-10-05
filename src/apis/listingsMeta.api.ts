@@ -1,4 +1,3 @@
-import type { AxiosError } from "axios";
 import httpClient from "../clients/http.client";
 import type { DataGridQueryOptions } from "../shared/types/mui.type";
 
@@ -6,27 +5,19 @@ import type { DataGridQueryOptions } from "../shared/types/mui.type";
 export const fetchListingsMeta = async ({
   page,
   pageSize,
-  sortField,
-  sortOrder,
+  sortFields,
   filters,
   search,
 }: DataGridQueryOptions) => {
-  try {
-    const params = {
-      page,
-      pageSize,
-      sortField,
-      sortOrder,
-      filters: JSON.stringify(filters),
-      search,
-    };
+  const params = {
+    page,
+    pageSize,
+    ...(sortFields ? { sortFields: JSON.stringify(sortFields) } : []),
+    ...(filters ? { filters: JSON.stringify(filters) } : []),
+    search,
+  };
 
-    const response = await httpClient.get("/listingsMeta", { params });
-    return response.data;
-  } catch (err) {
-    const error = err as AxiosError;
-    throw error.response?.data || new Error("Failed to fetch listingsMeta");
-  }
+  return httpClient.get("/listingsMeta", { params });
 };
 
 const listingsMetaApi = {
