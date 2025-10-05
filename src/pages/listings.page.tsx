@@ -100,26 +100,28 @@ console.log("data : ", data)
   };
 
   // all possible columns
-  const allColumns: GridColDef[] = [
-    { field: "row", headerName: "Row", flex: 1 },
-    { field: "sectionName", headerName: "Section", flex: 1 },
-    { field: "quantity", headerName: "Quantity", type: "number", flex: 1 },
-    { field: "allInPrice", headerName: "All-In Price", type: "number", flex: 1 },
-    { field: "price", headerName: "Price", type: "number", flex: 1 },
-    { field: "total", headerName: "Total", type: "number", flex: 1 },
-    { field: "serviceFee", headerName: "Service Fee", type: "number", flex: 1 },
-    {
-      field: "actions",
-      type: "actions",
-      width: 100,
-      flex: 1,
-      getActions: (params) => [
-        <Button key={params.row.eventId} onClick={() => {}} variant="outlined">
-          Buy
-        </Button>,
-      ],
-    },
-  ];
+const allColumns: GridColDef[] = [
+  { field: "row", headerName: "Row", flex: 0.8, minWidth: 80 },
+  { field: "sectionName", headerName: "Section", flex: 1.5, minWidth: 140 },
+  { field: "quantity", headerName: "Quantity", type: "number", flex: 1, minWidth: 100 },
+  { field: "allInPrice", headerName: "All-In Price", type: "number", flex: 1, minWidth: 120 },
+  { field: "price", headerName: "Price", type: "number", flex: 1, minWidth: 100 },
+  { field: "total", headerName: "Total", type: "number", flex: 1, minWidth: 100 },
+  { field: "serviceFee", headerName: "Service Fee", type: "number", flex: 1, minWidth: 120 },
+  {
+    field: "actions",
+    type: "actions",
+    headerName: "Actions",
+    width: 100, // fixed width for buttons
+    flex: 0,     // flex 0 to prevent squishing other columns
+    getActions: (params) => [
+      <Button key={params.row.eventId} onClick={() => {}} variant="outlined" size="small">
+        Buy
+      </Button>,
+    ],
+  },
+];
+
 
   return (
     <Box>

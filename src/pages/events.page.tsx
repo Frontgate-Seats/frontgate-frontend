@@ -42,44 +42,120 @@ export default function EventsPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
-  const { rows: { data: events, total }, loading: eventsLoading, error: eventsError } = 
-    useSelector((state: RootState) => state.events);
-  const { rows: { data: listingsMeta }, loading: listingsMetaLoading } = 
-    useSelector((state: RootState) => state.listingsMeta);
+  const {
+    rows: { data: events, total },
+    loading: eventsLoading,
+    error: eventsError,
+  } = useSelector((state: RootState) => state.events);
+  const {
+    rows: { data: listingsMeta },
+    loading: listingsMetaLoading,
+  } = useSelector((state: RootState) => state.listingsMeta);
 
-  const [paginationModel, setPaginationModel] = React.useState<GridPaginationModel>({ page: 0, pageSize: 10 });
-  const [sortModel, setSortModel] = React.useState<GridSortModel>([{ field: "utcDate", sort: "asc" }]);
+  const [paginationModel, setPaginationModel] =
+    React.useState<GridPaginationModel>({ page: 0, pageSize: 10 });
+  const [sortModel, setSortModel] = React.useState<GridSortModel>([
+    { field: "utcDate", sort: "asc" },
+  ]);
   const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
-    items: [{ field: "utcDate", operator: "onOrAfter", value: moment().utc().toISOString() }],
+    items: [
+      { field: "category", operator: "equals", value: "Sports" },
+      {
+        field: "utcDate",
+        operator: "onOrAfter",
+        value: moment().utc().toISOString(),
+      },
+    ],
   });
   const [selectedEvent, setSelectedEvent] = React.useState<any | null>(null);
 
   React.useEffect(() => {
-    dispatch(getEvents({ page: paginationModel.page, pageSize: paginationModel.pageSize, sortFields: sortModel, filters: filterModel }));
+    dispatch(
+      getEvents({
+        page: paginationModel.page,
+        pageSize: paginationModel.pageSize,
+        sortFields: sortModel,
+        filters: filterModel,
+      })
+    );
   }, [dispatch, paginationModel, sortModel, filterModel]);
 
   const handleRefresh = React.useCallback(() => {
-    dispatch(getEvents({ page: paginationModel.page, pageSize: paginationModel.pageSize, sortFields: sortModel, filters: filterModel }));
+    dispatch(
+      getEvents({
+        page: paginationModel.page,
+        pageSize: paginationModel.pageSize,
+        sortFields: sortModel,
+        filters: filterModel,
+      })
+    );
   }, [dispatch, paginationModel, sortModel, filterModel]);
 
   const handleRowClick = (row: any) => {
     setSelectedEvent(row);
-    dispatch(getListingsMeta({ filters: { items: [{ field: "eventId", operator: "equals", value: row.eventId }] }, page: 0, pageSize: 1000 }));
+    dispatch(
+      getListingsMeta({
+        filters: {
+          items: [{ field: "eventId", operator: "equals", value: row.eventId }],
+        },
+        page: 0,
+        pageSize: 1000,
+      })
+    );
   };
 
   const columns: GridColDef[] = [
-    { field: "eventId", headerName: "Event ID", flex: 1 },
-    { field: "name", headerName: "Event Name", flex: 1 },
-    { field: "utcDate", headerName: "Date & Time", type: "dateTime", flex: 1,
-      valueFormatter: (value) => value ? moment(value).format("DD/MM/YYYY hh:mm A") : "-" },
-    { field: "venueDBId", headerName: "Venue", flex: 1,
-      valueGetter: (value: any) => value ? `${value.city}, ${value.stateCode} (${value.countryCode})` : "-" },
-    { field: "category", headerName: "Category", flex: 1 },
-    { field: "ticketCount", headerName: "Ticket Count", flex: 1 },
-    { field: "listingCount", headerName: "Listing Count", flex: 1 },
-    { field: "actions", type: "actions", flex: 1, width: 120,
-      getActions: (params) => [<Button key={params.row.eventId} onClick={() => navigate(`/events/${params.row.eventId}/listings`)} variant="contained" size="small">View</Button>] },
-  ];
+  { field: "eventId", headerName: "Event ID", flex: 0.8, minWidth: 120 },
+  { field: "name", headerName: "Event Name", flex: 2, minWidth: 200 },
+  {
+    field: "utcDate",
+    headerName: "Date & Time",
+    type: "dateTime",
+    flex: 1.5,
+    minWidth: 180,
+    valueFormatter: (value) =>
+      value ? moment(value).format("DD/MM/YYYY hh:mm A") : "-",
+  },
+  {
+    field: "venueDBId",
+    headerName: "Venue",
+    flex: 2,
+    minWidth: 220,
+    valueGetter: (value: any) =>
+      value
+        ? `${value.city}, ${value.stateCode} (${value.countryCode})`
+        : "-",
+  },
+  { field: "category", headerName: "Category", flex: 1, minWidth: 140 },
+  { field: "ticketCount", headerName: "Ticket Count", flex: 1, minWidth: 140 },
+  { field: "listingCount", headerName: "Listing Count", flex: 1, minWidth: 140 },
+  {
+    field: "actions",
+    type: "actions",
+    headerName: "Actions",
+    flex: 0,
+    width: 120, // fixed width for action buttons
+    getActions: (params) => [
+      <Button
+        key={params.row.eventId}
+        onClick={(e) => {
+          e.stopPropagation();
+          const url = `/events/${params.row.eventId}/listings`;
+          if (e.ctrlKey || e.metaKey) {
+            window.open(url, "_blank");
+          } else {
+            navigate(url);
+          }
+        }}
+        variant="contained"
+        size="small"
+      >
+        View
+      </Button>,
+    ],
+  },
+];
+
 
   const dataset = listingsMeta.map((item) => ({
     time: moment(item.createdAt).format("MM/DD hh:mm A"),
@@ -89,31 +165,72 @@ export default function EventsPage() {
     getInPriceMin: item.getInPriceMin ?? 0,
   }));
 
-  const leftMax = React.useMemo(() => Math.ceil(Math.max(...dataset.map(d => Math.max(d.priceMin, d.twoPlusPriceMin, d.getInPriceMin))) * 1.1) || 100, [dataset]);
-  const rightMax = React.useMemo(() => Math.max(10, Math.ceil(Math.max(...dataset.map(d => d.tickets)) * 1.1)) || 10, [dataset]);
+  const leftMax = React.useMemo(
+    () =>
+      Math.ceil(
+        Math.max(
+          ...dataset.map((d) =>
+            Math.max(d.priceMin, d.twoPlusPriceMin, d.getInPriceMin)
+          )
+        ) * 1.1
+      ) || 100,
+    [dataset]
+  );
+  const rightMax = React.useMemo(
+    () =>
+      Math.max(
+        10,
+        Math.ceil(Math.max(...dataset.map((d) => d.tickets)) * 1.1)
+      ) || 10,
+    [dataset]
+  );
 
   const lineSeries: LineSeriesType[] = [
-    { type: "line", dataKey: "priceMin", color: "#1976d2", yAxisId: "leftAxis" },
-    { type: "line", dataKey: "twoPlusPriceMin", color: "#ff7043", yAxisId: "leftAxis" },
-    { type: "line", dataKey: "getInPriceMin", color: "#26a69a", yAxisId: "leftAxis" },
+    {
+      type: "line",
+      dataKey: "priceMin",
+      color: "#1976d2",
+      yAxisId: "leftAxis",
+    },
+    {
+      type: "line",
+      dataKey: "twoPlusPriceMin",
+      color: "#ff7043",
+      yAxisId: "leftAxis",
+    },
+    {
+      type: "line",
+      dataKey: "getInPriceMin",
+      color: "#26a69a",
+      yAxisId: "leftAxis",
+    },
   ];
 
   const barSeries: BarSeriesType[] = [
-    { type: "bar", dataKey: "tickets", color: "rgba(144,164,174,0.45)", yAxisId: "rightAxis" },
+    {
+      type: "bar",
+      dataKey: "tickets",
+      color: "rgba(144,164,174,0.45)",
+      yAxisId: "rightAxis",
+    },
   ];
 
   return (
     <Grid container spacing={2}>
-      <Grid size={{xs:12}}>
+      <Grid size={{ xs: 12 }}>
         {selectedEvent && (
           <Box>
             {/* Event Info */}
             <Card variant="outlined" sx={{ mb: 3, boxShadow: 1 }}>
               <CardContent>
-                <Typography variant="h6" fontWeight={600}>{selectedEvent.name}</Typography>
+                <Typography variant="h6" fontWeight={600}>
+                  {selectedEvent.name}
+                </Typography>
                 <Stack spacing={1} divider={<Divider flexItem />}>
                   <Typography variant="body2" color="text.secondary">
-                    {new Date(selectedEvent.localDate).toLocaleString()} | {selectedEvent.venueDBId?.city}, {selectedEvent.venueDBId?.stateCode}
+                    {new Date(selectedEvent.localDate).toLocaleString()} |{" "}
+                    {selectedEvent.venueDBId?.city},{" "}
+                    {selectedEvent.venueDBId?.stateCode}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Category: {selectedEvent.category}
@@ -132,21 +249,38 @@ export default function EventsPage() {
                   <ChartContainer
                     dataset={dataset}
                     series={[...lineSeries, ...barSeries]}
-                    xAxis={[{ dataKey: "time", scaleType: "band", label: "Date & Time" }]}
+                    xAxis={[
+                      {
+                        dataKey: "time",
+                        scaleType: "band",
+                        label: "Date & Time",
+                      },
+                    ]}
                     yAxis={[
-                      { id: "leftAxis", label: "Price ($)", min: 0, max: leftMax },
-                      { id: "rightAxis", label: "Tickets Qty", position: "right", min: 0, max: rightMax },
+                      {
+                        id: "leftAxis",
+                        label: "Price ($)",
+                        min: 0,
+                        max: leftMax,
+                      },
+                      {
+                        id: "rightAxis",
+                        label: "Tickets Qty",
+                        position: "right",
+                        min: 0,
+                        max: rightMax,
+                      },
                     ]}
                     height={400}
                   >
                     <ChartsGrid horizontal />
                     <BarPlot />
                     <LinePlot />
-                    <MarkPlot  color="#ff5252"  />
+                    <MarkPlot />
                     <ChartsXAxis />
                     <ChartsYAxis axisId="leftAxis" />
                     <ChartsYAxis axisId="rightAxis" />
-                    <ChartsTooltip  />
+                    <ChartsTooltip />
                   </ChartContainer>
                 </CardContent>
               </Card>
@@ -154,7 +288,7 @@ export default function EventsPage() {
           </Box>
         )}
 
-        <Grid size={{xs:12}}>
+        <Grid size={{ xs: 12 }}>
           {eventsError ? (
             <Alert severity="error">{eventsError}</Alert>
           ) : (
