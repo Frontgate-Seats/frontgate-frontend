@@ -203,7 +203,6 @@ const allColumns: GridColDef[] = [
             error={error}
             columns={allColumns}
             showToolbar
-            autoHeight
           />
         </Box>
       )}

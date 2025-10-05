@@ -105,57 +105,68 @@ export default function EventsPage() {
   };
 
   const columns: GridColDef[] = [
-  { field: "eventId", headerName: "Event ID", flex: 0.8, minWidth: 120 },
-  { field: "name", headerName: "Event Name", flex: 2, minWidth: 200 },
-  {
-    field: "utcDate",
-    headerName: "Date & Time",
-    type: "dateTime",
-    flex: 1.5,
-    minWidth: 180,
-    valueFormatter: (value) =>
-      value ? moment(value).format("DD/MM/YYYY hh:mm A") : "-",
-  },
-  {
-    field: "venueDBId",
-    headerName: "Venue",
-    flex: 2,
-    minWidth: 220,
-    valueGetter: (value: any) =>
-      value
-        ? `${value.city}, ${value.stateCode} (${value.countryCode})`
-        : "-",
-  },
-  { field: "category", headerName: "Category", flex: 1, minWidth: 140 },
-  { field: "ticketCount", headerName: "Ticket Count", flex: 1, minWidth: 140 },
-  { field: "listingCount", headerName: "Listing Count", flex: 1, minWidth: 140 },
-  {
-    field: "actions",
-    type: "actions",
-    headerName: "Actions",
-    flex: 0,
-    width: 120, // fixed width for action buttons
-    getActions: (params) => [
-      <Button
-        key={params.row.eventId}
-        onClick={(e) => {
-          e.stopPropagation();
-          const url = `/events/${params.row.eventId}/listings`;
-          if (e.ctrlKey || e.metaKey) {
-            window.open(url, "_blank");
-          } else {
-            navigate(url);
-          }
-        }}
-        variant="contained"
-        size="small"
-      >
-        View
-      </Button>,
-    ],
-  },
-];
-
+    { field: "eventId", headerName: "Event ID", flex: 0.8, minWidth: 120 },
+    { field: "name", headerName: "Event Name", flex: 2, minWidth: 200 },
+    {
+      field: "utcDate",
+      headerName: "Date & Time",
+      type: "dateTime",
+      flex: 1.5,
+      minWidth: 180,
+      valueFormatter: (value) =>
+        value ? moment(value).format("DD/MM/YYYY hh:mm A") : "-",
+    },
+    {
+      field: "venueDBId",
+      headerName: "Venue",
+      flex: 2,
+      minWidth: 220,
+      valueGetter: (value: any) =>
+        value
+          ? `${value.city}, ${value.stateCode} (${value.countryCode})`
+          : "-",
+      filterable: false,
+      sortable: false,
+    },
+    { field: "category", headerName: "Category", flex: 1, minWidth: 140 },
+    {
+      field: "ticketCount",
+      headerName: "Ticket Count",
+      flex: 1,
+      minWidth: 140,
+    },
+    {
+      field: "listingCount",
+      headerName: "Listing Count",
+      flex: 1,
+      minWidth: 140,
+    },
+    {
+      field: "actions",
+      type: "actions",
+      headerName: "Actions",
+      flex: 0,
+      width: 120, // fixed width for action buttons
+      getActions: (params) => [
+        <Button
+          key={params.row.eventId}
+          onClick={(e) => {
+            e.stopPropagation();
+            const url = `/events/${params.row.eventId}/listings`;
+            if (e.ctrlKey || e.metaKey) {
+              window.open(url, "_blank");
+            } else {
+              navigate(url);
+            }
+          }}
+          variant="contained"
+          size="small"
+        >
+          View
+        </Button>,
+      ],
+    },
+  ];
 
   const dataset = listingsMeta.map((item) => ({
     time: moment(item.createdAt).format("MM/DD hh:mm A"),
@@ -188,30 +199,41 @@ export default function EventsPage() {
   const lineSeries: LineSeriesType[] = [
     {
       type: "line",
+      label: "Min Price",
       dataKey: "priceMin",
       color: "#1976d2",
       yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+      curve: "monotoneX",
     },
     {
       type: "line",
+      label: "Min Price 2+",
       dataKey: "twoPlusPriceMin",
       color: "#ff7043",
       yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+      curve: "monotoneX",
     },
     {
       type: "line",
+      label: "GetIn Price Min 2+",
       dataKey: "getInPriceMin",
       color: "#26a69a",
       yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+      curve: "monotoneX",
     },
   ];
 
   const barSeries: BarSeriesType[] = [
     {
       type: "bar",
+      label: "Tickets",
       dataKey: "tickets",
       color: "rgba(144,164,174,0.45)",
       yAxisId: "rightAxis",
+      valueFormatter: (v) => (v != null ? `${v}` : "-"),
     },
   ];
 
@@ -221,14 +243,18 @@ export default function EventsPage() {
         {selectedEvent && (
           <Box>
             {/* Event Info */}
-            <Card variant="outlined" sx={{ mb: 3, boxShadow: 1 }}>
+            <Card variant="outlined">
               <CardContent>
                 <Typography variant="h6" fontWeight={600}>
                   {selectedEvent.name}
                 </Typography>
                 <Stack spacing={1} divider={<Divider flexItem />}>
                   <Typography variant="body2" color="text.secondary">
-                    {new Date(selectedEvent.localDate).toLocaleString()} |{" "}
+                    {selectedEvent.localDate
+                      ? moment(selectedEvent.localDate).format(
+                          "DD/MM/YYYY hh:mm A"
+                        )
+                      : "-"}{" "}
                     {selectedEvent.venueDBId?.city},{" "}
                     {selectedEvent.venueDBId?.stateCode}
                   </Typography>
@@ -240,51 +266,66 @@ export default function EventsPage() {
             </Card>
 
             {/* Combo Chart */}
-            {dataset.length > 0 && (
-              <Card sx={{ boxShadow: 1 }}>
-                <CardContent>
-                  <Typography variant="h6" fontWeight={600} gutterBottom>
-                    Event Trends
-                  </Typography>
-                  <ChartContainer
-                    dataset={dataset}
-                    series={[...lineSeries, ...barSeries]}
-                    xAxis={[
-                      {
-                        dataKey: "time",
-                        scaleType: "band",
-                        label: "Date & Time",
-                      },
-                    ]}
-                    yAxis={[
-                      {
-                        id: "leftAxis",
-                        label: "Price ($)",
-                        min: 0,
-                        max: leftMax,
-                      },
-                      {
-                        id: "rightAxis",
-                        label: "Tickets Qty",
-                        position: "right",
-                        min: 0,
-                        max: rightMax,
-                      },
-                    ]}
-                    height={400}
+            <Card>
+              <CardContent sx={{ position: "relative" }}>
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                  Trends
+                </Typography>
+                <ChartContainer
+                  dataset={dataset || []} // fallback to empty array
+                  series={[...lineSeries, ...barSeries]}
+                  xAxis={[
+                    {
+                      dataKey: "time",
+                      scaleType: "band",
+                      label: "Date & Time",
+                    },
+                  ]}
+                  yAxis={[
+                    {
+                      id: "leftAxis",
+                      label: "Price ($)",
+                      min: 0,
+                      max: leftMax,
+                    },
+                    {
+                      id: "rightAxis",
+                      label: "Tickets Qty",
+                      position: "right",
+                      min: 0,
+                      max: rightMax,
+                    },
+                  ]}
+                  height={400}
+                >
+                  <ChartsGrid horizontal />
+                  <BarPlot />
+                  <LinePlot />
+                  <MarkPlot />
+                  <ChartsXAxis />
+                  <ChartsYAxis axisId="leftAxis" />
+                  <ChartsYAxis axisId="rightAxis" />
+                  <ChartsTooltip />
+                </ChartContainer>
+
+                {/* Optional: show a message if no data */}
+                {dataset.length === 0 && (
+                  <Typography
+                    variant="body2"
+                    color="textSecondary"
+                    align="center"
+                    sx={{
+                      position: "absolute",
+                      top: "50%",
+                      left: "50%",
+                      transform: "translate(-50%, -50%)",
+                    }}
                   >
-                    <ChartsGrid horizontal />
-                    <BarPlot />
-                    <LinePlot />
-                    <MarkPlot />
-                    <ChartsXAxis />
-                    <ChartsYAxis axisId="leftAxis" />
-                    <ChartsYAxis axisId="rightAxis" />
-                    <ChartsTooltip />
-                  </ChartContainer>
-                </CardContent>
-              </Card>
-            )}
+                    No data available
+                  </Typography>
+                )}
+              </CardContent>
+            </Card>
           </Box>
         )}
 
@@ -306,7 +347,6 @@ export default function EventsPage() {
               filterModel={filterModel}
               setFilterModel={setFilterModel}
               showToolbar
-              autoHeight
               paginationMode="server"
               sortingMode="server"
               filterMode="server"
