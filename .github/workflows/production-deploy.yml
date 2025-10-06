@@ -1,0 +1,51 @@
+name: Vite React Frontend CI/CD
+
+on:
+  push:
+    branches:
+      - main   # Change if your default branch is different
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout repo
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2️⃣ Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20  # adjust if needed
+
+      # 3️⃣ Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # 4️⃣ Build Vite project
+      - name: Build Vite project
+        env:
+          VITE_APP_SERVER_URL: ${{ secrets.VITE_APP_SERVER_URL }}
+        run: npm run build  # make sure "build": "vite build" exists in package.json
+
+      # 5️⃣ Configure AWS
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # 6️⃣ Deploy to S3
+      - name: Deploy to S3
+        run: |
+          aws s3 sync dist/ s3://${{ secrets.S3_BUCKET }}/ \
+            --delete \
+            --exact-timestamps 
+
+      # Optional: Invalidate CloudFront cache
+      # - name: Invalidate CloudFront
+      #   run: |
+      #     aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_ID }} --paths "/*"
