@@ -17,15 +17,24 @@ const AuthProvider: React.FC<ReactNodeProps> = ({ children }) => {
       dispatch({ type: "auth/logout" });
       navigate("/auth/signin");
     }
-  }, [user, loading]);
+  }, [dispatch, navigate, user, loading]);
 
   // Verify token every 10s
   useEffect(() => {
-    const interval = setInterval(() => {
-      dispatch(verifyToken());
-    }, 1000 * 60 * 60 );
+    const verify = async () => {
+      try {
+        await dispatch(verifyToken()).unwrap();
+      } catch (err) {
+        dispatch({ type: "auth/logout" });
+        navigate("/auth/signin");
+      }
+    };
+
+    verify();
+
+    const interval = setInterval(verify, 1000 * 60);
     return () => clearInterval(interval);
-  }, [dispatch]);
+  }, [dispatch, navigate]);
 
   return <AuthContext.Provider value={null}>{children}</AuthContext.Provider>;
 };
