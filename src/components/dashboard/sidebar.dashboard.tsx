@@ -19,6 +19,7 @@ import {
 import DashboardSidebarHeaderItem from "./headerItem.dashboard";
 import DashboardSidebarPageItem from "./pageItem.dashboard";
 import { useDashboardLayoutContext } from "../../contexts/dashboardLayout.context";
+import StoreIcon from '@mui/icons-material/Store';
 
 export default function DashboardSidebar() {
   const { pathname } = useLocation();
@@ -70,14 +71,6 @@ export default function DashboardSidebar() {
           >
             <DashboardSidebarHeaderItem>Main</DashboardSidebarHeaderItem>
 
-            {/* <DashboardSidebarPageItem
-              id="dashboard"
-              title="Dashboard"
-              icon={<DashboardIcon />}
-              href="/dashboard"
-              selected={!!matchPath("/dashboard/*", pathname) || pathname === "/"}
-            /> */}
-
             <DashboardSidebarPageItem
               id="events"
               title="Events"
@@ -93,7 +86,16 @@ export default function DashboardSidebar() {
               icon={<ListIcon />}
               href="/listings"
               selected={
-                !!matchPath("/listings/*", pathname) || pathname === "/events"
+                !!matchPath("/listings/*", pathname) || pathname === "/listings"
+              }
+            />
+            <DashboardSidebarPageItem
+              id="purchases"
+              title="Purchases"
+              icon={<StoreIcon />}
+              href="/purchases"
+              selected={
+                !!matchPath("/purchases/*", pathname) || pathname === "/purchases"
               }
             />
           </List>

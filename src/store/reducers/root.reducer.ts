@@ -4,6 +4,7 @@ import snackbarReducer from "../slices/snackbar.slice";
 import eventsReducer from "../slices/events.slice";
 import listingsReducer from "../slices/listings.slice";
 import listingsMetaReducer from "../slices/listingsMeta.slice";
+import purchasedReducer from "../slices/purchases.slice";
 
 import type { store } from "..";
 import { useDispatch } from "react-redux";
@@ -14,6 +15,7 @@ const rootReducer = combineReducers({
   events: eventsReducer,
   listings: listingsReducer,
   listingsMeta: listingsMetaReducer,
+  purchases: purchasedReducer
 });
 
 export type RootState = ReturnType<typeof rootReducer>; // <--- optional, for selector typing
