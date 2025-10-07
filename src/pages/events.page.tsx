@@ -152,7 +152,7 @@ export default function EventsPage() {
           key={params.row.eventId}
           onClick={(e) => {
             e.stopPropagation();
-            const url = `/events/${params.row.eventId}/listings`;
+            const url = `/listings/${params.row.eventId}`;
             if (e.ctrlKey || e.metaKey) {
               window.open(url, "_blank");
             } else {
