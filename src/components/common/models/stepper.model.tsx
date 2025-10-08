@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   Box,
   Modal,
@@ -13,64 +13,39 @@ import {
   CircularProgress,
   Stack,
   Grid,
-  Divider,
 } from "@mui/material";
-import type { StepperContext, StepperModalProps } from "./types.model";
+import type { StepperModalProps } from "./types.model";
 
 const StepperModal: React.FC<StepperModalProps> = ({
   open,
   onClose,
-  title,
+
+  activeStep,
+  setActiveStep,
+  initialLoading = false,
+  loadingContent,
+
+  headerContent,
   steps,
+
   layout = "vertical",
-  completionContent,
+
+  successContent,
+  errorContent,
+
+  error,
+  completed,
 }) => {
-  const [activeStep, setActiveStep] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [completed, setCompleted] = useState(false);
-  const [contextData, setContextDataState] = useState<Record<string, any>>({});
 
-  const setContextData = (key: string, value: any) =>
-    setContextDataState((prev) => ({ ...prev, [key]: value }));
+  const currentStep = useMemo(
+    () => (activeStep < steps.length ? steps[activeStep] : null),
+    [activeStep, steps]
+  );
 
-  const nextStep = () =>
-    setActiveStep((prev) => (prev + 1 < steps.length ? prev + 1 : prev));
-
-  const prevStep = () => setActiveStep((prev) => Math.max(prev - 1, 0));
-
-  const currentStep = activeStep < steps.length ? steps[activeStep] : null;
-  const isLastStep = activeStep === steps.length - 1;
-
-  const context: StepperContext = {
-    activeStep,
-    setContextData,
-    contextData,
-    nextStep,
-    prevStep,
-  };
-
-  const handleNext = async () => {
-    if (!currentStep) return;
-    try {
-      setLoading(true);
-      const result = currentStep.onNext
-        ? await currentStep.onNext(context)
-        : true;
-      if (result !== false) {
-        if (isLastStep) setCompleted(true);
-        else nextStep();
-      }
-    } catch (err) {
-      console.error("Stepper next error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleBack = () => {
-    currentStep?.onBack?.(context);
-    prevStep();
-  };
+  const handleBack = useCallback(() => {
+    currentStep?.onBack?.();
+    setActiveStep((prev) => Math.max(prev - 1, 0));
+  }, [currentStep, setActiveStep]);
 
   return (
     <Modal
@@ -96,14 +71,34 @@ const StepperModal: React.FC<StepperModalProps> = ({
             outline: "none",
           }}
         >
-          {title && (
-            <Typography variant="h5" fontWeight={700} textAlign="center" mb={3}>
-              {title}
-            </Typography>
-          )}
-
-          {/* COMPLETED VIEW */}
-          {completed ? (
+          {typeof headerContent === "function"
+            ? headerContent(onClose)
+            : headerContent}
+          {/* ✅ INITIAL LOADER */}
+          {initialLoading ? (
+            <Box
+              sx={{
+                minHeight: 350,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexDirection: "column",
+                textAlign: "center",
+              }}
+            >
+              {loadingContent ? (
+                loadingContent
+              ) : (
+                <>
+                  <CircularProgress size={48} sx={{ mb: 2 }} />
+                  <Typography color="text.secondary">
+                    Loading, please wait...
+                  </Typography>
+                </>
+              )}
+            </Box>
+          ) : error ? (
+            // ✅ ERROR VIEW
             <Box
               sx={{
                 minHeight: 300,
@@ -112,27 +107,26 @@ const StepperModal: React.FC<StepperModalProps> = ({
                 justifyContent: "center",
               }}
             >
-              {typeof completionContent === "function"
-                ? completionContent(contextData, onClose)
-                : completionContent || (
-                    <Stack alignItems="center" spacing={2}>
-                      <Typography
-                        variant="h4"
-                        fontWeight={700}
-                        color="success.main"
-                      >
-                        ✅ Completed!
-                      </Typography>
-                      <Typography color="text.secondary">
-                        Your flow has been successfully completed.
-                      </Typography>
-                      <Button variant="contained" onClick={onClose}>
-                        Close
-                      </Button>
-                    </Stack>
-                  )}
+              {typeof errorContent === "function"
+                ? errorContent(onClose)
+                : errorContent}
+            </Box>
+          ) : completed ? (
+            // ✅ SUCCESS VIEW
+            <Box
+              sx={{
+                minHeight: 300,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {typeof successContent === "function"
+                ? successContent(onClose)
+                : successContent}
             </Box>
           ) : (
+            // ✅ NORMAL FLOW
             <Grid
               container
               spacing={4}
@@ -168,28 +162,15 @@ const StepperModal: React.FC<StepperModalProps> = ({
                         <StepContent>
                           <Box mt={2}>
                             {typeof step.content === "function"
-                              ? step.content(context)
+                              ? step.content(onClose)
                               : step.content}
-
                             <Stack direction="row" spacing={2} mt={3}>
                               {activeStep > 0 && (
                                 <Button variant="outlined" onClick={handleBack}>
                                   Back
                                 </Button>
                               )}
-                              <Button
-                                variant="contained"
-                                onClick={handleNext}
-                                disabled={loading}
-                              >
-                                {loading ? (
-                                  <CircularProgress size={22} color="inherit" />
-                                ) : isLastStep ? (
-                                  "Complete"
-                                ) : (
-                                  "Next"
-                                )}
-                              </Button>
+                              {step.nextButton}
                             </Stack>
                           </Box>
                         </StepContent>
@@ -198,49 +179,6 @@ const StepperModal: React.FC<StepperModalProps> = ({
                   ))}
                 </Stepper>
               </Grid>
-              
-              {/* RIGHT CONTENT PANEL */}
-              {layout !== "vertical" && (
-                <Grid
-                  size={{ xs: 12, md: layout === "side" ? 8 : 12 }}
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "space-between",
-                    height: "100%",
-                  }}
-                >
-                  <Box flex={1}>
-                    {currentStep &&
-                      (typeof currentStep.content === "function"
-                        ? currentStep.content(context)
-                        : currentStep.content)}
-                  </Box>
-
-                  <Divider sx={{ my: 3 }} />
-
-                  <Stack direction="row" spacing={2} justifyContent="flex-end">
-                    {activeStep > 0 && (
-                      <Button variant="outlined" onClick={handleBack}>
-                        Back
-                      </Button>
-                    )}
-                    <Button
-                      variant="contained"
-                      onClick={handleNext}
-                      disabled={loading}
-                    >
-                      {loading ? (
-                        <CircularProgress size={22} color="inherit" />
-                      ) : isLastStep ? (
-                        "Complete"
-                      ) : (
-                        "Next"
-                      )}
-                    </Button>
-                  </Stack>
-                </Grid>
-              )}
             </Grid>
           )}
         </Box>

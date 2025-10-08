@@ -5,40 +5,36 @@ export interface StepData<T = any> {
   label: string;
 
   /** Rendered content (React node or function that returns JSX) */
-  content: React.ReactNode | ((context: StepperContext) => React.ReactNode);
+  content: React.ReactNode | ((onClose: () => void) => React.ReactNode);
 
   /** Called when "Next" is pressed — should resolve true/false or throw error */
-  onNext?: (context: StepperContext) => Promise<boolean> | boolean;
+  nextButton?: React.ReactNode;
 
   /** Called when "Back" is pressed */
-  onBack?: (context: StepperContext) => void;
+  onBack?: () => void;
 
   /** Optional data specific to this step */
   data?: T;
 }
 
-export interface StepperContext {
-  /** Current step index */
-  activeStep: number;
-
-  /** Function to update context data */
-  setContextData: (key: string, value: any) => void;
-
-  /** Retrieve shared context */
-  contextData: Record<string, any>;
-
-  /** Move to the next step */
-  nextStep: () => void;
-
-  /** Move to the previous step */
-  prevStep: () => void;
-}
-
 export interface StepperModalProps {
   open: boolean;
   onClose: () => void;
-  title?: string;
+
+  activeStep: number;
+  setActiveStep: React.Dispatch<React.SetStateAction<number>>;
+
+  headerContent?: React.ReactNode | ((onClose: () => void) => React.ReactNode);
   steps: StepData[];
+
+  initialLoading?: boolean;
+  loadingContent?: React.ReactNode;
+
   layout?: "vertical" | "horizontal" | "side";
-  completionContent?: React.ReactNode | ((contextData: Record<string, any>, onClose: () => void) => React.ReactNode);
+
+  successContent: React.ReactNode | ((onClose: () => void) => React.ReactNode);
+  errorContent: React.ReactNode | ((onClose: () => void) => React.ReactNode);
+
+  completed: boolean;
+  error: boolean;
 }

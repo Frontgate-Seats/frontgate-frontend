@@ -20,7 +20,18 @@ export const fetchListings = async ({
   return httpClient.get("/listings", { params });
 };
 
+export const fetchListingsDetails = async (payload: {
+  listingDBId: string;
+  listingId: string;
+  quantity: number;
+  shippingCountry?: string;
+  exclusiveListings?: boolean;
+}) => {
+  return httpClient.get("/listings/details", { params: payload });
+};
+
 const listingsApi = {
   fetchListings,
+  fetchListingsDetails,
 };
 export default listingsApi;
