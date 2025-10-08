@@ -24,6 +24,58 @@ import { useAppDispatch } from "../store/reducers/root.reducer";
 import { useParams } from "react-router-dom";
 import { createPurchase, resetPurchase } from "../store/slices/purchases.slice";
 import type { GridColDef } from "@mui/x-data-grid";
+import type { StepData } from "../components/common/models/types.model";
+import StepperModal from "../components/common/models/stepper.model";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+
+// 🧩 Simulate delay utility
+const simulateDelay = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+export async function fetchListingDetails(listingId: string): Promise<any> {
+  await simulateDelay(1000);
+
+  // Return mocked listing details
+  return {
+    listing: {
+      pricePer: 150,
+      quantity: 6,
+      section: "Lower Bowl A",
+    },
+    deliveryOptions: [
+      { id: 1, description: "Email Delivery", cost: 0 },
+      { id: 2, description: "Courier Delivery", cost: 15 },
+      { id: 3, description: "Pickup", cost: 5 },
+    ],
+  };
+}
+
+// Step 2: Generate quote
+export async function generateQuote(
+  listing: any,
+  quantity: number,
+  deliveryOption: { id: number; cost: number }
+): Promise<any> {
+  await simulateDelay(1000);
+
+  const total = listing.price * quantity + deliveryOption.cost;
+
+  return {
+    quoteId: `QUOTE-${Math.floor(Math.random() * 10000)}`,
+    totalCharge: total,
+    deliveryCost: deliveryOption.cost,
+  };
+}
+
+// Step 3: Place order
+export async function placeOrder(quoteId: string, listing: any): Promise<any> {
+  await simulateDelay(1200);
+
+  return {
+    orderId: `ORDER-${Math.floor(Math.random() * 100000)}`,
+    message: `Order for ${listing.sectionName} confirmed!`,
+  };
+}
 
 export default function ListingsPage() {
   const dispatch = useAppDispatch();
@@ -205,6 +257,192 @@ export default function ListingsPage() {
     },
   ];
 
+  const onClose = () => setOpen(false);
+  const listing = {
+    listingId: "L-123",
+    sectionName: "Lower Bowl",
+    row: "A",
+    quantity: 4,
+    price: 150,
+    splits: [1, 2, 3, 4],
+  };
+
+  const [quantity, setQuantity] = React.useState<number | null>(null);
+  const [details, setDetails] = React.useState<any>(null);
+  const [delivery, setDelivery] = React.useState<any>(null);
+  const [quote, setQuote] = React.useState<any>(null);
+
+  const steps: StepData[] = [
+    // 🥇 Step 1 — Listing Details
+    {
+      label: "Listing Details",
+      content: (
+        <Box>
+          <Typography variant="h6" fontWeight={600}>
+            {listing.sectionName} — Row {listing.row}
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
+            ${listing.price} per ticket
+          </Typography>
+
+          <TextField
+            select
+            label="Select Quantity"
+            fullWidth
+            sx={{ mb: 3 }}
+            value={quantity ?? ""}
+            onChange={(e) => setQuantity(Number(e.target.value))}
+          >
+            {listing.splits.map((split) => (
+              <MenuItem key={split} value={split}>
+                {split}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <Divider sx={{ my: 2 }} />
+
+          <Typography variant="body1">
+            <strong>Subtotal:</strong>{" "}
+            {quantity
+              ? `$${(listing.price * quantity).toFixed(2)}`
+              : "— Select quantity —"}
+          </Typography>
+
+          <Typography variant="body2" color="text.secondary">
+            (Delivery will be added in the next step)
+          </Typography>
+        </Box>
+      ),
+      onNext: async () => {
+        if (!quantity) return false;
+        const res = await fetchListingDetails(listing.listingId);
+        setDetails(res);
+        return true;
+      },
+    },
+
+    // 🥈 Step 2 — Delivery & Quote
+    {
+      label: "Quote",
+      content: (
+        <Box>
+          {details && (
+            <>
+              <Typography variant="subtitle1" mb={2}>
+                Select your delivery option:
+              </Typography>
+
+              <TextField
+                select
+                label="Delivery Option"
+                fullWidth
+                value={delivery?.id ?? ""}
+                onChange={(e) => {
+                  const opt = details.deliveryOptions.find(
+                    (x: any) => x.id === Number(e.target.value)
+                  );
+                  setDelivery(opt);
+                }}
+              >
+                {details.deliveryOptions.map((opt: any) => (
+                  <MenuItem key={opt.id} value={opt.id}>
+                    {opt.description} (+${opt.cost})
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Typography variant="body1">
+                <strong>Subtotal:</strong> $
+                {(listing.price * (quantity ?? 0)).toFixed(2)}
+              </Typography>
+              <Typography variant="body1">
+                <strong>Delivery:</strong> $
+                {delivery ? delivery.cost.toFixed(2) : "—"}
+              </Typography>
+
+              <Typography
+                variant="h6"
+                fontWeight={700}
+                color="primary"
+                sx={{ mt: 1 }}
+              >
+                Total: $
+                {quantity
+                  ? (listing.price * quantity + (delivery?.cost ?? 0)).toFixed(
+                      2
+                    )
+                  : "—"}
+              </Typography>
+            </>
+          )}
+        </Box>
+      ),
+      onNext: async () => {
+        if (!delivery || !quantity) return false;
+        const res = await generateQuote(listing, quantity, delivery);
+        setQuote(res);
+        return true;
+      },
+    },
+
+    // 🥉 Step 3 — Confirm Order
+    {
+      label: "Confirm Order",
+      content: (
+        <Box>
+          {quote ? (
+            <>
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                Review & Confirm
+              </Typography>
+
+              <Stack spacing={0.5}>
+                <Typography>Quote ID: {quote.quoteId}</Typography>
+                <Typography>
+                  Delivery Cost: ${quote.deliveryCost.toFixed(2)}
+                </Typography>
+                <Typography>
+                  Tickets: {quantity} × ${listing.price.toFixed(2)} = $
+                  {(listing.price * quantity!).toFixed(2)}
+                </Typography>
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="h6" color="primary" fontWeight={700}>
+                  Total: ${quote.totalCharge.toFixed(2)}
+                </Typography>
+              </Stack>
+
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Click “Complete” to confirm your order.
+              </Typography>
+            </>
+          ) : (
+            <Box textAlign="center" py={2}>
+              <CircularProgress />
+            </Box>
+          )}
+        </Box>
+      ),
+      onNext: async () => {
+        if (!quote) return false;
+        await placeOrder(quote.quoteId, listing);
+        return true;
+      },
+    },
+  ];
+
+  React.useEffect(() => {
+    if (details && delivery && quantity) {
+      const total = listing.price * quantity + delivery.cost;
+      setQuote({
+        totalCharge: total,
+        quoteId: "TEMP",
+        deliveryCost: delivery.cost,
+      });
+    }
+  }, [delivery, quantity]);
   return (
     <Box>
       {error ? (
@@ -283,122 +521,144 @@ export default function ListingsPage() {
       )}
 
       {/* BUY MODAL */}
-      <Modal
+      <StepperModal
         open={open}
-        onClose={handleClose}
-        closeAfterTransition
-        slots={{ backdrop: Backdrop }}
-        slotProps={{
-          backdrop: { timeout: 400 },
-        }}
-      >
-        <Fade in={open}>
+        onClose={onClose}
+        steps={steps}
+        layout="vertical"
+        completionContent={(_, close) => (
           <Box
             sx={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              width: "100%",
-              maxWidth: 500,
-              bgcolor: "background.paper",
-              borderRadius: 3,
-              boxShadow: 24,
-              p: 4,
-              outline: "none",
+              height: "100%",
+              minHeight: "70vh",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              px: 3,
             }}
           >
-            {selectedListing ? (
-              <Stack spacing={3}>
-                <Typography variant="h5" fontWeight={700} textAlign="center">
-                  Confirm Purchase
+            {/* ✅ Success Icon */}
+            <CheckCircleOutlineIcon
+              color="success"
+              sx={{
+                fontSize: 90,
+                mb: 2,
+                animation: "popIn 0.4s ease-out",
+                "@keyframes popIn": {
+                  from: { transform: "scale(0.6)", opacity: 0 },
+                  to: { transform: "scale(1)", opacity: 1 },
+                },
+              }}
+            />
+
+            {/* 🏷️ Title */}
+            <Typography
+              variant="h4"
+              fontWeight={700}
+              color="success.main"
+              gutterBottom
+            >
+              Purchase Completed!
+            </Typography>
+
+            {/* 💬 Description */}
+            <Typography
+              variant="body1"
+              color="text.secondary"
+              sx={{ maxWidth: 460, mb: 4 }}
+            >
+              Your order has been successfully placed. Here’s your detailed
+              summary.
+            </Typography>
+
+            {/* 📦 Order Summary */}
+
+            <Typography
+              variant="h6"
+              fontWeight={600}
+              color="text.primary"
+              gutterBottom
+            >
+              Order Summary
+            </Typography>
+
+            <Divider sx={{ mb: 2 }} />
+
+            <Stack
+              spacing={1.4}
+              sx={{
+                width: "100%",
+                maxWidth: 520,
+                textAlign: "left",
+                mb: 4,
+              }}
+            >
+              {/* Inline summary rows — no separate component */}
+              <Box display="flex" justifyContent="space-between">
+                <Typography color="text.secondary">Section</Typography>
+                <Typography fontWeight={500}>
+                  {listing?.sectionName || "-"}
                 </Typography>
+              </Box>
 
-                <Card variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                  <Typography variant="h6" gutterBottom>
-                    {selectedListing.eventName}
-                  </Typography>
+              <Box display="flex" justifyContent="space-between">
+                <Typography color="text.secondary">Row</Typography>
+                <Typography fontWeight={500}>{listing?.row || "-"}</Typography>
+              </Box>
 
-                  <Grid container spacing={1.5}>
-                    <Grid size={{ xs: 12 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Section
-                      </Typography>
-                      <Typography variant="body1" fontWeight={600}>
-                        {selectedListing.sectionName}
-                      </Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Row
-                      </Typography>
-                      <Typography variant="body1" fontWeight={600}>
-                        {selectedListing.row}
-                      </Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Price / Ticket
-                      </Typography>
-                      <Typography variant="body1" fontWeight={600}>
-                        ${selectedListing.price}
-                      </Typography>
-                    </Grid>
-                    {/* <Grid size={{xs:6}}>
-                      <Typography variant="body2" color="text.secondary">
-                        Available Quantities
-                      </Typography>
-                      <Typography variant="body1" fontWeight={600}>
-                        {selectedListing.splits?.join(", ")}
-                      </Typography>
-                    </Grid>*/}
-                  </Grid>
-                </Card>
+              <Box display="flex" justifyContent="space-between">
+                <Typography color="text.secondary">Tickets</Typography>
+                <Typography fontWeight={500}>
+                  {quantity || 0} × ${listing?.price?.toFixed(2) || "0.00"}
+                </Typography>
+              </Box>
 
-                <TextField
-                  select
-                  label="Select Quantity"
-                  fullWidth
-                  value={selectedQty ?? ""}
-                  onChange={(e) => setSelectedQty(Number(e.target.value))}
-                >
-                  {selectedListing.splits?.map((split: number) => (
-                    <MenuItem key={split} value={split}>
-                      {split}
-                    </MenuItem>
-                  ))}
-                </TextField>
+              <Box display="flex" justifyContent="space-between">
+                <Typography color="text.secondary">Delivery</Typography>
+                <Typography fontWeight={500}>
+                  {delivery?.description || "-"} ($
+                  {delivery?.cost?.toFixed(2) || "0.00"})
+                </Typography>
+              </Box>
 
-                <Stack direction="row" justifyContent="flex-end" spacing={2}>
-                  <Button
-                    onClick={handleClose}
-                    variant="outlined"
-                    color="inherit"
-                    disabled={purchaseLoading}
-                    sx={{ borderRadius: 2 }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleConfirmPurchase}
-                    variant="contained"
-                    disabled={purchaseLoading || !selectedQty}
-                    sx={{ borderRadius: 2 }}
-                  >
-                    {purchaseLoading ? (
-                      <CircularProgress size={22} color="inherit" />
-                    ) : (
-                      "Confirm"
-                    )}
-                  </Button>
-                </Stack>
-              </Stack>
-            ) : (
-              <Typography textAlign="center">No listing selected</Typography>
-            )}
+              <Box display="flex" justifyContent="space-between">
+                <Typography color="text.secondary">Quote ID</Typography>
+                <Typography fontWeight={500}>
+                  {quote?.quoteId || "-"}
+                </Typography>
+              </Box>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Box display="flex" justifyContent="space-between">
+                <Typography fontWeight={700}>Total</Typography>
+                <Typography fontWeight={700} color="primary.main">
+                  ${quote?.totalCharge?.toFixed(2) || "0.00"}
+                </Typography>
+              </Box>
+            </Stack>
+
+            {/* 🔘 Close Button */}
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={close}
+              sx={{
+                px: 6,
+                py: 1.4,
+                borderRadius: 2,
+                textTransform: "none",
+                fontSize: "1rem",
+                fontWeight: 600,
+              }}
+            >
+              Close
+            </Button>
           </Box>
-        </Fade>
-      </Modal>
+        )}
+      />
     </Box>
   );
 }
