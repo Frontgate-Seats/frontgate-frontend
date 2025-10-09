@@ -152,26 +152,25 @@ const StepperModal: React.FC<StepperModalProps> = ({
               spacing={4}
               sx={{
                 flexDirection:
-                  layout === "side"
-                    ? { xs: "column", md: "row" }
-                    : layout === "horizontal"
-                    ? "column"
-                    : "column",
+                  layout === "side" ? { xs: "column", md: "row" } : "column",
               }}
             >
-              {/* LEFT STEPPER PANEL */}
+              {/* LEFT STEPPER / TOP STEPPER */}
               <Grid
                 size={{ xs: 12, md: layout === "side" ? 4 : 12 }}
                 sx={{
                   borderRight: layout === "side" ? "1px solid" : "none",
                   borderColor: "divider",
                   pr: layout === "side" ? 3 : 0,
+                  mb: layout !== "side" ? 2 : 0,
                 }}
               >
                 <Stepper
                   activeStep={activeStep}
                   orientation={
-                    layout === "vertical" ? "vertical" : "horizontal"
+                    layout === "side" || layout === "vertical"
+                      ? "vertical"
+                      : "horizontal"
                   }
                   alternativeLabel={layout === "horizontal"}
                 >
@@ -199,6 +198,26 @@ const StepperModal: React.FC<StepperModalProps> = ({
                   ))}
                 </Stepper>
               </Grid>
+              {/* CONTENT PANEL */}
+              {layout !== "vertical" && (
+                <Grid size={{ xs: 12, md: layout === "side" ? 8 : 12 }}>
+                  {currentStep && (
+                    <Box>
+                      {typeof currentStep.content === "function"
+                        ? currentStep.content(onClose)
+                        : currentStep.content}
+                      <Stack direction="row" spacing={2} mt={3}>
+                        {activeStep > 0 && (
+                          <Button variant="outlined" onClick={handleBack}>
+                            Back
+                          </Button>
+                        )}
+                        {currentStep.nextButton}
+                      </Stack>
+                    </Box>
+                  )}
+                </Grid>
+              )}
             </Grid>
           )}
         </Box>

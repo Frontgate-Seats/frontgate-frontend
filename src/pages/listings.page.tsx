@@ -214,16 +214,23 @@ export default function ListingsPage() {
       label: "Listing Details",
       content: (
         <Box>
-          <Typography variant="body1">
-            <strong>Row:</strong> {selectedListing?.row}
-          </Typography>
-          <Typography variant="body1">
-            <strong>Subtotal:</strong> {selectedListing?.sectionName}
-          </Typography>
-          <Typography color="text.secondary" sx={{ mb: 2 }}>
-            ${selectedListing?.price} per ticket
-          </Typography>
-
+          <Box
+            display="flex"
+            gap={2}
+            alignItems="center"
+            flexWrap="wrap"
+            mb={2}
+          >
+            <Typography variant="body2">
+              <strong>Row:</strong> {selectedListing?.row}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Subtotal:</strong> {selectedListing?.sectionName}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Price:</strong> ${selectedListing?.price} per ticket
+            </Typography>
+          </Box>
           <TextField
             select
             label="Select Quantity"
@@ -596,10 +603,7 @@ export default function ListingsPage() {
                     display="flex"
                     justifyContent="space-between"
                   >
-                    <Typography
-                      color="text.secondary"
-                      maxWidth={150}
-                    >
+                    <Typography color="text.secondary" maxWidth={150}>
                       {label}
                     </Typography>
                     <Typography
@@ -767,6 +771,7 @@ export default function ListingsPage() {
             <></>
           )
         }
+        layout="vertical"
       />
     </Container>
   );
