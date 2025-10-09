@@ -10,6 +10,7 @@ import {
   Grid,
   Stack,
   Divider,
+  Container,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import {
@@ -146,7 +147,7 @@ export default function EventsPage() {
       type: "actions",
       headerName: "Actions",
       flex: 0,
-      width: 120, 
+      width: 120,
       getActions: (params) => [
         <Button
           key={params.row.eventId}
@@ -239,95 +240,119 @@ export default function EventsPage() {
   ];
 
   return (
-    <Grid container spacing={2}>
+    <Container maxWidth="xl" sx={{ py: 3 }}>
       <Grid size={{ xs: 12 }}>
         {selectedEvent && (
-          <Box>
-            {/* Event Info */}
-            <Card variant="outlined">
-              <CardContent>
-                <Typography variant="h6" fontWeight={600}>
-                  {selectedEvent.name}
-                </Typography>
-                <Stack spacing={1} divider={<Divider flexItem />}>
-                  <Typography variant="body2" color="text.secondary">
-                    {selectedEvent.localDate
-                      ? moment(selectedEvent.localDate).format(
-                          "DD/MM/YYYY hh:mm A"
-                        )
-                      : "-"}{" "}
-                    {selectedEvent.venueDBId?.city},{" "}
-                    {selectedEvent.venueDBId?.stateCode}
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12 }}>
+              {/* Event Info */}
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="h4" fontWeight="bold" gutterBottom>
+                    {selectedEvent?.name}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Category: {selectedEvent.category}
+                  <Divider sx={{ mb: 2 }} />
+                  <Grid container spacing={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Date & Time (UTC)
+                      </Typography>
+                      <Typography variant="body1">
+                        {selectedEvent?.utcDate
+                          ? moment(selectedEvent?.utcDate).format(
+                              "DD/MM/YYYY hh:mm A"
+                            )
+                          : ""}
+                      </Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Venue
+                      </Typography>
+                      <Typography variant="body1">
+                        {selectedEvent?.venueDBId
+                          ? `${selectedEvent?.venueDBId?.city}, ${selectedEvent?.venueDBId?.stateCode} (${selectedEvent?.venueDBId.countryCode})`
+                          : "-"}
+                      </Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Performer
+                      </Typography>
+                      <Typography variant="body1">
+                        {selectedEvent?.performerDBId
+                          ? `${selectedEvent?.performerDBId?.name}`
+                          : "-"}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              {/* Combo Chart */}
+              <Card variant="outlined">
+                <CardContent sx={{ position: "relative" }}>
+                  <Typography variant="h6" fontWeight={600} gutterBottom>
+                    Trends
                   </Typography>
-                </Stack>
-              </CardContent>
-            </Card>
-
-            {/* Combo Chart */}
-            <Card>
-              <CardContent sx={{ position: "relative" }}>
-                <Typography variant="h6" fontWeight={600} gutterBottom>
-                  Trends
-                </Typography>
-                <ChartContainer
-                  dataset={dataset || []} // fallback to empty array
-                  series={[...lineSeries, ...barSeries]}
-                  xAxis={[
-                    {
-                      dataKey: "time",
-                      scaleType: "band",
-                      label: "Date & Time",
-                    },
-                  ]}
-                  yAxis={[
-                    {
-                      id: "leftAxis",
-                      label: "Price ($)",
-                      min: 0,
-                      max: leftMax,
-                    },
-                    {
-                      id: "rightAxis",
-                      label: "Tickets Qty",
-                      position: "right",
-                      min: 0,
-                      max: rightMax,
-                    },
-                  ]}
-                  height={400}
-                >
-                  <ChartsGrid horizontal />
-                  <BarPlot />
-                  <LinePlot />
-                  <MarkPlot />
-                  <ChartsXAxis />
-                  <ChartsYAxis axisId="leftAxis" />
-                  <ChartsYAxis axisId="rightAxis" />
-                  <ChartsTooltip />
-                </ChartContainer>
-
-                {/* Optional: show a message if no data */}
-                {dataset.length === 0 && (
-                  <Typography
-                    variant="body2"
-                    color="textSecondary"
-                    align="center"
-                    sx={{
-                      position: "absolute",
-                      top: "50%",
-                      left: "50%",
-                      transform: "translate(-50%, -50%)",
-                    }}
+                  <ChartContainer
+                    dataset={dataset || []} // fallback to empty array
+                    series={[...lineSeries, ...barSeries]}
+                    xAxis={[
+                      {
+                        dataKey: "time",
+                        scaleType: "band",
+                        label: "Date & Time",
+                      },
+                    ]}
+                    yAxis={[
+                      {
+                        id: "leftAxis",
+                        label: "Price ($)",
+                        min: 0,
+                        max: leftMax,
+                      },
+                      {
+                        id: "rightAxis",
+                        label: "Tickets Qty",
+                        position: "right",
+                        min: 0,
+                        max: rightMax,
+                      },
+                    ]}
+                    height={400}
                   >
-                    No data available
-                  </Typography>
-                )}
-              </CardContent>
-            </Card>
-          </Box>
+                    <ChartsGrid horizontal />
+                    <BarPlot />
+                    <LinePlot />
+                    <MarkPlot />
+                    <ChartsXAxis />
+                    <ChartsYAxis axisId="leftAxis" />
+                    <ChartsYAxis axisId="rightAxis" />
+                    <ChartsTooltip />
+                  </ChartContainer>
+
+                  {/* Optional: show a message if no data */}
+                  {dataset.length === 0 && (
+                    <Typography
+                      variant="body2"
+                      color="textSecondary"
+                      align="center"
+                      sx={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                      }}
+                    >
+                      No data available
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
         )}
 
         <Grid size={{ xs: 12 }}>
@@ -357,6 +382,6 @@ export default function EventsPage() {
           )}
         </Grid>
       </Grid>
-    </Grid>
+    </Container>
   );
 }
