@@ -43,7 +43,7 @@ export const createOrder = async (payload: {
 
   currency?: string;
 }) => {
-  return httpClient.post("/purchases/quote", payload);
+  return httpClient.post("/purchases/order", payload);
 };
 
 const purchasesApi = {
