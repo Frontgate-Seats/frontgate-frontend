@@ -282,7 +282,7 @@ export default function ListingsPage() {
     },
 
     {
-      label: "Delivery & Quote",
+      label: "Quote",
       content: (
         <Box>
           <Typography variant="subtitle1" fontWeight={600} mb={2}>
@@ -357,13 +357,13 @@ export default function ListingsPage() {
           loading={purchasesLoading}
           sx={{ borderRadius: 2 }}
         >
-          Next
+          Get Quote
         </Button>
       ),
     },
 
     {
-      label: "Confirm Order",
+      label: "Order",
       content: (
         <Box>
           <Typography variant="h6" fontWeight={600} gutterBottom>
@@ -410,7 +410,7 @@ export default function ListingsPage() {
           loading={purchasesLoading}
           sx={{ borderRadius: 2 }}
         >
-          Confirm
+          Confirm Order
         </Button>
       ),
     },
@@ -554,8 +554,22 @@ export default function ListingsPage() {
             >
               <Stack spacing={1.5}>
                 {[
-                  ["Section", selectedListing?.sectionName],
+                  ["Event", eventInfo?.name || "—"],
+                  [
+                    "Date & Time (UTC)",
+                    eventInfo?.utcDate
+                      ? moment(eventInfo?.utcDate).format("DD/MM/YYYY hh:mm A")
+                      : "-",
+                  ],
+                  [
+                    "Venue",
+                    venueInfo
+                      ? `${venueInfo?.city}, ${venueInfo?.stateCode} (${venueInfo.countryCode})`
+                      : "-",
+                  ],
+                  ["Performer", performerInfo?.name || "-"],
                   ["Row", selectedListing?.row],
+                  ["Section", selectedListing?.sectionName],
                   [
                     "Tickets",
                     `${quantity || 0} × $${
@@ -582,8 +596,19 @@ export default function ListingsPage() {
                     display="flex"
                     justifyContent="space-between"
                   >
-                    <Typography color="text.secondary">{label}</Typography>
-                    <Typography fontWeight={500}>{value}</Typography>
+                    <Typography
+                      color="text.secondary"
+                      maxWidth={150}
+                    >
+                      {label}
+                    </Typography>
+                    <Typography
+                      fontWeight={500}
+                      maxWidth={250}
+                      textAlign="right"
+                    >
+                      {value}
+                    </Typography>
                   </Box>
                 ))}
 
@@ -637,7 +662,7 @@ export default function ListingsPage() {
             <ErrorOutlineIcon color="error" sx={{ fontSize: 100, mb: 1 }} />
 
             <Typography variant="h4" fontWeight={700} color="error.main">
-              Payment Failed
+              Error
             </Typography>
 
             <Typography
@@ -645,40 +670,23 @@ export default function ListingsPage() {
               color="text.secondary"
               sx={{ maxWidth: 480, mb: 3 }}
             >
-              {listingsDetailsError?.message ??
-                "Something went wrong during the transaction. Please retry."}
+              {"Something went wrong during the transaction. Please retry."}
             </Typography>
 
-            <Stack direction="row" spacing={2}>
-              <Button
-                variant="outlined"
-                color="error"
-                onClick={listingsDetailsError}
-                sx={{
-                  px: 4,
-                  py: 1.2,
-                  borderRadius: 2,
-                  fontWeight: 600,
-                  textTransform: "none",
-                }}
-              >
-                Try Again
-              </Button>
-              <Button
-                variant="contained"
-                color="error"
-                onClick={close}
-                sx={{
-                  px: 4,
-                  py: 1.2,
-                  borderRadius: 2,
-                  fontWeight: 600,
-                  textTransform: "none",
-                }}
-              >
-                Cancel
-              </Button>
-            </Stack>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={close}
+              sx={{
+                px: 4,
+                py: 1.2,
+                borderRadius: 2,
+                fontWeight: 600,
+                textTransform: "none",
+              }}
+            >
+              Cancel
+            </Button>
           </Box>
         )}
         headerContent={(close) =>

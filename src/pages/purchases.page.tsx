@@ -161,7 +161,7 @@ const columns: GridColDef[] = [
             <Alert severity="error">{purchasesError}</Alert>
           ) : (
             <DataGridPage
-              title="Events"
+              title="Purchases"
               rows={purchases}
               rowCount={total}
               columns={columns}

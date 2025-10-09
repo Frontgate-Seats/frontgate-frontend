@@ -87,9 +87,13 @@ const StepperModal: React.FC<StepperModalProps> = ({
           >
             <CloseIcon />
           </IconButton>
-          {typeof headerContent === "function"
-            ? headerContent(onClose)
-            : headerContent}
+          {error || completed ? (
+            <></>
+          ) : typeof headerContent === "function" ? (
+            headerContent(onClose)
+          ) : (
+            headerContent
+          )}
           {/* ✅ INITIAL LOADER */}
           {initialLoading ? (
             <Box

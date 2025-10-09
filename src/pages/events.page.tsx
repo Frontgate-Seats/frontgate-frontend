@@ -69,7 +69,7 @@ export default function EventsPage() {
       },
     ],
   });
-  const [selectedEvent, setSelectedEvent] = React.useState<any | null>(null);
+  const [selectedEvent, setSelectedEvent] = React.useState<any>(null);
 
   React.useEffect(() => {
     dispatch(
@@ -94,6 +94,7 @@ export default function EventsPage() {
   }, [dispatch, paginationModel, sortModel, filterModel]);
 
   const handleRowClick = (row: any) => {
+     if (row.eventId === selectedEvent?.eventId) return;
     setSelectedEvent(row);
     dispatch(
       getListingsMeta({
@@ -135,20 +136,20 @@ export default function EventsPage() {
       field: "ticketCount",
       headerName: "Ticket Count",
       flex: 1,
-      minWidth: 140,
+      minWidth: 120,
     },
     {
       field: "listingCount",
       headerName: "Listing Count",
       flex: 1,
-      minWidth: 140,
+      minWidth: 120,
     },
     {
       field: "actions",
       type: "actions",
       headerName: "Actions",
       flex: 0,
-      width: 120,
+      width: 160,
       getActions: (params) => [
         <Button
           key={params.row.eventId}
@@ -165,7 +166,7 @@ export default function EventsPage() {
           size="small"
           sx={{ borderRadius: 2 }}
         >
-          View
+          View Listings
         </Button>,
       ],
     },
