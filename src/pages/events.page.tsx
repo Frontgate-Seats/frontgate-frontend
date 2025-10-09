@@ -109,7 +109,7 @@ export default function EventsPage() {
     { field: "name", headerName: "Event Name", flex: 2, minWidth: 200 },
     {
       field: "utcDate",
-      headerName: "Date & Time",
+      headerName: "Date & Time (UTC)",
       type: "dateTime",
       flex: 1.5,
       minWidth: 180,
@@ -146,7 +146,7 @@ export default function EventsPage() {
       type: "actions",
       headerName: "Actions",
       flex: 0,
-      width: 120, // fixed width for action buttons
+      width: 120, 
       getActions: (params) => [
         <Button
           key={params.row.eventId}
@@ -161,6 +161,7 @@ export default function EventsPage() {
           }}
           variant="contained"
           size="small"
+          sx={{ borderRadius: 2 }}
         >
           View
         </Button>,

@@ -28,6 +28,7 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import { getSingleListingsDetails } from "../store/slices/listingsDetails.slice";
 import { createOrder, createQuote } from "../store/slices/purchases.slice";
+import moment from "moment";
 
 export default function ListingsPage() {
   const dispatch = useAppDispatch();
@@ -60,8 +61,18 @@ export default function ListingsPage() {
   const [modelCompleted, setMdelCompleted] = React.useState(false);
 
   const eventInfo = React.useMemo(() => {
-    if (!listingsData.length) return null;
-    return listingsData[0].eventDBId || null;
+    if (!listingsData?.length) return {};
+    return listingsData?.[0]?.eventDBId || {};
+  }, [listingsData]);
+
+  const venueInfo = React.useMemo(() => {
+    if (!listingsData?.length) return {};
+    return listingsData?.[0]?.venueDBId || {};
+  }, [listingsData]);
+
+  const performerInfo = React.useMemo(() => {
+    if (!listingsData?.length) return {};
+    return listingsData?.[0]?.performerDBId || {};
   }, [listingsData]);
 
   const flattenedRows = React.useMemo(() => {
@@ -184,15 +195,29 @@ export default function ListingsPage() {
     },
   ];
 
+  React.useEffect(() => {
+    setQuantity(
+      Number(
+        selectedListing?.splits?.[selectedListing?.splits?.length - 1] ?? 0
+      )
+    );
+  }, [selectedListing?.splits]);
+
+  React.useEffect(() => {
+    setDeliveryId(
+      String(listingsDetailsDataObj?.deliveryOptions?.[0]?.id ?? "")
+    );
+  }, [listingsDetailsDataObj?.deliveryOptions]);
+
   const steps: StepData[] = [
     {
       label: "Listing Details",
       content: (
         <Box>
-          <Typography variant="body1" >
+          <Typography variant="body1">
             <strong>Row:</strong> {selectedListing?.row}
           </Typography>
-          <Typography variant="body1" >
+          <Typography variant="body1">
             <strong>Subtotal:</strong> {selectedListing?.sectionName}
           </Typography>
           <Typography color="text.secondary" sx={{ mb: 2 }}>
@@ -204,7 +229,7 @@ export default function ListingsPage() {
             label="Select Quantity"
             fullWidth
             sx={{ mb: 3 }}
-            value={quantity ?? ""}
+            value={quantity}
             onChange={(e) => setQuantity(Number(e.target.value))}
           >
             {selectedListing?.splits?.map((split: any) => (
@@ -268,7 +293,7 @@ export default function ListingsPage() {
             select
             label="Delivery Method"
             fullWidth
-            value={deliveryId ?? ""}
+            value={deliveryId}
             onChange={(e) => setDeliveryId(String(e.target.value))}
           >
             {listingsDetailsDataObj?.deliveryOptions?.map((opt: any) => (
@@ -406,16 +431,20 @@ export default function ListingsPage() {
             >
               <CardContent>
                 <Typography variant="h4" fontWeight="bold" gutterBottom>
-                  {eventInfo.name}
+                  {eventInfo?.name}
                 </Typography>
                 <Divider sx={{ mb: 2 }} />
                 <Grid container spacing={3}>
                   <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                     <Typography variant="body2" color="text.secondary">
-                      Date & Time
+                      Date & Time (UTC)
                     </Typography>
                     <Typography variant="body1">
-                      {new Date(eventInfo.utcDate).toLocaleString()}
+                      {eventInfo?.utcDate
+                        ? moment(eventInfo?.utcDate).format(
+                            "DD/MM/YYYY hh:mm A"
+                          )
+                        : ""}
                     </Typography>
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -423,15 +452,17 @@ export default function ListingsPage() {
                       Venue
                     </Typography>
                     <Typography variant="body1">
-                      {eventInfo.venue?.name || eventInfo.venueId}
+                      {venueInfo
+                        ? `${venueInfo?.city}, ${venueInfo?.stateCode} (${venueInfo.countryCode})`
+                        : "-"}
                     </Typography>
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                     <Typography variant="body2" color="text.secondary">
-                      Category
+                      Performer
                     </Typography>
                     <Typography variant="body1">
-                      {eventInfo.category}
+                      {performerInfo ? `${performerInfo?.name}` : "-"}
                     </Typography>
                   </Grid>
                 </Grid>
@@ -651,49 +682,76 @@ export default function ListingsPage() {
           </Box>
         )}
         headerContent={(close) => (
-          <>
-            {eventInfo && (
-              <Card
-                variant="outlined"
-                sx={{
-                  mb: 1,
-                }}
-              >
-                <CardContent>
-                  <Typography variant="h4" fontWeight="bold" gutterBottom>
-                    {eventInfo.name}
+          <Card
+            variant="outlined"
+            sx={{
+              mb: 1,
+              borderRadius: 2,
+              p: 0,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+            }}
+          >
+            <CardContent
+              sx={{
+                p: 1.5, // balanced compact padding
+                "&:last-child": { pb: 1.5 },
+              }}
+            >
+              <Typography variant="subtitle1" fontWeight={700}>
+                {eventInfo?.name || "—"}
+              </Typography>
+
+              <Divider sx={{ mb: 1 }} />
+
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ lineHeight: 1 }}
+                    fontWeight={600}
+                  >
+                    Date & Time (UTC)
                   </Typography>
-                  <Divider sx={{ mb: 2 }} />
-                  <Grid container spacing={3}>
-                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Date & Time
-                      </Typography>
-                      <Typography variant="body1">
-                        {new Date(eventInfo.utcDate).toLocaleString()}
-                      </Typography>
-                    </Grid>
-                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Venue
-                      </Typography>
-                      <Typography variant="body1">
-                        {eventInfo.venue?.name || eventInfo.venueId}
-                      </Typography>
-                    </Grid>
-                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Category
-                      </Typography>
-                      <Typography variant="body1">
-                        {eventInfo.category}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                </CardContent>
-              </Card>
-            )}
-          </>
+                  <Typography variant="caption">
+                    {eventInfo?.utcDate
+                      ? moment(eventInfo?.utcDate).format("DD/MM/YYYY hh:mm A")
+                      : "-"}
+                  </Typography>
+                </Grid>
+
+                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ lineHeight: 1 }}
+                    fontWeight={600}
+                  >
+                    Venue
+                  </Typography>
+                  <Typography variant="caption">
+                    {venueInfo
+                      ? `${venueInfo?.city}, ${venueInfo?.stateCode} (${venueInfo.countryCode})`
+                      : "-"}
+                  </Typography>
+                </Grid>
+
+                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ lineHeight: 1 }}
+                    fontWeight={600}
+                  >
+                    Performer
+                  </Typography>
+                  <Typography variant="caption">
+                    {performerInfo?.name || "-"}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
         )}
       />
     </Container>

@@ -13,8 +13,10 @@ import {
   CircularProgress,
   Stack,
   Grid,
+  IconButton,
 } from "@mui/material";
 import type { StepperModalProps } from "./types.model";
+import CloseIcon from "@mui/icons-material/Close";
 
 const StepperModal: React.FC<StepperModalProps> = ({
   open,
@@ -36,7 +38,6 @@ const StepperModal: React.FC<StepperModalProps> = ({
   error,
   completed,
 }) => {
-
   const currentStep = useMemo(
     () => (activeStep < steps.length ? steps[activeStep] : null),
     [activeStep, steps]
@@ -50,7 +51,10 @@ const StepperModal: React.FC<StepperModalProps> = ({
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={(_, reason) => {
+        if (reason === "backdropClick") return;
+        onClose();
+      }}
       closeAfterTransition
       slots={{ backdrop: Backdrop }}
       slotProps={{ backdrop: { timeout: 400 } }}
@@ -71,6 +75,18 @@ const StepperModal: React.FC<StepperModalProps> = ({
             outline: "none",
           }}
         >
+          <IconButton
+            onClick={onClose}
+            sx={{
+              position: "absolute",
+              top: 5,
+              right: 5,
+              color: "text.secondary",
+              "&:hover": { color: "text.primary" },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
           {typeof headerContent === "function"
             ? headerContent(onClose)
             : headerContent}
