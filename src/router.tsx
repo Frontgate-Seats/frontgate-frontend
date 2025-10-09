@@ -39,7 +39,7 @@ export const route: RouteObject[] = [
     children: [
       {
         index: true,
-        element: <EventsPage />,
+        element: <Navigate to="/events" replace />,
       },
       // {
       //   path: "/dashboard",
@@ -77,7 +77,7 @@ export const route: RouteObject[] = [
     children: [
       {
         index: true,
-        element: <SignInAuthPage />,
+        element: <Navigate to="/dashboard" replace />,
       },
       {
         path: "/auth/signin",

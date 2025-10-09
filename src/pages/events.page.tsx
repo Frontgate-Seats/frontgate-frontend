@@ -11,6 +11,7 @@ import {
   Stack,
   Divider,
   Container,
+  CircularProgress,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import {
@@ -280,8 +281,11 @@ export default function EventsPage() {
                         Performer
                       </Typography>
                       <Typography variant="body1">
-                        {selectedEvent?.performerDBId
-                          ? `${selectedEvent?.performerDBId?.name}`
+                        {selectedEvent?.performerDBIds?.length
+                          ? selectedEvent.performerDBIds
+                              .map((p: any) => p?.name)
+                              .filter(Boolean)
+                              .join(", ")
                           : "-"}
                       </Typography>
                     </Grid>
@@ -333,6 +337,34 @@ export default function EventsPage() {
                     <ChartsTooltip />
                   </ChartContainer>
 
+                  {listingsMetaLoading && (
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        inset: 0,
+                        bgcolor: "rgba(255,255,255,0.4)",
+                        backdropFilter: "blur(4px)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 5,
+                        transition: "opacity 0.3s ease",
+                      }}
+                    >
+                      <CircularProgress
+                        size={32}
+                        thickness={4}
+                        sx={{
+                          color: "primary.main",
+                          animation: "pulse 1.2s ease-in-out infinite",
+                          "@keyframes pulse": {
+                            "0%, 100%": { opacity: 0.4, transform: "scale(1)" },
+                            "50%": { opacity: 1, transform: "scale(1.15)" },
+                          },
+                        }}
+                      />
+                    </Box>
+                  )}
                   {/* Optional: show a message if no data */}
                   {dataset.length === 0 && (
                     <Typography
@@ -364,7 +396,7 @@ export default function EventsPage() {
               rows={events}
               rowCount={total}
               columns={columns}
-              isLoading={eventsLoading || listingsMetaLoading}
+              isLoading={eventsLoading}
               error={eventsError as any}
               paginationModel={paginationModel}
               setPaginationModel={setPaginationModel}

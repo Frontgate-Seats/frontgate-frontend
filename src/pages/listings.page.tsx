@@ -422,7 +422,7 @@ export default function ListingsPage() {
         <Alert severity="error">{listingsError}</Alert>
       ) : (
         <>
-          {eventInfo && (
+          {eventInfo?.name && (
             <Card
               variant="outlined"
               sx={{
@@ -681,78 +681,84 @@ export default function ListingsPage() {
             </Stack>
           </Box>
         )}
-        headerContent={(close) => (
-          <Card
-            variant="outlined"
-            sx={{
-              mb: 1,
-              borderRadius: 2,
-              p: 0,
-              boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-            }}
-          >
-            <CardContent
+        headerContent={(close) =>
+          eventInfo?.name ? (
+            <Card
+              variant="outlined"
               sx={{
-                p: 1.5, // balanced compact padding
-                "&:last-child": { pb: 1.5 },
+                mb: 1,
+                borderRadius: 2,
+                p: 0,
+                boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
               }}
             >
-              <Typography variant="subtitle1" fontWeight={700}>
-                {eventInfo?.name || "—"}
-              </Typography>
+              <CardContent
+                sx={{
+                  p: 1.5, // balanced compact padding
+                  "&:last-child": { pb: 1.5 },
+                }}
+              >
+                <Typography variant="subtitle1" fontWeight={700}>
+                  {eventInfo?.name || "—"}
+                </Typography>
 
-              <Divider sx={{ mb: 1 }} />
+                <Divider sx={{ mb: 1 }} />
 
-              <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ lineHeight: 1 }}
-                    fontWeight={600}
-                  >
-                    Date & Time (UTC)
-                  </Typography>
-                  <Typography variant="caption">
-                    {eventInfo?.utcDate
-                      ? moment(eventInfo?.utcDate).format("DD/MM/YYYY hh:mm A")
-                      : "-"}
-                  </Typography>
+                <Grid container spacing={1.5}>
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ lineHeight: 1 }}
+                      fontWeight={600}
+                    >
+                      Date & Time (UTC)
+                    </Typography>
+                    <Typography variant="caption">
+                      {eventInfo?.utcDate
+                        ? moment(eventInfo?.utcDate).format(
+                            "DD/MM/YYYY hh:mm A"
+                          )
+                        : "-"}
+                    </Typography>
+                  </Grid>
+
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ lineHeight: 1 }}
+                      fontWeight={600}
+                    >
+                      Venue
+                    </Typography>
+                    <Typography variant="caption">
+                      {venueInfo
+                        ? `${venueInfo?.city}, ${venueInfo?.stateCode} (${venueInfo.countryCode})`
+                        : "-"}
+                    </Typography>
+                  </Grid>
+
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ lineHeight: 1 }}
+                      fontWeight={600}
+                    >
+                      Performer
+                    </Typography>
+                    <Typography variant="caption">
+                      {performerInfo?.name || "-"}
+                    </Typography>
+                  </Grid>
                 </Grid>
-
-                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ lineHeight: 1 }}
-                    fontWeight={600}
-                  >
-                    Venue
-                  </Typography>
-                  <Typography variant="caption">
-                    {venueInfo
-                      ? `${venueInfo?.city}, ${venueInfo?.stateCode} (${venueInfo.countryCode})`
-                      : "-"}
-                  </Typography>
-                </Grid>
-
-                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ lineHeight: 1 }}
-                    fontWeight={600}
-                  >
-                    Performer
-                  </Typography>
-                  <Typography variant="caption">
-                    {performerInfo?.name || "-"}
-                  </Typography>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
+          ) : (
+            <></>
+          )
+        }
       />
     </Container>
   );
