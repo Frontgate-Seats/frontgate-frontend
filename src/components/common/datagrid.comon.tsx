@@ -5,13 +5,13 @@ import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
 import {
-  DataGrid,
+  DataGridPro,
   type GridColDef,
   type GridPaginationModel,
   type GridSortModel,
   type GridFilterModel,
   type GridEventListener,
-} from "@mui/x-data-grid";
+} from "@mui/x-data-grid-pro";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
 const INITIAL_PAGE_SIZE = 10;
@@ -95,7 +95,7 @@ export default function DataGridPage({
       ) : (
         <Box sx={{ height: 600, width: "100%" }}>
           {/* Wrapper for scroll */}
-          <DataGrid
+          <DataGridPro
             rows={rows}
             getRowId={(row) => row._id || row.id}
             rowCount={rowCount}

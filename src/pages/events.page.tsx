@@ -29,6 +29,7 @@ import {
   MarkPlot,
   type BarSeriesType,
   type LineSeriesType,
+  type MarkElementProps,
 } from "@mui/x-charts";
 import type {
   GridColDef,
@@ -59,12 +60,12 @@ export default function EventsPage() {
   ];
 
   const intervalOptionsMap: Record<string, string[]> = {
-    "1d": ["5m", "10m", "15m", "30m", "1h"],
+    "1d": ["10m", "30m", "1h", "3h"],
     "7d": ["30m", "1h", "3h", "6h"],
-    "30d": ["6h", "12h", "1d"],
-    "3m": ["12h", "1d"],
-    "6m": ["1d", "7d"],
-    "1y": ["1d", "7d", "30d"],
+    "30d": ["3h", "6h", "12h", "1d"],
+    "3m": ["6h", "12h", "1d", "7d"],
+    "6m": ["12h", "1d", "7d", "30d"],
+    "1y": ["1d", "7d", "30d", "90d", "180d"],
   };
 
   const defaultInterval = (range: string) =>
@@ -179,7 +180,7 @@ export default function EventsPage() {
     };
 
     dispatch(getListingsMeta({ filters, page: -1, pageSize: -1 }));
-  }, [selectedEvent, timeRange, interval, dispatch]);
+  }, [selectedEvent, timeRange, dispatch]);
 
   const columns: GridColDef[] = [
     { field: "eventId", headerName: "Event ID", flex: 0.8, minWidth: 120 },
@@ -247,6 +248,7 @@ export default function EventsPage() {
   ];
 
   // Dataset with aligned buckets and carry-forward
+  // WITH AVG
   const dataset = React.useMemo(() => {
     if (!listingsMeta || listingsMeta.length === 0) return [];
 
@@ -269,6 +271,7 @@ export default function EventsPage() {
     const startBucket = Math.floor(minTime / intervalMs) * intervalMs;
     const endBucket = Math.ceil(maxTime / intervalMs) * intervalMs;
 
+    // Group original data by bucket for averaging
     const grouped: Record<number, any[]> = {};
     sortedData.forEach((item) => {
       const time = moment.utc(item.createdAt).valueOf();
@@ -287,21 +290,26 @@ export default function EventsPage() {
 
     for (let t = startBucket; t <= endBucket; t += intervalMs) {
       const arr = grouped[t] || [];
+
       if (arr.length === 0) {
+        // No data for this bucket → replicate last value
         result.push({
           ...lastValue,
           time: moment.utc(t).local().format("DD/MM/YYYY hh:mm A"),
           bucketStartUTC: moment.utc(t).toISOString(),
         });
       } else {
+        // Compute average for this bucket
         const avg = (field: string) =>
           arr.reduce((sum, i) => sum + (i[field] ?? 0), 0) / arr.length;
+
         lastValue = {
           tickets: Math.round(avg("ticketCount")),
           priceMin: +avg("priceMin").toFixed(2),
           twoPlusPriceMin: +avg("twoPlusPriceMin").toFixed(2),
           getInPriceMin: +avg("getInPriceMin").toFixed(2),
         };
+
         result.push({
           ...lastValue,
           time: moment.utc(t).local().format("DD/MM/YYYY hh:mm A"),
@@ -312,6 +320,76 @@ export default function EventsPage() {
 
     return result;
   }, [listingsMeta, interval]);
+
+  // WITHOUTAVG
+  //   const dataset = React.useMemo(() => {
+  //   if (!listingsMeta || listingsMeta.length === 0) return [];
+
+  //   const intervalMs = interval.endsWith("d")
+  //     ? parseInt(interval) * 24 * 60 * 60 * 1000
+  //     : interval.endsWith("h")
+  //     ? parseInt(interval) * 60 * 60 * 1000
+  //     : parseInt(interval) * 60 * 1000;
+
+  //   const sortedData = [...listingsMeta].sort(
+  //     (a, b) =>
+  //       moment.utc(a.createdAt).valueOf() - moment.utc(b.createdAt).valueOf()
+  //   );
+
+  //   const minTime = moment.utc(sortedData[0].createdAt).valueOf();
+  //   const maxTime = moment
+  //     .utc(sortedData[sortedData.length - 1].createdAt)
+  //     .valueOf();
+
+  //   const startBucket = Math.floor(minTime / intervalMs) * intervalMs;
+  //   const endBucket = Math.ceil(maxTime / intervalMs) * intervalMs;
+
+  //   // Group original data by bucket without averaging
+  //   const grouped: Record<number, any[]> = {};
+  //   sortedData.forEach((item) => {
+  //     const time = moment.utc(item.createdAt).valueOf();
+  //     const bucket = Math.floor(time / intervalMs) * intervalMs;
+  //     if (!grouped[bucket]) grouped[bucket] = [];
+  //     grouped[bucket].push(item);
+  //   });
+
+  //   const result: any[] = [];
+  //   let lastValue = {
+  //     tickets: 0,
+  //     priceMin: 0,
+  //     twoPlusPriceMin: 0,
+  //     getInPriceMin: 0,
+  //   };
+
+  //   for (let t = startBucket; t <= endBucket; t += intervalMs) {
+  //     const arr = grouped[t] || [];
+
+  //     if (arr.length === 0) {
+  //       // No data → replicate last known value
+  //       result.push({
+  //         ...lastValue,
+  //         time: moment.utc(t).local().format("DD/MM/YYYY hh:mm A"),
+  //         bucketStartUTC: moment.utc(t).toISOString(),
+  //       });
+  //     } else {
+  //       // Use the first entry in this bucket without averaging
+  //       lastValue = {
+  //         tickets: arr[0].ticketCount,
+  //         priceMin: arr[0].priceMin,
+  //         twoPlusPriceMin: arr[0].twoPlusPriceMin,
+  //         getInPriceMin: arr[0].getInPriceMin,
+  //       };
+
+  //       result.push({
+  //         ...lastValue,
+  //         time: moment.utc(t).local().format("DD/MM/YYYY hh:mm A"),
+  //         bucketStartUTC: moment.utc(t).toISOString(),
+  //       });
+  //     }
+  //   }
+
+  //   return result;
+  // }, [listingsMeta, interval]);
 
   const leftMax = React.useMemo(
     () =>
@@ -341,7 +419,7 @@ export default function EventsPage() {
       color: "#1976d2",
       yAxisId: "leftAxis",
       valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-      curve: "monotoneX"
+      curve: "natural",
     },
     {
       type: "line",
@@ -350,7 +428,7 @@ export default function EventsPage() {
       color: "#ff7043",
       yAxisId: "leftAxis",
       valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-      curve: "monotoneX",
+      curve: "natural",
     },
     {
       type: "line",
@@ -359,7 +437,7 @@ export default function EventsPage() {
       color: "#26a69a",
       yAxisId: "leftAxis",
       valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-      curve: "monotoneX",
+      curve: "natural",
     },
   ];
 
@@ -434,6 +512,7 @@ export default function EventsPage() {
                     direction="row"
                     justifyContent="space-between"
                     sx={{ mb: 3 }}
+                    flexWrap={"wrap"}
                   >
                     <Typography variant="h6" fontWeight={600} gutterBottom>
                       Trends
@@ -499,12 +578,32 @@ export default function EventsPage() {
                         max: rightMax,
                       },
                     ]}
-                    height={400}
+                    height={300}
                   >
                     <ChartsGrid horizontal />
                     <BarPlot />
                     <LinePlot />
-                    <MarkPlot />
+                    <MarkPlot
+                      slots={{
+                        mark: ({ x, y, color, isHighlighted }) => (
+                          <circle
+                            cx={x}
+                            cy={y}
+                            r={isHighlighted ? 5 : 3} // bigger on hover
+                            fill={isHighlighted ? color : "transparent"} // use series color automatically
+                            stroke={color} // optional border
+                            strokeWidth={5}
+                          />
+                        ),
+                      }}
+                      slotProps={{
+                        mark: {
+                          shape: "circle", // default shape, required
+                          skipAnimation: false,
+                        },
+                      }}
+                    />
+
                     <ChartsXAxis />
                     <ChartsYAxis axisId="leftAxis" />
                     <ChartsYAxis axisId="rightAxis" />
