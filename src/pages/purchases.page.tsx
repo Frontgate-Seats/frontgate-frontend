@@ -6,12 +6,7 @@ import {
   type GridPaginationModel,
   type GridSortModel,
 } from "@mui/x-data-grid";
-import {
-  Typography,
-  Chip,
-  Grid,
-  Alert,
-} from "@mui/material";
+import { Typography, Chip, Grid, Alert, Container } from "@mui/material";
 import type { AppDispatch, RootState } from "../store";
 import { getPurchases } from "../store/slices/purchases.slice";
 import DataGridPage from "../components/common/datagrid.comon";
@@ -62,71 +57,111 @@ const PurchasesPage: React.FC = () => {
     );
   }, [dispatch, paginationModel, sortModel, filterModel]);
 
-  const columns: GridColDef[] = [
-    { field: "eventId", headerName: "Event ID", flex: 1, minWidth: 150 },
-    { field: "listingId", headerName: "Listing ID", flex: 1, minWidth: 150 },
-    { field: "quantity", headerName: "Quantity", flex: 0.5, minWidth: 100 },
-    { field: "unitAmount", headerName: "Price Per", flex: 0.5, minWidth: 120 },
-    {
-      field: "totalAmount",
-      headerName: "Total Amount",
-      flex: 0.5,
-      minWidth: 120,
-      renderCell: (params) => (
-        <Typography fontWeight={600}>
-          ${params.value?.toFixed?.(2) || 0}
-        </Typography>
-      ),
-    },
-    {
-      field: "status",
-      headerName: "Status",
-      flex: 0.6,
-      minWidth: 130,
-      renderCell: (params) => {
-        const status = params.value?.toUpperCase?.() || "PENDING";
-        let color: "default" | "error" | "success" | "warning" | "info" =
-          "default";
+const columns: GridColDef[] = [
+  {
+    field: "eventId",
+    headerName: "Event ID",
+    flex: 1,
+    minWidth: 160,
+  },
+  {
+    field: "listingId",
+    headerName: "Listing ID",
+    flex: 1,
+    minWidth: 160,
+  },
+  {
+    field: "row",
+    headerName: "Row",
+    flex: 0.5,
+    minWidth: 100,
+  },
+  {
+    field: "sectionName",
+    headerName: "Section",
+    flex: 0.7,
+    minWidth: 120,
+  },
+  {
+    field: "quantity",
+    headerName: "Qty",
+    flex: 0.4,
+    minWidth: 90,
+    align: "center",
+    headerAlign: "center",
+  },
+  {
+    field: "pricePer",
+    headerName: "Price/Unit",
+    flex: 0.6,
+    minWidth: 120,
+    renderCell: (params) => (
+      <Typography fontWeight={500}>${params.value?.toFixed?.(2) || 0}</Typography>
+    ),
+  },
+  {
+    field: "totalAmount",
+    headerName: "Total ($)",
+    flex: 0.7,
+    minWidth: 130,
+    renderCell: (params) => (
+      <Typography fontWeight={600} color="text.primary">
+        ${params.value?.toFixed?.(2) || 0}
+      </Typography>
+    ),
+  },
+  {
+    field: "status",
+    headerName: "Status",
+    flex: 0.6,
+    minWidth: 130,
+    renderCell: (params) => {
+      const status = params.value?.toUpperCase?.() || "INIT";
+      let color: "default" | "error" | "success" | "warning" | "info" = "default";
 
-        switch (status) {
-          case "COMPLETED":
-            color = "success";
-            break;
-          case "CANCELLED":
-          case "FAILED":
-            color = "error";
-            break;
-          case "PENDING":
-            color = "warning";
-            break;
-          default:
-            color = "info";
-        }
+      switch (status) {
+        case "DELIVERED":
+          color = "success";
+          break;
+        case "CANCELLED":
+          color = "error";
+          break;
+        case "INIT":
+          color = "warning";
+          break;
+        case "CREATED":
+        case "CONFIRMED":
+          color = "info";
+          break;
+        default:
+          color = "default";
+      }
 
-        return (
-          <Chip
-            label={status}
-            color={color}
-            size="small"
-            sx={{
-              fontWeight: 600,
-              textTransform: "capitalize",
-            }}
-          />
-        );
-      },
+      return (
+        <Chip
+          label={status}
+          color={color}
+          size="small"
+          sx={{
+            fontWeight: 600,
+            textTransform: "capitalize",
+          }}
+        />
+      );
     },
-  ];
+  },
+];
+
 
   return (
-    <Grid container spacing={2}>
+    <Container maxWidth="xl" sx={{ py: 3 }}>
       <Grid size={{ xs: 12 }}>
         <Grid size={{ xs: 12 }}>
           {purchasesError ? (
             <Alert severity="error">{purchasesError}</Alert>
           ) : (
             <DataGridPage
-              title="Events"
+              title="Purchases"
               rows={purchases}
               rowCount={total}
               columns={columns}
@@ -147,7 +182,7 @@ const PurchasesPage: React.FC = () => {
           )}
         </Grid>
       </Grid>
-    </Grid>
+    </Container>
   );
 };
 

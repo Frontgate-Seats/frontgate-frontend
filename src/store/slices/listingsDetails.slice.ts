@@ -1,7 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { setSnackbar } from "./snackbar.slice";
 import listingsApi from "../../apis/listings.api";
-import type { DataGridQueryOptions } from "../../shared/types/mui.type";
 
 export interface EventsState {
   loading: boolean;
@@ -26,11 +25,20 @@ const initialState: EventsState = {
 };
 
 // Async thunk to fetch listings
-export const getListings = createAsyncThunk(
-  "listings",
-  async (data: DataGridQueryOptions, { dispatch, rejectWithValue }) => {
+export const getSingleListingsDetails = createAsyncThunk(
+  "listings/listingsDetais",
+  async (
+    data: {
+      listingDBId: string;
+      listingId: string;
+      quantity: number;
+      shippingCountry?: string;
+      exclusiveListings?: boolean;
+    },
+    { dispatch, rejectWithValue }
+  ) => {
     try {
-      const response = await listingsApi.fetchListings(data);
+      const response = await listingsApi.fetchListingsDetails(data);
       return response.data;
     } catch (err: any) {
       const message = err?.message || "Failed to fetch listings";
@@ -46,15 +54,15 @@ const listingsSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(getListings.pending, (state) => {
+      .addCase(getSingleListingsDetails.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(getListings.fulfilled, (state, action) => {
+      .addCase(getSingleListingsDetails.fulfilled, (state, action) => {
         state.loading = false;
-        state.rows = action.payload.data;
+        state.data = action.payload.data;
       })
-      .addCase(getListings.rejected, (state, action) => {
+      .addCase(getSingleListingsDetails.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || "Something went wrong";
       });

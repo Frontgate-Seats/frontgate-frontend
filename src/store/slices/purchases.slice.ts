@@ -38,32 +38,57 @@ export const getPurchases = createAsyncThunk(
 );
 
 // 🔹 Create Purchase
-export const createPurchase = createAsyncThunk(
-  "purchases/createPurchase",
+export const createQuote = createAsyncThunk(
+  "purchases/createQuote",
   async (
     data: {
-      quantity: number;
-      row: string;
-      section: string;
-      eventId: string;
-      eventDBId: string;
-      venueId: string;
-      venueDBId: string;
-      performerId: string;
-      performerDBId: string;
-      listingId: string;
       listingDBId: string;
-      providerDBId: string;
+      listingId: string;
+      deliveryMethodId: string;
+
+      quantity: number;
+
+      exclusiveListings?: boolean;
+      shippingCountry?: string;
     },
     { dispatch, rejectWithValue }
   ) => {
     try {
-      const response = await purchasesApi.createPurchase(data);
-      const message = response?.data?.message || "Purchase created successfully";
+      const response = await purchasesApi.createQuote(data);
+      const message = response?.data?.message || "Quote created successfully";
       dispatch(setSnackbar({ message, severity: "success" }));
       return response.data;
     } catch (err: any) {
-      const message = err?.message || "Failed to create purchase";
+      const message = err?.message || "Failed to create Quote";
+      dispatch(setSnackbar({ message, severity: "error" }));
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const createOrder = createAsyncThunk(
+  "purchases/createOrder",
+  async (
+    data: {
+      listingDBId: string;
+      listingId: string;
+      deliveryMethodId: string;
+      quoteId: string;
+      totalAmount: number;
+      quantity: number;
+      pricePer: number;
+
+      currency?: string;
+    },
+    { dispatch, rejectWithValue }
+  ) => {
+    try {
+      const response = await purchasesApi.createOrder(data);
+      const message = response?.data?.message || "Order created successfully";
+      dispatch(setSnackbar({ message, severity: "success" }));
+      return response.data;
+    } catch (err: any) {
+      const message = err?.message || "Failed to create Order";
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
@@ -96,19 +121,32 @@ const purchasesSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-
-      // 🔹 Create Purchase
-      .addCase(createPurchase.pending, (state) => {
+      .addCase(createQuote.pending, (state) => {
         state.loading = true;
         state.error = null;
         state.success = false;
       })
-      .addCase(createPurchase.fulfilled, (state, action) => {
+      .addCase(createQuote.fulfilled, (state, action) => {
         state.loading = false;
         state.success = true;
-        state.data = action.payload?.data || {};
+        state.data = action.payload?.data;
       })
-      .addCase(createPurchase.rejected, (state, action) => {
+      .addCase(createQuote.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+        state.success = false;
+      })
+      .addCase(createOrder.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.success = false;
+      })
+      .addCase(createOrder.fulfilled, (state, action) => {
+        state.loading = false;
+        state.success = true;
+        state.data = action.payload?.data;
+      })
+      .addCase(createOrder.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
         state.success = false;
