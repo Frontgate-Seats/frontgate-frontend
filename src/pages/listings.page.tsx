@@ -20,7 +20,7 @@ import DataGridPage from "../components/common/datagrid.comon";
 import type { RootState } from "../store";
 import { getListings } from "../store/slices/listings.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import type { GridColDef } from "@mui/x-data-grid";
 import type { StepData } from "../components/common/models/types.model";
 import StepperModal from "../components/common/models/stepper.model";
@@ -32,6 +32,7 @@ import moment from "moment";
 
 export default function ListingsPage() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { eventId } = useParams();
 
   const {
@@ -90,14 +91,12 @@ export default function ListingsPage() {
           performerId: listing.performerId,
           providerDBId: listing.providerDBId,
           row: ld.row,
-          sectionName: ld.sectionName,
-          longSectionName: ld.longSectionName,
+          section: ld.section,
           quantity: ld.quantity,
           allInPrice: ld.allInPrice,
           price: ld.price,
           total: ld.total,
           serviceFee: ld.serviceFee,
-          faceValue: ld.faceValue,
           tags: ld.tags?.join(", "),
           splits: ld.splits,
           currency: listing.currency || "USD",
@@ -225,7 +224,7 @@ export default function ListingsPage() {
               <strong>Row:</strong> {selectedListing?.row}
             </Typography>
             <Typography variant="body2">
-              <strong>Subtotal:</strong> {selectedListing?.sectionName}
+              <strong>Subtotal:</strong> {selectedListing?.section}
             </Typography>
             <Typography variant="body2">
               <strong>Price:</strong> ${selectedListing?.price} per ticket
@@ -576,7 +575,7 @@ export default function ListingsPage() {
                   ],
                   ["Performer", performerInfo?.name || "-"],
                   ["Row", selectedListing?.row],
-                  ["Section", selectedListing?.sectionName],
+                  ["Section", selectedListing?.section],
                   [
                     "Tickets",
                     `${quantity || 0} × $${
@@ -621,7 +620,7 @@ export default function ListingsPage() {
                 <Box display="flex" justifyContent="space-between">
                   <Typography fontWeight={700}>Total</Typography>
                   <Typography fontWeight={700} color="primary.main">
-                    ${purchasesDataObj?.totalCharge?.toFixed(2) || "0.00"}
+                    ${purchasesDataObj?.payment?.paid?.toFixed(2) || "0.00"}
                   </Typography>
                 </Box>
               </Stack>
@@ -630,7 +629,16 @@ export default function ListingsPage() {
             <Button
               variant="contained"
               color="primary"
-              onClick={close}
+              onClick={(e) => {
+                close();
+                e.stopPropagation();
+                const url = `/purchases`;
+                if (e.ctrlKey || e.metaKey) {
+                  window.open(url, "_blank");
+                } else {
+                  navigate(url);
+                }
+              }}
               sx={{
                 mt: 4,
                 px: 6,

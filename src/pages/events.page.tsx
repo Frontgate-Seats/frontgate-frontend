@@ -589,10 +589,8 @@ export default function EventsPage() {
                           <circle
                             cx={x}
                             cy={y}
-                            r={isHighlighted ? 5 : 3} // bigger on hover
+                            r={5} // bigger on hover
                             fill={isHighlighted ? color : "transparent"} // use series color automatically
-                            stroke={color} // optional border
-                            strokeWidth={5}
                           />
                         ),
                       }}
