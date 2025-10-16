@@ -29,7 +29,6 @@ import {
   MarkPlot,
   type BarSeriesType,
   type LineSeriesType,
-  type MarkElementProps,
 } from "@mui/x-charts";
 import type {
   GridColDef,

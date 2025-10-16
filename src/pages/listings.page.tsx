@@ -701,7 +701,7 @@ export default function ListingsPage() {
             </Button>
           </Box>
         )}
-        headerContent={(close) =>
+        headerContent={(_) =>
           eventInfo?.name ? (
             <Card
               variant="outlined"
