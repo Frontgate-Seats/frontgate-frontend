@@ -29,7 +29,6 @@ import {
   MarkPlot,
   type BarSeriesType,
   type LineSeriesType,
-  type MarkElementProps,
 } from "@mui/x-charts";
 import type {
   GridColDef,
@@ -44,6 +43,10 @@ import type { RootState } from "../store";
 import { getEvents } from "../store/slices/events.slice";
 import { getListingsMeta } from "../store/slices/listingsMeta.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import dayjs from "dayjs";
 
 export default function EventsPage() {
   const dispatch = useAppDispatch();
@@ -60,11 +63,11 @@ export default function EventsPage() {
   ];
 
   const intervalOptionsMap: Record<string, string[]> = {
-    "1d": ["10m", "30m", "1h", "3h"],
-    "7d": ["30m", "1h", "3h", "6h"],
-    "30d": ["3h", "6h", "12h", "1d"],
-    "3m": ["6h", "12h", "1d", "7d"],
-    "6m": ["12h", "1d", "7d", "30d"],
+    "1d": ["10m", "30m", "1h", "3h", "6h"],
+    "7d": ["30m", "1h", "3h", "6h","12h", "1d"],
+    "30d": ["3h", "6h", "12h", "1d", "3d", "7d"],
+    "3m": ["6h", "12h", "1d", "7d", "30d"],
+    "6m": ["12h", "1d", "7d", "30d", "90d"],
     "1y": ["1d", "7d", "30d", "90d", "180d"],
   };
 
@@ -89,7 +92,7 @@ export default function EventsPage() {
   ]);
   const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
     items: [
-      { field: "category", operator: "equals", value: "Sports" },
+      { field: "category", operator: "is", value: "Sports" },
       {
         field: "utcDate",
         operator: "onOrAfter",
@@ -99,8 +102,8 @@ export default function EventsPage() {
   });
 
   const [selectedEvent, setSelectedEvent] = React.useState<any>(null);
-  const [timeRange, setTimeRange] = React.useState("1d");
-  const [interval, setInterval] = React.useState(defaultInterval("1d"));
+  const [timeRange, setTimeRange] = React.useState("7d");
+  const [interval, setInterval] = React.useState(defaultInterval("7d"));
 
   // Update interval when timeRange changes
   React.useEffect(() => {
@@ -183,8 +186,20 @@ export default function EventsPage() {
   }, [selectedEvent, timeRange, dispatch]);
 
   const columns: GridColDef[] = [
-    { field: "eventId", headerName: "Event ID", flex: 0.8, minWidth: 120 },
-    { field: "name", headerName: "Event Name", flex: 2, minWidth: 200 },
+    {
+      field: "eventId",
+      headerName: "Event ID",
+      flex: 0.8,
+      minWidth: 120,
+      type: "number",
+    },
+    {
+      field: "name",
+      headerName: "Event Name",
+      flex: 2,
+      minWidth: 200,
+      type: "string",
+    },
     {
       field: "utcDate",
       headerName: "Date & Time (UTC)",
@@ -192,7 +207,22 @@ export default function EventsPage() {
       flex: 1.5,
       minWidth: 180,
       valueFormatter: (value) =>
-        value ? moment(value).format("DD/MM/YYYY hh:mm A") : "-",
+        value ? moment(value).format("MM/DD/YYYY hh:mm A") : "-",
+      renderEditCell: (params) => (
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DateTimePicker
+            value={params.value ? dayjs(params.value) : dayjs()}
+            onChange={(value) =>
+              params.api.setEditCellValue({
+                id: params.id,
+                field: params.field,
+                value: value,
+              })
+            }
+            minDateTime={dayjs()} // prevent past selection
+          />
+        </LocalizationProvider>
+      ),
     },
     {
       field: "venueDBId",
@@ -206,18 +236,27 @@ export default function EventsPage() {
       filterable: false,
       sortable: false,
     },
-    { field: "category", headerName: "Category", flex: 1, minWidth: 140 },
+    {
+      field: "category",
+      headerName: "Category",
+      flex: 1,
+      minWidth: 140,
+      type: "singleSelect",
+      valueOptions: ["Sports"],
+    },
     {
       field: "ticketCount",
       headerName: "Ticket Count",
       flex: 1,
       minWidth: 120,
+      type: "number",
     },
     {
       field: "listingCount",
       headerName: "Listing Count",
       flex: 1,
       minWidth: 120,
+      type: "number",
     },
     {
       field: "actions",

@@ -163,14 +163,14 @@ export default function ListingsPage() {
   };
 
   const allColumns: GridColDef[] = [
-    { field: "row", headerName: "Row", flex: 0.6 },
-    { field: "sectionName", headerName: "Section", flex: 1.2 },
+    { field: "row", headerName: "Row", flex: 0.6, type: "string" },
+    { field: "section", headerName: "Section", flex: 1.2, type: "string" },
     { field: "quantity", headerName: "Qty", flex: 0.5, type: "number" },
     {
       field: "allInPrice",
       headerName: "All-In Price",
-      type: "number",
       flex: 0.8,
+      type: "number",
     },
     { field: "price", headerName: "Price", type: "number", flex: 0.8 },
     { field: "total", headerName: "Total", type: "number", flex: 0.8 },
@@ -701,7 +701,7 @@ export default function ListingsPage() {
             </Button>
           </Box>
         )}
-        headerContent={(close) =>
+        headerContent={() =>
           eventInfo?.name ? (
             <Card
               variant="outlined"
