@@ -3,7 +3,7 @@ name: Vite React Frontend CI/CD
 on:
   push:
     branches:
-      - develop   # Change if your default branch is different
+      - main   # Change if your default branch is different
 
 jobs:
   build-and-deploy:
