@@ -71,8 +71,7 @@ export default function EventsPage() {
     "1y": ["30d", "90d", "180d"],
   };
 
-  const defaultInterval = (range: string) =>
-    intervalOptionsMap[range][2];
+  const defaultInterval = (range: string) => intervalOptionsMap[range][2];
 
   const {
     rows: { data: events, total },
@@ -92,7 +91,6 @@ export default function EventsPage() {
   ]);
   const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
     items: [
-      { field: "category", operator: "is", value: "Sports" },
       {
         field: "utcDate",
         operator: "onOrAfter",
@@ -208,7 +206,7 @@ export default function EventsPage() {
       flex: 1,
       minWidth: 140,
       type: "singleSelect",
-      valueOptions: ["Sports"],
+      valueOptions: ["Sports", "Concerts", "Theater"],
     },
     {
       field: "ticketCount",
