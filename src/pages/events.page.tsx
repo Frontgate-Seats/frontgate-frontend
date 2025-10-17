@@ -43,9 +43,9 @@ import type { RootState } from "../store";
 import { getEvents } from "../store/slices/events.slice";
 import { getListingsMeta } from "../store/slices/listingsMeta.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import dayjs from "dayjs";
 
 export default function EventsPage() {
@@ -64,15 +64,15 @@ export default function EventsPage() {
 
   const intervalOptionsMap: Record<string, string[]> = {
     "1d": ["10m", "30m", "1h", "3h", "6h"],
-    "7d": ["30m", "1h", "3h", "6h","12h", "1d"],
-    "30d": ["3h", "6h", "12h", "1d", "3d", "7d"],
-    "3m": ["6h", "12h", "1d", "7d", "30d"],
-    "6m": ["12h", "1d", "7d", "30d", "90d"],
-    "1y": ["1d", "7d", "30d", "90d", "180d"],
+    "7d": ["3h", "6h", "12h", "1d", "3d"],
+    "30d": ["12h", "1d", "3d", "7d", "15d"],
+    "3m": ["3d", "7d", "30d"],
+    "6m": ["7d", "30d", "90d"],
+    "1y": ["30d", "90d", "180d"],
   };
 
   const defaultInterval = (range: string) =>
-    intervalOptionsMap[range][intervalOptionsMap[range]?.length - 1];
+    intervalOptionsMap[range][2];
 
   const {
     rows: { data: events, total },
@@ -102,8 +102,8 @@ export default function EventsPage() {
   });
 
   const [selectedEvent, setSelectedEvent] = React.useState<any>(null);
-  const [timeRange, setTimeRange] = React.useState("7d");
-  const [interval, setInterval] = React.useState(defaultInterval("7d"));
+  const [timeRange, setTimeRange] = React.useState("1d");
+  const [interval, setInterval] = React.useState(defaultInterval("1d"));
 
   // Update interval when timeRange changes
   React.useEffect(() => {
@@ -142,48 +142,14 @@ export default function EventsPage() {
   React.useEffect(() => {
     if (!selectedEvent) return;
 
-    const now = moment().utc();
-    let fromDate = now.clone();
-
-    switch (timeRange) {
-      case "1d":
-        fromDate.subtract(1, "day");
-        break;
-      case "7d":
-        fromDate.subtract(7, "days");
-        break;
-      case "30d":
-        fromDate.subtract(30, "days");
-        break;
-      case "3m":
-        fromDate.subtract(3, "months");
-        break;
-      case "6m":
-        fromDate.subtract(6, "months");
-        break;
-      case "1y":
-        fromDate.subtract(1, "year");
-        break;
-    }
-
     const filters = {
       items: [
         { field: "eventId", operator: "equals", value: selectedEvent.eventId },
-        {
-          field: "createdAt",
-          operator: "onOrAfter",
-          value: fromDate.toISOString(),
-        },
-        {
-          field: "createdAt",
-          operator: "onOrBefore",
-          value: now.toISOString(),
-        },
       ],
     };
 
     dispatch(getListingsMeta({ filters, page: -1, pageSize: -1 }));
-  }, [selectedEvent, timeRange, dispatch]);
+  }, [selectedEvent, dispatch]);
 
   const columns: GridColDef[] = [
     {
@@ -291,6 +257,33 @@ export default function EventsPage() {
   const dataset = React.useMemo(() => {
     if (!listingsMeta || listingsMeta.length === 0) return [];
 
+    const now = moment.utc();
+    const fromDate = now.clone();
+
+    switch (timeRange) {
+      case "1d":
+        fromDate.subtract(1, "day");
+        break;
+      case "7d":
+        fromDate.subtract(7, "days");
+        break;
+      case "30d":
+        fromDate.subtract(30, "days");
+        break;
+      case "3m":
+        fromDate.subtract(3, "months");
+        break;
+      case "6m":
+        fromDate.subtract(6, "months");
+        break;
+      case "1y":
+        fromDate.subtract(1, "year");
+        break;
+    }
+
+    const rangeStart = fromDate.valueOf();
+    const rangeEnd = now.valueOf();
+
     const intervalMs = interval.endsWith("d")
       ? parseInt(interval) * 24 * 60 * 60 * 1000
       : interval.endsWith("h")
@@ -302,17 +295,25 @@ export default function EventsPage() {
         moment.utc(a.createdAt).valueOf() - moment.utc(b.createdAt).valueOf()
     );
 
-    const minTime = moment.utc(sortedData[0].createdAt).valueOf();
-    const maxTime = moment
-      .utc(sortedData[sortedData.length - 1].createdAt)
-      .valueOf();
+    // find last known value BEFORE range start (for replication)
+    let lastBeforeRange = null;
+    for (let i = sortedData.length - 1; i >= 0; i--) {
+      const t = moment.utc(sortedData[i].createdAt).valueOf();
+      if (t < rangeStart) {
+        lastBeforeRange = sortedData[i];
+        break;
+      }
+    }
 
-    const startBucket = Math.floor(minTime / intervalMs) * intervalMs;
-    const endBucket = Math.ceil(maxTime / intervalMs) * intervalMs;
+    // filter within range only for charting
+    const rangeData = sortedData.filter((item) => {
+      const t = moment.utc(item.createdAt).valueOf();
+      return t >= rangeStart && t <= rangeEnd;
+    });
 
-    // Group original data by bucket for averaging
+    // group by buckets
     const grouped: Record<number, any[]> = {};
-    sortedData.forEach((item) => {
+    rangeData.forEach((item) => {
       const time = moment.utc(item.createdAt).valueOf();
       const bucket = Math.floor(time / intervalMs) * intervalMs;
       if (!grouped[bucket]) grouped[bucket] = [];
@@ -320,25 +321,35 @@ export default function EventsPage() {
     });
 
     const result: any[] = [];
-    let lastValue = {
-      tickets: 0,
-      priceMin: 0,
-      twoPlusPriceMin: 0,
-      getInPriceMin: 0,
-    };
+    let lastValue = lastBeforeRange
+      ? {
+          tickets: lastBeforeRange.ticketCount ?? 0,
+          priceMin: lastBeforeRange.priceMin ?? 0,
+          twoPlusPriceMin: lastBeforeRange.twoPlusPriceMin ?? 0,
+          getInPriceMin: lastBeforeRange.getInPriceMin ?? 0,
+        }
+      : {
+          tickets: 0,
+          priceMin: 0,
+          twoPlusPriceMin: 0,
+          getInPriceMin: 0,
+        };
+
+    const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
+    const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
 
     for (let t = startBucket; t <= endBucket; t += intervalMs) {
       const arr = grouped[t] || [];
 
       if (arr.length === 0) {
-        // No data for this bucket → replicate last value
+        // No data → replicate last known value
         result.push({
           ...lastValue,
           time: moment.utc(t).local().format("DD/MM/YYYY hh:mm A"),
           bucketStartUTC: moment.utc(t).toISOString(),
         });
       } else {
-        // Compute average for this bucket
+        // Average within bucket
         const avg = (field: string) =>
           arr.reduce((sum, i) => sum + (i[field] ?? 0), 0) / arr.length;
 
@@ -358,97 +369,7 @@ export default function EventsPage() {
     }
 
     return result;
-  }, [listingsMeta, interval]);
-
-  // WITHOUTAVG
-  //   const dataset = React.useMemo(() => {
-  //   if (!listingsMeta || listingsMeta.length === 0) return [];
-
-  //   const intervalMs = interval.endsWith("d")
-  //     ? parseInt(interval) * 24 * 60 * 60 * 1000
-  //     : interval.endsWith("h")
-  //     ? parseInt(interval) * 60 * 60 * 1000
-  //     : parseInt(interval) * 60 * 1000;
-
-  //   const sortedData = [...listingsMeta].sort(
-  //     (a, b) =>
-  //       moment.utc(a.createdAt).valueOf() - moment.utc(b.createdAt).valueOf()
-  //   );
-
-  //   const minTime = moment.utc(sortedData[0].createdAt).valueOf();
-  //   const maxTime = moment
-  //     .utc(sortedData[sortedData.length - 1].createdAt)
-  //     .valueOf();
-
-  //   const startBucket = Math.floor(minTime / intervalMs) * intervalMs;
-  //   const endBucket = Math.ceil(maxTime / intervalMs) * intervalMs;
-
-  //   // Group original data by bucket without averaging
-  //   const grouped: Record<number, any[]> = {};
-  //   sortedData.forEach((item) => {
-  //     const time = moment.utc(item.createdAt).valueOf();
-  //     const bucket = Math.floor(time / intervalMs) * intervalMs;
-  //     if (!grouped[bucket]) grouped[bucket] = [];
-  //     grouped[bucket].push(item);
-  //   });
-
-  //   const result: any[] = [];
-  //   let lastValue = {
-  //     tickets: 0,
-  //     priceMin: 0,
-  //     twoPlusPriceMin: 0,
-  //     getInPriceMin: 0,
-  //   };
-
-  //   for (let t = startBucket; t <= endBucket; t += intervalMs) {
-  //     const arr = grouped[t] || [];
-
-  //     if (arr.length === 0) {
-  //       // No data → replicate last known value
-  //       result.push({
-  //         ...lastValue,
-  //         time: moment.utc(t).local().format("DD/MM/YYYY hh:mm A"),
-  //         bucketStartUTC: moment.utc(t).toISOString(),
-  //       });
-  //     } else {
-  //       // Use the first entry in this bucket without averaging
-  //       lastValue = {
-  //         tickets: arr[0].ticketCount,
-  //         priceMin: arr[0].priceMin,
-  //         twoPlusPriceMin: arr[0].twoPlusPriceMin,
-  //         getInPriceMin: arr[0].getInPriceMin,
-  //       };
-
-  //       result.push({
-  //         ...lastValue,
-  //         time: moment.utc(t).local().format("DD/MM/YYYY hh:mm A"),
-  //         bucketStartUTC: moment.utc(t).toISOString(),
-  //       });
-  //     }
-  //   }
-
-  //   return result;
-  // }, [listingsMeta, interval]);
-
-  const leftMax = React.useMemo(
-    () =>
-      Math.ceil(
-        Math.max(
-          ...dataset.map((d) =>
-            Math.max(d.priceMin, d.twoPlusPriceMin, d.getInPriceMin)
-          )
-        ) * 1.1
-      ) || 100,
-    [dataset]
-  );
-  const rightMax = React.useMemo(
-    () =>
-      Math.max(
-        10,
-        Math.ceil(Math.max(...dataset.map((d) => d.tickets)) * 1.1)
-      ) || 10,
-    [dataset]
-  );
+  }, [listingsMeta, interval, timeRange]);
 
   const lineSeries: LineSeriesType[] = [
     {
@@ -458,7 +379,6 @@ export default function EventsPage() {
       color: "#1976d2",
       yAxisId: "leftAxis",
       valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-      curve: "natural",
     },
     {
       type: "line",
@@ -467,7 +387,6 @@ export default function EventsPage() {
       color: "#ff7043",
       yAxisId: "leftAxis",
       valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-      curve: "natural",
     },
     {
       type: "line",
@@ -476,7 +395,6 @@ export default function EventsPage() {
       color: "#26a69a",
       yAxisId: "leftAxis",
       valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-      curve: "natural",
     },
   ];
 
@@ -600,6 +518,7 @@ export default function EventsPage() {
                         scaleType: "band",
                         label: "Date & Time",
                         tickLabelMinGap: 20,
+                        disableTicks: true
                       },
                     ]}
                     yAxis={[
@@ -607,14 +526,12 @@ export default function EventsPage() {
                         id: "leftAxis",
                         label: "Price ($)",
                         min: 0,
-                        max: leftMax,
                       },
                       {
                         id: "rightAxis",
                         label: "Tickets Qty",
                         position: "right",
                         min: 0,
-                        max: rightMax,
                       },
                     ]}
                     height={300}
