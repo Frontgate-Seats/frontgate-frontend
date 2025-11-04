@@ -1,7 +1,6 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  type GridColDef,
   type GridFilterModel,
   type GridPaginationModel,
   type GridSortModel,
@@ -9,7 +8,8 @@ import {
 import { Typography, Chip, Grid, Alert, Container } from "@mui/material";
 import type { AppDispatch, RootState } from "../store";
 import { getPurchases } from "../store/slices/purchases.slice";
-import DataGridPage from "../components/common/datagrid.comon";
+import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
+import type { CustomGridColDef } from "../shared/types/mui.type";
 
 const PurchasesPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -57,28 +57,32 @@ const PurchasesPage: React.FC = () => {
     );
   }, [dispatch, paginationModel, sortModel, filterModel]);
 
-const columns: GridColDef[] = [
+const columns: CustomGridColDef[] = [
   {
     field: "eventId",
     headerName: "Event ID",
+    type: "string",
     flex: 1,
     minWidth: 160,
   },
   {
     field: "listingId",
     headerName: "Listing ID",
+    type: "string",
     flex: 1,
     minWidth: 160,
   },
   {
     field: "row",
     headerName: "Row",
+    type: "string",
     flex: 0.5,
     minWidth: 100,
   },
   {
     field: "sectionName",
     headerName: "Section",
+    type: "string",
     flex: 0.7,
     minWidth: 120,
   },
@@ -89,12 +93,18 @@ const columns: GridColDef[] = [
     minWidth: 90,
     align: "center",
     headerAlign: "center",
+    type: "number",
+    min: 0,
+    max: 1000
   },
   {
     field: "pricePer",
     headerName: "Price/Unit",
     flex: 0.6,
     minWidth: 120,
+    type: "number",
+    min: 0,
+    max: 10000,
     renderCell: (params) => (
       <Typography fontWeight={500}>${params.value?.toFixed?.(2) || 0}</Typography>
     ),
@@ -104,6 +114,9 @@ const columns: GridColDef[] = [
     headerName: "Total ($)",
     flex: 0.7,
     minWidth: 130,
+    type: "number",
+    min: 0,
+    max: 10000,
     renderCell: (params) => (
       <Typography fontWeight={600} color="text.primary">
         ${params.value?.toFixed?.(2) || 0}
@@ -114,6 +127,8 @@ const columns: GridColDef[] = [
     field: "status",
     headerName: "Status",
     flex: 0.6,
+    type: "singleSelect",
+    valueOptions: ["INIT", "CREATED", "CONFIRMED", "DELIVERED", "CANCELLED"],
     minWidth: 130,
     renderCell: (params) => {
       const status = params.value?.toUpperCase?.() || "INIT";
@@ -160,7 +175,7 @@ const columns: GridColDef[] = [
           {purchasesError ? (
             <Alert severity="error">{purchasesError}</Alert>
           ) : (
-            <DataGridPage
+            <CustomDataGrid
               title="Purchases"
               rows={purchases}
               rowCount={total}
@@ -173,10 +188,6 @@ const columns: GridColDef[] = [
               setSortingModel={setSortModel}
               filterModel={filterModel}
               setFilterModel={setFilterModel}
-              showToolbar
-              paginationMode="server"
-              sortingMode="server"
-              filterMode="server"
               onRefresh={handleRefresh}
             />
           )}

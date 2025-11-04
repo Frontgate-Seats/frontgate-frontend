@@ -31,14 +31,12 @@ import {
   type LineSeriesType,
 } from "@mui/x-charts";
 import type {
-  GridColDef,
   GridPaginationModel,
   GridSortModel,
   GridFilterModel,
 } from "@mui/x-data-grid";
 import moment from "moment";
 
-import DataGridPage from "../components/common/datagrid.comon";
 import type { RootState } from "../store";
 import { getEvents } from "../store/slices/events.slice";
 import { getListingsMeta } from "../store/slices/listingsMeta.slice";
@@ -47,6 +45,8 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import dayjs from "dayjs";
+import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
+import type { CustomGridColDef } from "../shared/types/mui.type";
 
 export default function EventsPage() {
   const dispatch = useAppDispatch();
@@ -150,7 +150,7 @@ export default function EventsPage() {
     dispatch(getListingsMeta({ filters, page: -1, pageSize: -1 }));
   }, [selectedEvent, dispatch]);
 
-  const columns: GridColDef[] = [
+  const columns: CustomGridColDef[] = [
     {
       field: "eventId",
       headerName: "Event ID",
@@ -215,11 +215,15 @@ export default function EventsPage() {
       flex: 1,
       minWidth: 120,
       type: "number",
+      min: 0,
+      max: 20000,
     },
     {
       field: "listingCount",
       headerName: "Listing Count",
       flex: 1,
+      min: 0,
+      max: 20000,
       minWidth: 120,
       type: "number",
     },
@@ -609,7 +613,7 @@ export default function EventsPage() {
           {eventsError ? (
             <Alert severity="error">{eventsError}</Alert>
           ) : (
-            <DataGridPage
+            <CustomDataGrid
               title="Events"
               rows={events}
               rowCount={total}
@@ -622,10 +626,6 @@ export default function EventsPage() {
               setSortingModel={setSortModel}
               filterModel={filterModel}
               setFilterModel={setFilterModel}
-              showToolbar
-              paginationMode="server"
-              sortingMode="server"
-              filterMode="server"
               onRowClick={(value) => handleRowClick(value.row)}
               onRefresh={handleRefresh}
             />

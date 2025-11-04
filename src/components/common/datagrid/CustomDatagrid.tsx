@@ -5,18 +5,19 @@ import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
 import {
-  DataGridPro,
-  type GridColDef,
+  DataGrid,
   type GridPaginationModel,
   type GridSortModel,
   type GridFilterModel,
   type GridEventListener,
-} from "@mui/x-data-grid-pro";
+} from "@mui/x-data-grid";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import CustomFilterToolbar from "./CustomToolbar";
+import type { CustomGridColDef } from "../../../shared/types/mui.type";
 
 const INITIAL_PAGE_SIZE = 10;
 
-interface DataGridPageProps {
+interface CustomDataGridProps {
   title: string;
   rows: any[];
   rowCount: number;
@@ -27,18 +28,14 @@ interface DataGridPageProps {
   setPaginationModel?: (model: GridPaginationModel) => void;
   sortingModel?: GridSortModel;
   setSortingModel?: (model: GridSortModel) => void;
-  filterModel?: GridFilterModel;
-  setFilterModel?: (model: GridFilterModel) => void;
-  columns: GridColDef[];
-  showToolbar?: boolean;
+  filterModel: GridFilterModel;
+  setFilterModel: React.Dispatch<React.SetStateAction<GridFilterModel>>;
+  columns: CustomGridColDef[];
   autoHeight?: boolean;
-  paginationMode?: "server" | "client";
-  sortingMode?: "server" | "client";
-  filterMode?: "server" | "client";
   onRowClick?: GridEventListener<"rowClick">;
 }
 
-export default function DataGridPage({
+export default function CustomDataGrid({
   title,
   rows,
   rowCount,
@@ -52,13 +49,9 @@ export default function DataGridPage({
   filterModel,
   setFilterModel,
   columns,
-  showToolbar = false,
   autoHeight = false,
-  paginationMode = "client",
-  sortingMode = "client",
-  filterMode = "client",
   onRowClick,
-}: DataGridPageProps) {
+}: CustomDataGridProps) {
   
   const initialState = React.useMemo(
     () => ({
@@ -66,6 +59,16 @@ export default function DataGridPage({
     }),
     []
   );
+
+  const customColumns = React.useMemo(() => {
+    return columns.map((col) => {
+      return {  
+        ...col,
+        filterable:  false,
+      };
+    });
+  }, [columns]);
+
 
   return (
     <Box sx={{ flex: 1, width: "100%", p: 2, overflowX: "auto" }}>
@@ -93,28 +96,30 @@ export default function DataGridPage({
           <Alert severity="error">{error.message}</Alert>
         </Box>
       ) : (
+      <>
+       <CustomFilterToolbar
+            columns={columns}
+            filterModel={filterModel}
+            setFilterModel={setFilterModel}
+          />
         <Box sx={{ height: 600, width: "100%" }}>
           {/* Wrapper for scroll */}
-          <DataGridPro
+          <DataGrid
             rows={rows}
             getRowId={(row) => row._id || row.id}
             rowCount={rowCount}
-            columns={columns}
+            columns={customColumns}
             initialState={initialState}
             pagination
-            paginationMode={paginationMode}
+            paginationMode={"server"}
             paginationModel={paginationModel}
             onPaginationModelChange={setPaginationModel}
-            sortingMode={sortingMode}
+            sortingMode={"server"}
             sortModel={sortingModel}
             onSortModelChange={setSortingModel}
-            filterMode={filterMode}
-            filterModel={filterModel}
-            onFilterModelChange={setFilterModel}
             disableRowSelectionOnClick
             onRowClick={onRowClick}
             loading={isLoading}
-            showToolbar={showToolbar}
             pageSizeOptions={[5, INITIAL_PAGE_SIZE, 25, 50, 100]}
             autoHeight={autoHeight}
             sx={{
@@ -134,6 +139,7 @@ export default function DataGridPage({
             }}
           />
         </Box>
+      </>
       )}
     </Box>
   );
