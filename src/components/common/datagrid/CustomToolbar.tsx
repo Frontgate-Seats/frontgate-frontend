@@ -7,7 +7,6 @@ import {
   MenuItem,
   Typography,
   Paper,
-  useTheme,
   Slider,
   Divider,
   IconButton,
@@ -74,7 +73,6 @@ const DynamicFiltersToolbar: React.FC<DynamicFiltersToolbarProps> = ({
   setFilterModel,
   debounceMs = DEFAULT_DEBOUNCE,
 }) => {
-  const theme = useTheme();
   const [localValues, setLocalValues] = useState<Record<string, any>>({});
   const timersRef = useRef<Record<string, number | null>>({});
   const [open, setOpen] = useState(true);
