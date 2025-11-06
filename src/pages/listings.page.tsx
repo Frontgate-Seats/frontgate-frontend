@@ -169,8 +169,8 @@ export default function ListingsPage() {
   };
 
   const allColumns: CustomGridColDef[] = [
-    { field: "row", headerName: "Row", flex: 0.6, type: "string" },
     { field: "section", headerName: "Section", flex: 1.2, type: "string" },
+    { field: "row", headerName: "Row", flex: 0.6, type: "string" },
     {
       field: "quantity",
       headerName: "Qty",
@@ -180,26 +180,8 @@ export default function ListingsPage() {
       max: 10000,
     },
     {
-      field: "allInPrice",
-      headerName: "All-In Price",
-      flex: 0.8,
-      type: "number",
-      min: 0,
-      max: 10000,
-      valueFormatter: (value) => (value ? `$${value}` : "-"),
-    },
-    {
       field: "price",
       headerName: "Price",
-      type: "number",
-      flex: 0.8,
-      min: 0,
-      max: 10000,
-      valueFormatter: (value) => (value ? `$${value}` : "-"),
-    },
-    {
-      field: "total",
-      headerName: "Total",
       type: "number",
       flex: 0.8,
       min: 0,

@@ -150,23 +150,23 @@ export default function EventsPage() {
     {
       field: "eventId",
       headerName: "Event ID",
-      flex: 0.8,
-      minWidth: 120,
+      flex: 0.6,
+      minWidth: 100,
       type: "number",
     },
     {
       field: "name",
       headerName: "Event Name",
-      flex: 2,
-      minWidth: 200,
+      flex: 1.8,
+      minWidth: 180,
       type: "string",
     },
     {
       field: "utcDate",
       headerName: "Date & Time (UTC)",
       type: "dateTime",
-      flex: 1.5,
-      minWidth: 180,
+      flex: 1.3,
+      minWidth: 160,
       valueFormatter: (value) =>
         value ? moment(value).format("MM/DD/YYYY hh:mm A") : "-",
       renderEditCell: (params) => (
@@ -188,8 +188,8 @@ export default function EventsPage() {
     {
       field: "venueDBId",
       headerName: "Venue",
-      flex: 2,
-      minWidth: 220,
+      flex: 1.5,
+      minWidth: 180,
       valueGetter: (value: any) =>
         value
           ? `${value.city}, ${value.stateCode} (${value.countryCode})`
@@ -200,35 +200,45 @@ export default function EventsPage() {
     {
       field: "category",
       headerName: "Category",
-      flex: 1,
-      minWidth: 140,
+      flex: 0.8,
+      minWidth: 100,
       type: "singleSelect",
       valueOptions: ["Sports"],
     },
     {
       field: "ticketCount",
-      headerName: "Ticket Count",
-      flex: 1,
-      minWidth: 120,
+      headerName: "Tickets",
+      flex: 0.8,
+      minWidth: 100,
       type: "number",
       min: 0,
       max: 20000,
     },
     {
       field: "listingCount",
-      headerName: "Listing Count",
-      flex: 1,
+      headerName: "Listings",
+      flex: 0.8,
+      minWidth: 100,
+      type: "number",
       min: 0,
       max: 20000,
-      minWidth: 120,
+    },
+    {
+      field: "getInPriceMedian",
+      headerName: "Median Price",
+      flex: 0.9,
+      minWidth: 110,
       type: "number",
+      min: 0,
+      max: 20000,
+      valueFormatter: (value) => (value >= 0 ? `$${value}` : "-"),
     },
     {
       field: "actions",
       type: "actions",
       headerName: "Actions",
-      flex: 0,
-      width: 160,
+      flex: 0.7,
+      minWidth: 140,
       getActions: (params) => [
         <Button
           key={params.row.eventId}
