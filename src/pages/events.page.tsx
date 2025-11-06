@@ -52,7 +52,6 @@ export default function EventsPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
-  // Time range options and interval mapping
   const timeRangeOptions = [
     { value: "1d", label: "Last Day" },
     { value: "7d", label: "Last Week" },
@@ -104,12 +103,10 @@ export default function EventsPage() {
   const [timeRange, setTimeRange] = React.useState("1d");
   const [interval, setInterval] = React.useState(defaultInterval("1d"));
 
-  // Update interval when timeRange changes
   React.useEffect(() => {
     setInterval(defaultInterval(timeRange));
   }, [timeRange]);
 
-  // Fetch events
   React.useEffect(() => {
     dispatch(
       getEvents({
@@ -137,7 +134,6 @@ export default function EventsPage() {
     setSelectedEvent(row);
   };
 
-  // Fetch listingsMeta whenever selectedEvent or timeRange changes
   React.useEffect(() => {
     if (!selectedEvent) return;
 
@@ -348,7 +344,7 @@ export default function EventsPage() {
         // No data → replicate last known value
         result.push({
           ...lastValue,
-          time: moment.utc(t).local().format("DD/MM/YYYY hh:mm A"),
+          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
           bucketStartUTC: moment.utc(t).toISOString(),
         });
       } else {
@@ -365,7 +361,7 @@ export default function EventsPage() {
 
         result.push({
           ...lastValue,
-          time: moment.utc(t).local().format("DD/MM/YYYY hh:mm A"),
+          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
           bucketStartUTC: moment.utc(t).toISOString(),
         });
       }
@@ -414,9 +410,9 @@ export default function EventsPage() {
 
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
-      <Grid size={{ xs: 12 }}>
+      <Grid container spacing={3}>
         {selectedEvent && (
-          <Grid container spacing={3}>
+          <>
             <Grid size={{ xs: 12 }}>
               <Card variant="outlined">
                 <CardContent>
@@ -432,7 +428,7 @@ export default function EventsPage() {
                       <Typography variant="body1">
                         {selectedEvent?.utcDate
                           ? moment(selectedEvent.utcDate).format(
-                              "DD/MM/YYYY hh:mm A"
+                              "MM/DD/YYYY hh:mm A"
                             )
                           : ""}
                       </Typography>
@@ -472,7 +468,7 @@ export default function EventsPage() {
                     direction="row"
                     justifyContent="space-between"
                     sx={{ mb: 3 }}
-                    flexWrap={"wrap"}
+                    flexWrap="wrap"
                   >
                     <Typography variant="h6" fontWeight={600} gutterBottom>
                       Trends
@@ -521,7 +517,7 @@ export default function EventsPage() {
                         scaleType: "band",
                         label: "Date & Time",
                         tickLabelMinGap: 20,
-                        disableTicks: true
+                        disableTicks: true,
                       },
                     ]}
                     yAxis={[
@@ -606,7 +602,7 @@ export default function EventsPage() {
                 </CardContent>
               </Card>
             </Grid>
-          </Grid>
+          </>
         )}
 
         <Grid size={{ xs: 12 }}>

@@ -209,16 +209,12 @@ const DynamicFiltersToolbar: React.FC<DynamicFiltersToolbarProps> = ({
             sx={{
               p: 2,
               borderRadius: 2,
-              transition: "0.2s",
-              "&:hover": { boxShadow: theme.shadows[2] },
             }}
           >
             <Typography
               variant="subtitle2"
               sx={{
                 mb: 1,
-                fontWeight: 600,
-                color: theme.palette.text.secondary,
               }}
             >
               {col.headerName}
@@ -282,16 +278,12 @@ const DynamicFiltersToolbar: React.FC<DynamicFiltersToolbarProps> = ({
             sx={{
               p: 2,
               borderRadius: 2,
-              transition: "0.2s",
-              "&:hover": { boxShadow: theme.shadows[2] },
             }}
           >
             <Typography
               variant="subtitle2"
               sx={{
                 mb: 1,
-                fontWeight: 600,
-                color: theme.palette.text.secondary,
               }}
             >
               {col.headerName}
@@ -339,16 +331,12 @@ const DynamicFiltersToolbar: React.FC<DynamicFiltersToolbarProps> = ({
             sx={{
               p: 2,
               borderRadius: 2,
-              transition: "0.2s",
-              "&:hover": { boxShadow: theme.shadows[2] },
             }}
           >
             <Typography
               variant="subtitle2"
               sx={{
                 mb: 1,
-                fontWeight: 600,
-                color: theme.palette.text.secondary,
               }}
             >
               {col.headerName}
@@ -381,16 +369,12 @@ const DynamicFiltersToolbar: React.FC<DynamicFiltersToolbarProps> = ({
             sx={{
               p: 2,
               borderRadius: 2,
-              transition: "0.2s",
-              "&:hover": { boxShadow: theme.shadows[2] },
             }}
           >
             <Typography
               variant="subtitle2"
               sx={{
                 mb: 1,
-                fontWeight: 600,
-                color: theme.palette.text.secondary,
               }}
             >
               {col.headerName}
@@ -415,12 +399,6 @@ const DynamicFiltersToolbar: React.FC<DynamicFiltersToolbarProps> = ({
         p: 2,
         mb: 2,
         borderRadius: 2,
-        backgroundColor:
-          theme.palette.mode === "light"
-            ? theme.palette.background.paper
-            : theme.palette.grey[900],
-        boxShadow: theme.shadows[2],
-        transition: "background-color 0.3s ease",
       }}
     >
       {/* Header */}
@@ -430,15 +408,12 @@ const DynamicFiltersToolbar: React.FC<DynamicFiltersToolbarProps> = ({
           alignItems: "center",
           justifyContent: "space-between",
           borderRadius: 1,
-          mb: open ? 2 : 0,
+          mb: open ? 1 : 0,
         }}
       >
         <Stack direction="row" alignItems="center" spacing={1.5}>
           <FilterAltOutlined color="primary" />
-          <Typography
-            variant="subtitle1"
-            sx={{ fontWeight: 600, color: theme.palette.text.primary }}
-          >
+          <Typography variant="h6" >
             Filters
           </Typography>
         </Stack>
