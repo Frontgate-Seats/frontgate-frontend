@@ -21,6 +21,7 @@ const DashboardLayout = Loadable(
 const EventsPage = Loadable(lazy(() => import("./pages/events.page")));
 const ListingsPage = Loadable(lazy(() => import("./pages/listings.page")));
 const PurchasesPage = Loadable(lazy(() => import("./pages/purchases.page")));
+const ChartsPage = Loadable(lazy(() => import("./pages/charts.page")));
 
 const SignInAuthPage = Loadable(
   lazy(() => import("./pages/auth/signIn.auth.page"))
@@ -60,6 +61,10 @@ export const route: RouteObject[] = [
       {
         path: "/purchases",
         element: <PurchasesPage />,
+      },
+      {
+        path: "/charts",
+        element: <ChartsPage />,
       },
       {
         path: "*",
