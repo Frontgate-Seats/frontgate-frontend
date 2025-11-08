@@ -4,11 +4,10 @@ import httpClient from "../clients/http.client";
 const chartsApi = {
   fetchTopEvents: async (params: {
     from: string;
-    to: string;
+    to?: string;
     field: string;
-    limit?: number;
   }) => {
-    return httpClient.get("/charts/top", { params });
+    return httpClient.get("/charts/listingsMeta", { params });
   },
 };
 

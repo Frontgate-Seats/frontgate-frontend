@@ -1,5 +1,9 @@
 // client/src/store/slices/charts.slice.ts
-import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import {
+  createAsyncThunk,
+  createSlice,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
 import chartsApi from "../../apis/charts.api";
 
 export const fetchTopEvents = createAsyncThunk(
@@ -7,9 +11,8 @@ export const fetchTopEvents = createAsyncThunk(
   async (
     params: {
       from: string;
-      to: string;
+      to?: string;
       field: string;
-      limit?: number;
     },
     { rejectWithValue }
   ) => {
@@ -17,14 +20,15 @@ export const fetchTopEvents = createAsyncThunk(
       const response = await chartsApi.fetchTopEvents(params);
       return response.data.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to fetch top events");
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch top events"
+      );
     }
   }
 );
 
 type ChartsState = {
   field: string;
-  limit: number;
   data: any[];
   loading: boolean;
   error: string | null;
@@ -32,7 +36,6 @@ type ChartsState = {
 
 const initialState: ChartsState = {
   field: "getInPriceMedian",
-  limit: 10,
   data: [],
   loading: false,
   error: null,
@@ -44,12 +47,6 @@ const chartsSlice = createSlice({
   reducers: {
     setField: (state, action: PayloadAction<string>) => {
       state.field = action.payload;
-    },
-    setLimit: (state, action: PayloadAction<number>) => {
-      state.limit = action.payload;
-    },
-    setData: (state, action: PayloadAction<any[]>) => {
-      state.data = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -69,5 +66,5 @@ const chartsSlice = createSlice({
   },
 });
 
-export const { setField, setLimit, setData } = chartsSlice.actions;
+export const { setField } = chartsSlice.actions;
 export default chartsSlice.reducer;
