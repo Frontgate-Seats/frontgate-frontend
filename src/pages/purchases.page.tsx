@@ -127,44 +127,8 @@ const columns: CustomGridColDef[] = [
     field: "status",
     headerName: "Status",
     flex: 0.6,
-    type: "singleSelect",
-    valueOptions: ["INIT", "CREATED", "PAYMENTS_CAPTURED", "CONFIRMED", "DELIVERED", "CANCELLED"],
-    minWidth: 130,
-    renderCell: (params) => {
-      const status = params.value?.toUpperCase?.() || "INIT";
-      let color: "default" | "error" | "success" | "warning" | "info" = "default";
-
-      switch (status) {
-        case "CONFIRMED":
-        case "DELIVERED":
-          color = "success";
-          break;
-        case "CANCELLED":
-          color = "error";
-          break;
-        case "INIT":
-          color = "warning";
-          break;
-        case "CREATED":
-        case "PAYMENTS_CAPTURED":
-          color = "info";
-          break;
-        default:
-          color = "default";
-      }
-
-      return (
-        <Chip
-          label={status}
-          color={color}
-          size="small"
-          sx={{
-            fontWeight: 600,
-            textTransform: "capitalize",
-          }}
-        />
-      );
-    },
+    type: "string",
+    minWidth: 130
   },
 ];
 
