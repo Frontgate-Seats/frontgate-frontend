@@ -5,7 +5,7 @@ import {
   type GridPaginationModel,
   type GridSortModel,
 } from "@mui/x-data-grid";
-import { Typography, Chip, Grid, Alert, Container } from "@mui/material";
+import { Typography, Grid, Alert, Container } from "@mui/material";
 import type { AppDispatch, RootState } from "../store";
 import { getPurchases } from "../store/slices/purchases.slice";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
