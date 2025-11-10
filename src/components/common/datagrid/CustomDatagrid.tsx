@@ -28,8 +28,8 @@ interface CustomDataGridProps {
   setPaginationModel?: (model: GridPaginationModel) => void;
   sortingModel?: GridSortModel;
   setSortingModel?: (model: GridSortModel) => void;
-  filterModel: GridFilterModel;
-  setFilterModel: React.Dispatch<React.SetStateAction<GridFilterModel>>;
+  filterModel?: GridFilterModel;
+  setFilterModel?: React.Dispatch<React.SetStateAction<GridFilterModel>>;
   columns: CustomGridColDef[];
   autoHeight?: boolean;
   onRowClick?: GridEventListener<"rowClick">;
@@ -72,74 +72,80 @@ export default function CustomDataGrid({
 
   return (
     <Box sx={{ flex: 1, width: "100%", p: 2, overflowX: "auto" }}>
-      {" "}
-      {/* Set desired height */}
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        spacing={1}
-        sx={{ mb: 2 }}
-      >
-        <Box component="h2" sx={{ m: 0 }}>
-          {title}
-        </Box>
+      {title || onRefresh ? (
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          spacing={1}
+          sx={{ mb: 2 }}
+        >
+          <Box component="h2" sx={{ m: 0 }}>
+            {title}
+          </Box>
 
-        <Tooltip title="Reload data" placement="right" enterDelay={1000}>
-          <IconButton size="small" aria-label="refresh" onClick={onRefresh}>
-            <RefreshIcon />
-          </IconButton>
-        </Tooltip>
-      </Stack>
+          <Tooltip title="Reload data" placement="right" enterDelay={1000}>
+            <IconButton size="small" aria-label="refresh" onClick={onRefresh}>
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      ) : (
+        <></>
+      )}
       {error ? (
         <Box sx={{ flexGrow: 1 }}>
           <Alert severity="error">{error.message}</Alert>
         </Box>
       ) : (
-      <>
-       <CustomFilterToolbar
-            columns={columns}
-            filterModel={filterModel}
-            setFilterModel={setFilterModel}
-          />
-        <Box sx={{ height: 600, width: "100%" }}>
-          {/* Wrapper for scroll */}
-          <DataGrid
-            rows={rows}
-            getRowId={(row) => row._id || row.id}
-            rowCount={rowCount}
-            columns={customColumns}
-            initialState={initialState}
-            pagination
-            paginationMode={"server"}
-            paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
-            sortingMode={"server"}
-            sortModel={sortingModel}
-            onSortModelChange={setSortingModel}
-            disableRowSelectionOnClick
-            onRowClick={onRowClick}
-            loading={isLoading}
-            pageSizeOptions={[5, INITIAL_PAGE_SIZE, 25, 50, 100]}
-            autoHeight={autoHeight}
-            sx={{
-              "& .MuiDataGrid-cell": {
-                whiteSpace: "normal !important",
-                wordWrap: "break-word !important",
-                lineHeight: "1.4rem",
-                display: "flex",
-                alignItems: "center",
-              },
-              "& .MuiDataGrid-columnHeaderTitle": {
-                whiteSpace: "normal !important",
-                lineHeight: "1.2rem",
-                display: "flex",
-                alignItems: "center",
-              },
-            }}
-          />
-        </Box>
-      </>
+        <>
+          {filterModel && setFilterModel ? (
+            <CustomFilterToolbar
+              columns={columns}
+              filterModel={filterModel}
+              setFilterModel={setFilterModel}
+            />
+          ) : (
+            <></>
+          )}
+          <Box sx={{ height: 600, width: "100%" }}>
+            {/* Wrapper for scroll */}
+            <DataGrid
+              rows={rows}
+              getRowId={(row) => row._id || row.id}
+              rowCount={rowCount}
+              columns={customColumns}
+              initialState={initialState}
+              pagination
+              paginationMode={"server"}
+              paginationModel={paginationModel}
+              onPaginationModelChange={setPaginationModel}
+              sortingMode={"server"}
+              sortModel={sortingModel}
+              onSortModelChange={setSortingModel}
+              disableRowSelectionOnClick
+              onRowClick={onRowClick}
+              loading={isLoading}
+              pageSizeOptions={[5, INITIAL_PAGE_SIZE, 25, 50, 100]}
+              autoHeight={autoHeight}
+              sx={{
+                "& .MuiDataGrid-cell": {
+                  whiteSpace: "normal !important",
+                  wordWrap: "break-word !important",
+                  lineHeight: "1.4rem",
+                  display: "flex",
+                  alignItems: "center",
+                },
+                "& .MuiDataGrid-columnHeaderTitle": {
+                  whiteSpace: "normal !important",
+                  lineHeight: "1.2rem",
+                  display: "flex",
+                  alignItems: "center",
+                },
+              }}
+            />
+          </Box>
+        </>
       )}
     </Box>
   );
