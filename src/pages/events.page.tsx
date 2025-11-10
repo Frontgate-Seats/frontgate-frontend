@@ -263,7 +263,7 @@ export default function EventsPage() {
 
   // Dataset with aligned buckets and carry-forward
   // WITH AVG
-  const dataset = React.useMemo(() => {
+   const dataset = React.useMemo(() => {
     if (!listingsMeta || listingsMeta.length === 0) return [];
 
     const now = moment.utc();
@@ -293,20 +293,18 @@ export default function EventsPage() {
     const rangeStart = fromDate.valueOf();
     const rangeEnd = now.valueOf();
 
-    // interval to ms
     const intervalMs = interval.endsWith("d")
       ? parseInt(interval) * 24 * 60 * 60 * 1000
       : interval.endsWith("h")
       ? parseInt(interval) * 60 * 60 * 1000
       : parseInt(interval) * 60 * 1000;
 
-    // sort data
     const sortedData = [...listingsMeta].sort(
       (a, b) =>
         moment.utc(a.createdAt).valueOf() - moment.utc(b.createdAt).valueOf()
     );
 
-    // last record BEFORE rangeStart
+    // find last known value BEFORE range start (for replication)
     let lastBeforeRange = null;
     for (let i = sortedData.length - 1; i >= 0; i--) {
       const t = moment.utc(sortedData[i].createdAt).valueOf();
@@ -316,23 +314,22 @@ export default function EventsPage() {
       }
     }
 
-    // only items inside the selected window
+    // filter within range only for charting
     const rangeData = sortedData.filter((item) => {
       const t = moment.utc(item.createdAt).valueOf();
       return t >= rangeStart && t <= rangeEnd;
     });
 
-    // group by bucket
+    // group by buckets
     const grouped: Record<number, any[]> = {};
     rangeData.forEach((item) => {
-      const t = moment.utc(item.createdAt).valueOf();
-      const bucket = Math.floor(t / intervalMs) * intervalMs;
+      const time = moment.utc(item.createdAt).valueOf();
+      const bucket = Math.floor(time / intervalMs) * intervalMs;
       if (!grouped[bucket]) grouped[bucket] = [];
       grouped[bucket].push(item);
     });
 
     const result: any[] = [];
-
     let lastValue = lastBeforeRange
       ? {
           tickets: lastBeforeRange.ticketCount ?? 0,
@@ -348,19 +345,20 @@ export default function EventsPage() {
         };
 
     const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
+    const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
 
-    // ✅ FIX: Stop exactly at the LAST AVAILABLE completed interval IN THE DATA
-    const lastDataTime = rangeData.length
-      ? moment.utc(rangeData[rangeData.length - 1].createdAt).valueOf()
-      : rangeEnd;
-
-    const endBucket = Math.floor(lastDataTime / intervalMs) * intervalMs;
-
-    // ✅ Only loop *until last actual data interval*, never future
     for (let t = startBucket; t <= endBucket; t += intervalMs) {
       const arr = grouped[t] || [];
 
-      if (arr.length > 0) {
+      if (arr.length === 0) {
+        // No data → replicate last known value
+        result.push({
+          ...lastValue,
+          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
+          bucketStartUTC: moment.utc(t).toISOString(),
+        });
+      } else {
+        // Average within bucket
         const avg = (field: string) =>
           arr.reduce((sum, i) => sum + (i[field] ?? 0), 0) / arr.length;
 
@@ -370,13 +368,13 @@ export default function EventsPage() {
           twoPlusPriceMin: +avg("twoPlusPriceMin").toFixed(2),
           getInPriceMin: +avg("getInPriceMin").toFixed(2),
         };
-      }
 
-      result.push({
-        ...lastValue,
-        time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
-        bucketStartUTC: moment.utc(t).toISOString(),
-      });
+        result.push({
+          ...lastValue,
+          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
+          bucketStartUTC: moment.utc(t).toISOString(),
+        });
+      }
     }
 
     return result;

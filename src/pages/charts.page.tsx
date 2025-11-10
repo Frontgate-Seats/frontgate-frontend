@@ -24,7 +24,11 @@ import type { RootState } from "../store";
 import { fetchTopEvents } from "../store/slices/charts.slice";
 import moment from "moment";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
-import type { GridFilterModel, GridPaginationModel, GridSortModel } from "@mui/x-data-grid";
+import type {
+  GridFilterModel,
+  GridPaginationModel,
+  GridSortModel,
+} from "@mui/x-data-grid";
 import { getListingsMeta } from "../store/slices/listingsMeta.slice";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import {
@@ -41,15 +45,6 @@ import {
 } from "@mui/x-charts";
 import { ExpandLess, ExpandMore, FindReplace } from "@mui/icons-material";
 import dayjs from "dayjs";
-
-// ---------------------- Types ----------------------
-type ListingMeta = Record<string, any> & {
-  createdAt: string;
-  ticketCount?: number;
-  priceMin?: number;
-  twoPlusPriceMin?: number;
-  getInPriceMin?: number;
-};
 
 type TopEventRow = {
   eventId: string;
@@ -161,14 +156,6 @@ const COLUMNS: CustomGridColDef[] = [
   },
 ];
 
-// ---------------------- Utilities ----------------------
-const parseIntervalMs = (interval: string) => {
-  if (interval.endsWith("d")) return parseInt(interval) * 24 * 60 * 60 * 1000;
-  if (interval.endsWith("h")) return parseInt(interval) * 60 * 60 * 1000;
-  if (interval.endsWith("m")) return parseInt(interval) * 60 * 1000;
-  return 0;
-};
-
 const computeFromISO = (range: string) => {
   let fromDate = moment.utc();
 
@@ -183,116 +170,6 @@ const computeFromISO = (range: string) => {
 
   return fromDate.toISOString();
 };
-
-// compute bucketed dataset given listings and timeframe
-const buildBucketedDataset = (
-  listings: ListingMeta[],
-  timeRange: string,
-  interval: string
-) => {
-  if (!listings || listings.length === 0) return [] as any[];
-
-  const now = moment.utc();
-  const fromDate = now.clone();
-
-  switch (timeRange) {
-    case "1d": fromDate.subtract(1, "day"); break;
-    case "7d": fromDate.subtract(7, "days"); break;
-    case "30d": fromDate.subtract(30, "days"); break;
-    case "3m": fromDate.subtract(3, "months"); break;
-    case "6m": fromDate.subtract(6, "months"); break;
-    case "1y": fromDate.subtract(1, "year"); break;
-  }
-
-  const rangeStart = fromDate.valueOf();
-  const intervalMs = parseIntervalMs(interval);
-
-  // ✅ SORTED LISTINGS
-  const sorted = [...listings].sort(
-    (a, b) =>
-      moment.utc(a.createdAt).valueOf() -
-      moment.utc(b.createdAt).valueOf()
-  );
-
-  // ✅ last value before rangeStart
-  let lastBefore: ListingMeta | null = null;
-  for (let i = sorted.length - 1; i >= 0; i--) {
-    const t = moment.utc(sorted[i].createdAt).valueOf();
-    if (t < rangeStart) {
-      lastBefore = sorted[i];
-      break;
-    }
-  }
-
-  // ✅ only values inside the selected range
-  const inRange = sorted.filter((i) => {
-    const t = moment.utc(i.createdAt).valueOf();
-    return t >= rangeStart;
-  });
-
-  // ✅ last dataset timestamp (THIS fixes your future bucket issue)
-  const lastDataTime = inRange.length
-    ? moment.utc(inRange[inRange.length - 1].createdAt).valueOf()
-    : now.valueOf();
-
-  // ✅ last FULL interval only
-  const endBucket =
-    Math.floor(lastDataTime / intervalMs) * intervalMs;
-
-  // ✅ start aligned
-  const startBucket =
-    Math.floor(rangeStart / intervalMs) * intervalMs;
-
-  let lastValue = lastBefore
-    ? {
-        tickets: lastBefore.ticketCount ?? 0,
-        priceMin: lastBefore.priceMin ?? 0,
-        twoPlusPriceMin: lastBefore.twoPlusPriceMin ?? 0,
-        getInPriceMin: lastBefore.getInPriceMin ?? 0,
-      }
-    : { tickets: 0, priceMin: 0, twoPlusPriceMin: 0, getInPriceMin: 0 };
-
-  const result: any[] = [];
-
-  // ✅ LOOP ONLY UP TO endBucket (never future)
-  for (let t = startBucket; t <= endBucket; t += intervalMs) {
-    const bucketStart = t;
-    const bucketEnd = t + intervalMs;
-
-    const arr = inRange.filter((i) => {
-      const ts = moment.utc(i.createdAt).valueOf();
-      return ts >= bucketStart && ts < bucketEnd;
-    });
-
-    if (arr.length === 0) {
-      result.push({
-        ...lastValue,
-        time: moment.utc(bucketEnd).local().format("MM/DD/YYYY hh:mm A"),
-        bucketStartUTC: moment.utc(bucketStart).toISOString(),
-      });
-    } else {
-      const avg = (f: string) =>
-        arr.reduce((s, x) => s + (x[f] ?? 0), 0) / arr.length;
-
-      lastValue = {
-        tickets: Math.round(avg("ticketCount")),
-        priceMin: +avg("priceMin").toFixed(2),
-        twoPlusPriceMin: +avg("twoPlusPriceMin").toFixed(2),
-        getInPriceMin: +avg("getInPriceMin").toFixed(2),
-      };
-
-      result.push({
-        ...lastValue,
-        time: moment.utc(bucketEnd).local().format("MM/DD/YYYY hh:mm A"),
-        bucketStartUTC: moment.utc(bucketStart).toISOString(),
-      });
-    }
-  }
-
-  return result;
-};
-
-
 
 // ---------------------- Component ----------------------
 const ChartsPage: React.FC = () => {
@@ -328,6 +205,10 @@ const ChartsPage: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<TopEventRow | null>(null);
   const [timeRange, setTimeRange] = useState<string>("1d");
   const [interval, setInterval] = useState<string>(defaultInterval("1d"));
+
+  useEffect(() => {
+    setInterval(defaultInterval(timeRange));
+  }, [timeRange]);
 
   // ------------- Effects: compute from & fetch charts -------------
   useEffect(() => {
@@ -423,10 +304,122 @@ const ChartsPage: React.FC = () => {
   }, [sortedRows, paginationModel]);
 
   // ------------- Dataset for charts -------------
-  const dataset = useMemo(
-    () => buildBucketedDataset(listingsMeta ?? [], timeRange, interval),
-    [listingsMeta, timeRange, interval]
-  );
+  const dataset = React.useMemo(() => {
+    if (!listingsMeta || listingsMeta.length === 0) return [];
+
+    const now = moment.utc();
+    const fromDate = now.clone();
+
+    switch (timeRange) {
+      case "1d":
+        fromDate.subtract(1, "day");
+        break;
+      case "7d":
+        fromDate.subtract(7, "days");
+        break;
+      case "30d":
+        fromDate.subtract(30, "days");
+        break;
+      case "3m":
+        fromDate.subtract(3, "months");
+        break;
+      case "6m":
+        fromDate.subtract(6, "months");
+        break;
+      case "1y":
+        fromDate.subtract(1, "year");
+        break;
+    }
+
+    const rangeStart = fromDate.valueOf();
+    const rangeEnd = now.valueOf();
+
+    const intervalMs = interval.endsWith("d")
+      ? parseInt(interval) * 24 * 60 * 60 * 1000
+      : interval.endsWith("h")
+      ? parseInt(interval) * 60 * 60 * 1000
+      : parseInt(interval) * 60 * 1000;
+
+    const sortedData = [...listingsMeta].sort(
+      (a, b) =>
+        moment.utc(a.createdAt).valueOf() - moment.utc(b.createdAt).valueOf()
+    );
+
+    // find last known value BEFORE range start (for replication)
+    let lastBeforeRange = null;
+    for (let i = sortedData.length - 1; i >= 0; i--) {
+      const t = moment.utc(sortedData[i].createdAt).valueOf();
+      if (t < rangeStart) {
+        lastBeforeRange = sortedData[i];
+        break;
+      }
+    }
+
+    // filter within range only for charting
+    const rangeData = sortedData.filter((item) => {
+      const t = moment.utc(item.createdAt).valueOf();
+      return t >= rangeStart && t <= rangeEnd;
+    });
+
+    // group by buckets
+    const grouped: Record<number, any[]> = {};
+    rangeData.forEach((item) => {
+      const time = moment.utc(item.createdAt).valueOf();
+      const bucket = Math.floor(time / intervalMs) * intervalMs;
+      if (!grouped[bucket]) grouped[bucket] = [];
+      grouped[bucket].push(item);
+    });
+
+    const result: any[] = [];
+    let lastValue = lastBeforeRange
+      ? {
+          tickets: lastBeforeRange.ticketCount ?? 0,
+          priceMin: lastBeforeRange.priceMin ?? 0,
+          twoPlusPriceMin: lastBeforeRange.twoPlusPriceMin ?? 0,
+          getInPriceMin: lastBeforeRange.getInPriceMin ?? 0,
+        }
+      : {
+          tickets: 0,
+          priceMin: 0,
+          twoPlusPriceMin: 0,
+          getInPriceMin: 0,
+        };
+
+    const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
+    const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
+
+    for (let t = startBucket; t <= endBucket; t += intervalMs) {
+      const arr = grouped[t] || [];
+
+      if (arr.length === 0) {
+        // No data → replicate last known value
+        result.push({
+          ...lastValue,
+          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
+          bucketStartUTC: moment.utc(t).toISOString(),
+        });
+      } else {
+        // Average within bucket
+        const avg = (field: string) =>
+          arr.reduce((sum, i) => sum + (i[field] ?? 0), 0) / arr.length;
+
+        lastValue = {
+          tickets: Math.round(avg("ticketCount")),
+          priceMin: +avg("priceMin").toFixed(2),
+          twoPlusPriceMin: +avg("twoPlusPriceMin").toFixed(2),
+          getInPriceMin: +avg("getInPriceMin").toFixed(2),
+        };
+
+        result.push({
+          ...lastValue,
+          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
+          bucketStartUTC: moment.utc(t).toISOString(),
+        });
+      }
+    }
+
+    return result;
+  }, [listingsMeta, interval, timeRange]);
 
   // ------------- Series definitions -------------
   const lineSeries: LineSeriesType[] = useMemo(
@@ -474,13 +467,10 @@ const ChartsPage: React.FC = () => {
   );
 
   // ------------- Handlers -------------
-  const handleRefresh = useCallback(
-    () => {
-      setSelectedEvent(null)
-      setChartFrom(computeFromISO(chartTimeRange))
-    },
-    [chartTimeRange]
-  );
+  const handleRefresh = useCallback(() => {
+    setSelectedEvent(null);
+    setChartFrom(computeFromISO(chartTimeRange));
+  }, [chartTimeRange]);
 
   const handleRowClick = useCallback(
     (row: any) => {
