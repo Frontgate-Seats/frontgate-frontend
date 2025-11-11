@@ -1,3 +1,7 @@
+// Full updated file with two separate charts
+// (Chart 1 = Price Trends, Chart 2 = Trends)
+// React + MUI + MUI X Charts
+
 import * as React from "react";
 import { useSelector } from "react-redux";
 import {
@@ -52,6 +56,9 @@ export default function EventsPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
+  // ------------------------
+  // Time Range
+  // ------------------------
   const timeRangeOptions = [
     { value: "1d", label: "Last Day" },
     { value: "7d", label: "Last Week" },
@@ -72,6 +79,9 @@ export default function EventsPage() {
 
   const defaultInterval = (range: string) => intervalOptionsMap[range][2];
 
+  // ------------------------
+  // Redux Data
+  // ------------------------
   const {
     rows: { data: events, total },
     loading: eventsLoading,
@@ -83,6 +93,9 @@ export default function EventsPage() {
     loading: listingsMetaLoading,
   } = useSelector((state: RootState) => state.listingsMeta);
 
+  // ------------------------
+  // Grid State
+  // ------------------------
   const [paginationModel, setPaginationModel] =
     React.useState<GridPaginationModel>({ page: 0, pageSize: 10 });
   const [sortModel, setSortModel] = React.useState<GridSortModel>([
@@ -99,14 +112,27 @@ export default function EventsPage() {
     ],
   });
 
+  // ------------------------
+  // Selected + Chart State
+  // ------------------------
   const [selectedEvent, setSelectedEvent] = React.useState<any>(null);
-  const [timeRange, setTimeRange] = React.useState("1d");
-  const [interval, setInterval] = React.useState(defaultInterval("1d"));
+  const [timeRangeGraphOne, setTimeRangeGraphOne] = React.useState("1d");
+  const [intervalGraphOne, setIntervalGraphOne] = React.useState("10m");
+
+  const [timeRangeGraphTwo, setTimeRangeGraphTwo] = React.useState("1d");
+  const [intervalGraphTwo, setIntervalGraphTwo] = React.useState("30m");
 
   React.useEffect(() => {
-    setInterval(defaultInterval(timeRange));
-  }, [timeRange]);
+    setIntervalGraphOne(defaultInterval(timeRangeGraphOne));
+  }, [timeRangeGraphOne]);
 
+  React.useEffect(() => {
+    setIntervalGraphTwo(defaultInterval(timeRangeGraphTwo));
+  }, [timeRangeGraphTwo]);
+
+  // ------------------------
+  // Fetch events
+  // ------------------------
   React.useEffect(() => {
     dispatch(
       getEvents({
@@ -134,6 +160,9 @@ export default function EventsPage() {
     setSelectedEvent(row);
   };
 
+  // ------------------------
+  // Fetch listingsMeta for selected event
+  // ------------------------
   React.useEffect(() => {
     if (!selectedEvent) return;
 
@@ -143,8 +172,177 @@ export default function EventsPage() {
       ],
     };
 
+    // ✅ Call immediately once
     dispatch(getListingsMeta({ filters, page: -1, pageSize: -1 }));
+
+    // ✅ Then call every 1 minute
+    const intervalId = setInterval(() => {
+      dispatch(getListingsMeta({ filters, page: -1, pageSize: -1 }));
+    }, 600000); // 60,0000 ms = 10 minute
+
+    // ✅ Cleanup on unmount or change in selectedEvent
+    return () => clearInterval(intervalId);
   }, [selectedEvent, dispatch]);
+
+  // ------------------------
+  // Dataset Builder (Reusable)
+  // ------------------------
+  const buildDataset = (lm: any[], timeRange: string, interval: string) => {
+    if (!lm || lm.length === 0) return [];
+
+    const now = moment.utc();
+    const fromDate = now.clone();
+
+    switch (timeRange) {
+      case "1d":
+        fromDate.subtract(1, "day");
+        break;
+      case "7d":
+        fromDate.subtract(7, "days");
+        break;
+      case "30d":
+        fromDate.subtract(30, "days");
+        break;
+      case "3m":
+        fromDate.subtract(3, "months");
+        break;
+      case "6m":
+        fromDate.subtract(6, "months");
+        break;
+      case "1y":
+        fromDate.subtract(1, "year");
+        break;
+    }
+
+    const rangeStart = fromDate.valueOf();
+    const rangeEnd = now.valueOf();
+
+    const intervalMs = interval.endsWith("d")
+      ? parseInt(interval) * 24 * 60 * 60 * 1000
+      : interval.endsWith("h")
+      ? parseInt(interval) * 60 * 60 * 1000
+      : parseInt(interval) * 60 * 1000;
+
+    const sorted = [...lm].sort(
+      (a, b) =>
+        moment.utc(a.createdAt).valueOf() - moment.utc(b.createdAt).valueOf()
+    );
+
+    let lastBefore = null;
+    for (let i = sorted.length - 1; i >= 0; i--) {
+      const t = moment.utc(sorted[i].createdAt).valueOf();
+      if (t < rangeStart) {
+        lastBefore = sorted[i];
+        break;
+      }
+    }
+
+    const rangeData = sorted.filter((item) => {
+      const t = moment.utc(item.createdAt).valueOf();
+      return t >= rangeStart && t <= rangeEnd;
+    });
+
+    const grouped: Record<number, any[]> = {};
+    rangeData.forEach((item) => {
+      const time = moment.utc(item.createdAt).valueOf();
+      const bucket = Math.floor(time / intervalMs) * intervalMs;
+      if (!grouped[bucket]) grouped[bucket] = [];
+      grouped[bucket].push(item);
+    });
+
+    const result: any[] = [];
+    let lastValue = lastBefore
+      ? {
+          tickets: lastBefore.ticketCount ?? 0,
+          priceMin: lastBefore.priceMin ?? 0,
+          twoPlusPriceMin: lastBefore.twoPlusPriceMin ?? 0,
+          getInPriceMin: lastBefore.getInPriceMin ?? 0,
+        }
+      : { tickets: 0, priceMin: 0, twoPlusPriceMin: 0, getInPriceMin: 0 };
+
+    const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
+    const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
+
+    for (let t = startBucket; t <= endBucket; t += intervalMs) {
+      const arr = grouped[t] || [];
+
+      if (arr.length === 0) {
+        result.push({
+          ...lastValue,
+          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
+          bucketStartUTC: moment.utc(t).toISOString(),
+        });
+      } else {
+        const avg = (f: string) =>
+          arr.reduce((s, i) => s + (i[f] ?? 0), 0) / arr.length;
+
+        lastValue = {
+          tickets: Math.round(avg("ticketCount")),
+          priceMin: +avg("priceMin").toFixed(2),
+          twoPlusPriceMin: +avg("twoPlusPriceMin").toFixed(2),
+          getInPriceMin: +avg("getInPriceMin").toFixed(2),
+        };
+
+        result.push({
+          ...lastValue,
+          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
+          bucketStartUTC: moment.utc(t).toISOString(),
+        });
+      }
+    }
+
+    return result;
+  };
+
+  const datasetOne = React.useMemo(
+    () => buildDataset(listingsMeta || [], timeRangeGraphOne, intervalGraphOne),
+    [listingsMeta, timeRangeGraphOne, intervalGraphOne]
+  );
+
+  const datasetTwo = React.useMemo(
+    () => buildDataset(listingsMeta || [], timeRangeGraphTwo, intervalGraphTwo),
+    [listingsMeta, timeRangeGraphTwo, intervalGraphTwo]
+  );
+
+  // ------------------------
+  // Charts Config
+  // ------------------------
+  const lineSeries: LineSeriesType[] = [
+    {
+      type: "line",
+      label: "Min Price",
+      dataKey: "priceMin",
+      color: "#1976d2",
+      yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+    },
+    {
+      type: "line",
+      label: "Min Price 2+",
+      dataKey: "twoPlusPriceMin",
+      color: "#ff7043",
+      yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+    },
+    {
+      type: "line",
+      label: "GetIn Price Min 2+",
+      dataKey: "getInPriceMin",
+      color: "#26a69a",
+      yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+    },
+  ];
+
+  const barSeries: BarSeriesType[] = [
+    {
+      type: "bar",
+      label: "Tickets",
+      dataKey: "tickets",
+      color: "rgba(144,164,174,0.45)",
+      yAxisId: "rightAxis",
+    },
+  ];
 
   const columns: CustomGridColDef[] = [
     {
@@ -261,168 +459,15 @@ export default function EventsPage() {
     },
   ];
 
-  // Dataset with aligned buckets and carry-forward
-  // WITH AVG
-   const dataset = React.useMemo(() => {
-    if (!listingsMeta || listingsMeta.length === 0) return [];
-
-    const now = moment.utc();
-    const fromDate = now.clone();
-
-    switch (timeRange) {
-      case "1d":
-        fromDate.subtract(1, "day");
-        break;
-      case "7d":
-        fromDate.subtract(7, "days");
-        break;
-      case "30d":
-        fromDate.subtract(30, "days");
-        break;
-      case "3m":
-        fromDate.subtract(3, "months");
-        break;
-      case "6m":
-        fromDate.subtract(6, "months");
-        break;
-      case "1y":
-        fromDate.subtract(1, "year");
-        break;
-    }
-
-    const rangeStart = fromDate.valueOf();
-    const rangeEnd = now.valueOf();
-
-    const intervalMs = interval.endsWith("d")
-      ? parseInt(interval) * 24 * 60 * 60 * 1000
-      : interval.endsWith("h")
-      ? parseInt(interval) * 60 * 60 * 1000
-      : parseInt(interval) * 60 * 1000;
-
-    const sortedData = [...listingsMeta].sort(
-      (a, b) =>
-        moment.utc(a.createdAt).valueOf() - moment.utc(b.createdAt).valueOf()
-    );
-
-    // find last known value BEFORE range start (for replication)
-    let lastBeforeRange = null;
-    for (let i = sortedData.length - 1; i >= 0; i--) {
-      const t = moment.utc(sortedData[i].createdAt).valueOf();
-      if (t < rangeStart) {
-        lastBeforeRange = sortedData[i];
-        break;
-      }
-    }
-
-    // filter within range only for charting
-    const rangeData = sortedData.filter((item) => {
-      const t = moment.utc(item.createdAt).valueOf();
-      return t >= rangeStart && t <= rangeEnd;
-    });
-
-    // group by buckets
-    const grouped: Record<number, any[]> = {};
-    rangeData.forEach((item) => {
-      const time = moment.utc(item.createdAt).valueOf();
-      const bucket = Math.floor(time / intervalMs) * intervalMs;
-      if (!grouped[bucket]) grouped[bucket] = [];
-      grouped[bucket].push(item);
-    });
-
-    const result: any[] = [];
-    let lastValue = lastBeforeRange
-      ? {
-          tickets: lastBeforeRange.ticketCount ?? 0,
-          priceMin: lastBeforeRange.priceMin ?? 0,
-          twoPlusPriceMin: lastBeforeRange.twoPlusPriceMin ?? 0,
-          getInPriceMin: lastBeforeRange.getInPriceMin ?? 0,
-        }
-      : {
-          tickets: 0,
-          priceMin: 0,
-          twoPlusPriceMin: 0,
-          getInPriceMin: 0,
-        };
-
-    const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
-    const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
-
-    for (let t = startBucket; t <= endBucket; t += intervalMs) {
-      const arr = grouped[t] || [];
-
-      if (arr.length === 0) {
-        // No data → replicate last known value
-        result.push({
-          ...lastValue,
-          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
-          bucketStartUTC: moment.utc(t).toISOString(),
-        });
-      } else {
-        // Average within bucket
-        const avg = (field: string) =>
-          arr.reduce((sum, i) => sum + (i[field] ?? 0), 0) / arr.length;
-
-        lastValue = {
-          tickets: Math.round(avg("ticketCount")),
-          priceMin: +avg("priceMin").toFixed(2),
-          twoPlusPriceMin: +avg("twoPlusPriceMin").toFixed(2),
-          getInPriceMin: +avg("getInPriceMin").toFixed(2),
-        };
-
-        result.push({
-          ...lastValue,
-          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
-          bucketStartUTC: moment.utc(t).toISOString(),
-        });
-      }
-    }
-
-    return result;
-  }, [listingsMeta, interval, timeRange]);
-
-  const lineSeries: LineSeriesType[] = [
-    {
-      type: "line",
-      label: "Min Price",
-      dataKey: "priceMin",
-      color: "#1976d2",
-      yAxisId: "leftAxis",
-      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-    },
-    {
-      type: "line",
-      label: "Min Price 2+",
-      dataKey: "twoPlusPriceMin",
-      color: "#ff7043",
-      yAxisId: "leftAxis",
-      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-    },
-    {
-      type: "line",
-      label: "GetIn Price Min 2+",
-      dataKey: "getInPriceMin",
-      color: "#26a69a",
-      yAxisId: "leftAxis",
-      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-    },
-  ];
-
-  const barSeries: BarSeriesType[] = [
-    {
-      type: "bar",
-      label: "Tickets",
-      dataKey: "tickets",
-      color: "rgba(144,164,174,0.45)",
-      yAxisId: "rightAxis",
-      valueFormatter: (v) => (v != null ? `${v}` : "-"),
-    },
-  ];
-
+  // ------------------------
+  // Render
+  // ------------------------
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
       <Grid container spacing={3}>
         {selectedEvent && (
           <>
+            {/* EVENT DETAILS */}
             <Grid size={{ xs: 12 }}>
               <Card variant="outlined">
                 <CardContent>
@@ -430,6 +475,7 @@ export default function EventsPage() {
                     {selectedEvent?.name}
                   </Typography>
                   <Divider sx={{ mb: 2 }} />
+
                   <Grid container spacing={3}>
                     <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                       <Typography variant="body2" color="text.secondary">
@@ -443,6 +489,7 @@ export default function EventsPage() {
                           : ""}
                       </Typography>
                     </Grid>
+
                     <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                       <Typography variant="body2" color="text.secondary">
                         Venue
@@ -453,6 +500,7 @@ export default function EventsPage() {
                           : "-"}
                       </Typography>
                     </Grid>
+
                     <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                       <Typography variant="body2" color="text.secondary">
                         Performer
@@ -471,6 +519,7 @@ export default function EventsPage() {
               </Card>
             </Grid>
 
+            {/* PRICE CHART */}
             <Grid size={{ xs: 12 }}>
               <Card variant="outlined">
                 <CardContent sx={{ position: "relative" }}>
@@ -483,13 +532,14 @@ export default function EventsPage() {
                     <Typography variant="h6" fontWeight={600} gutterBottom>
                       Trends
                     </Typography>
+
                     <Stack direction="row" spacing={3} alignItems="center">
                       <FormControl size="small">
                         <InputLabel>Time Range</InputLabel>
                         <Select
-                          value={timeRange}
+                          value={timeRangeGraphOne}
                           label="Time Range"
-                          onChange={(e) => setTimeRange(e.target.value)}
+                          onChange={(e) => setTimeRangeGraphOne(e.target.value)}
                           sx={{ minWidth: 150 }}
                         >
                           {timeRangeOptions.map((o) => (
@@ -503,12 +553,12 @@ export default function EventsPage() {
                       <FormControl size="small">
                         <InputLabel>Interval</InputLabel>
                         <Select
-                          value={interval}
+                          value={intervalGraphOne}
                           label="Interval"
-                          onChange={(e) => setInterval(e.target.value)}
+                          onChange={(e) => setIntervalGraphOne(e.target.value)}
                           sx={{ minWidth: 120 }}
                         >
-                          {intervalOptionsMap[timeRange].map((i) => (
+                          {intervalOptionsMap[timeRangeGraphOne].map((i) => (
                             <MenuItem key={i} value={i}>
                               {i}
                             </MenuItem>
@@ -519,7 +569,7 @@ export default function EventsPage() {
                   </Stack>
 
                   <ChartContainer
-                    dataset={dataset || []}
+                    dataset={datasetOne || []}
                     series={[...lineSeries, ...barSeries]}
                     xAxis={[
                       {
@@ -586,28 +636,132 @@ export default function EventsPage() {
                         zIndex: 5,
                       }}
                     >
-                      <CircularProgress
-                        size={32}
-                        thickness={4}
-                        sx={{ color: "primary.main" }}
-                      />
+                      <CircularProgress size={32} thickness={4} />
                     </Box>
                   )}
+                </CardContent>
+              </Card>
+            </Grid>
 
-                  {dataset.length === 0 && (
-                    <Typography
-                      variant="body2"
-                      color="textSecondary"
-                      align="center"
+            {/* TICKETS CHART */}
+            <Grid size={{ xs: 12 }}>
+              <Card variant="outlined">
+                <CardContent sx={{ position: "relative" }}>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    sx={{ mb: 3 }}
+                    flexWrap="wrap"
+                  >
+                    <Typography variant="h6" fontWeight={600} gutterBottom>
+                      Trends
+                    </Typography>
+
+                    <Stack direction="row" spacing={3} alignItems="center">
+                      <FormControl size="small">
+                        <InputLabel>Time Range</InputLabel>
+                        <Select
+                          value={timeRangeGraphTwo}
+                          label="Time Range"
+                          onChange={(e) => setTimeRangeGraphTwo(e.target.value)}
+                          sx={{ minWidth: 150 }}
+                        >
+                          {timeRangeOptions.map((o) => (
+                            <MenuItem key={o.value} value={o.value}>
+                              {o.label}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+
+                      <FormControl size="small">
+                        <InputLabel>Interval</InputLabel>
+                        <Select
+                          value={intervalGraphTwo}
+                          label="Interval"
+                          onChange={(e) => setIntervalGraphTwo(e.target.value)}
+                          sx={{ minWidth: 120 }}
+                        >
+                          {intervalOptionsMap[timeRangeGraphTwo].map((i) => (
+                            <MenuItem key={i} value={i}>
+                              {i}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Stack>
+                  </Stack>
+
+                  <ChartContainer
+                    dataset={datasetTwo || []}
+                    series={[...lineSeries, ...barSeries]}
+                    xAxis={[
+                      {
+                        dataKey: "time",
+                        scaleType: "band",
+                        label: "Date & Time",
+                        tickLabelMinGap: 20,
+                        disableTicks: true,
+                      },
+                    ]}
+                    yAxis={[
+                      {
+                        id: "leftAxis",
+                        label: "Price ($)",
+                        min: 0,
+                      },
+                      {
+                        id: "rightAxis",
+                        label: "Tickets Qty",
+                        position: "right",
+                        min: 0,
+                      },
+                    ]}
+                    height={300}
+                  >
+                    <ChartsGrid horizontal />
+                    <BarPlot />
+                    <LinePlot />
+                    <MarkPlot
+                      slots={{
+                        mark: ({ x, y, color, isHighlighted }) => (
+                          <circle
+                            cx={x}
+                            cy={y}
+                            r={5} // bigger on hover
+                            fill={isHighlighted ? color : "transparent"} // use series color automatically
+                          />
+                        ),
+                      }}
+                      slotProps={{
+                        mark: {
+                          shape: "circle", // default shape, required
+                          skipAnimation: false,
+                        },
+                      }}
+                    />
+
+                    <ChartsXAxis />
+                    <ChartsYAxis axisId="leftAxis" />
+                    <ChartsYAxis axisId="rightAxis" />
+                    <ChartsTooltip />
+                  </ChartContainer>
+
+                  {listingsMetaLoading && (
+                    <Box
                       sx={{
                         position: "absolute",
-                        top: "50%",
-                        left: "50%",
-                        transform: "translate(-50%, -50%)",
+                        inset: 0,
+                        bgcolor: "rgba(255,255,255,0.4)",
+                        backdropFilter: "blur(4px)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 5,
                       }}
                     >
-                      No data available
-                    </Typography>
+                      <CircularProgress size={32} thickness={4} />
+                    </Box>
                   )}
                 </CardContent>
               </Card>
@@ -615,6 +769,7 @@ export default function EventsPage() {
           </>
         )}
 
+        {/* EVENT GRID */}
         <Grid size={{ xs: 12 }}>
           {eventsError ? (
             <Alert severity="error">{eventsError}</Alert>
