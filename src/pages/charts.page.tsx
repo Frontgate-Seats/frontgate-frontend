@@ -75,18 +75,25 @@ const CHART_TIME_RANGE_OPTIONS = [
 ];
 
 const FIELD_OPTIONS = [
+  { value: "listingCount", label: "Listing Count" },
+  { value: "ticketCount", label: "Ticket Count" },
+  { value: "maxTicketCount", label: "Ticket Count Max" },
+
   { value: "allInPriceAverage", label: "All-In Price Average" },
   { value: "allInPriceMin", label: "All-In Price Min" },
   { value: "allInPriceMax", label: "All-In Price Max" },
   { value: "allInPriceMedian", label: "All-In Price Median" },
+
   { value: "priceAverage", label: "Price Average" },
   { value: "priceMin", label: "Price Min" },
   { value: "priceMax", label: "Price Max" },
   { value: "priceMedian", label: "Price Median" },
+
   { value: "getInPriceAverage", label: "Get-In Price Average" },
   { value: "getInPriceMin", label: "Get-In Price Min" },
   { value: "getInPriceMax", label: "Get-In Price Max" },
   { value: "getInPriceMedian", label: "Get-In Price Median" },
+
   { value: "twoPlusPriceAverage", label: "2+ Price Average" },
   { value: "twoPlusPriceMin", label: "2+ Price Min" },
   { value: "twoPlusPriceMax", label: "2+ Price Max" },
@@ -141,7 +148,7 @@ const COLUMNS: CustomGridColDef[] = [
   },
   {
     field: "percentChange",
-    headerName: "% Change",
+    headerName: "Change %",
     flex: 0.8,
     type: "number",
     min: 0,
@@ -154,6 +161,29 @@ const COLUMNS: CustomGridColDef[] = [
         ? "text-red-600 font-medium"
         : "",
   },
+  // {
+  //   field: "avgChange",
+  //   headerName: "Avg. Change",
+  //   flex: 0.8,
+  //   type: "number",
+  //   min: 0,
+  //   max: 10000,
+  // },
+  // {
+  //   field: "avgChangeInPercentage",
+  //   headerName: "Avg. % Change",
+  //   flex: 0.8,
+  //   type: "number",
+  //   min: 0,
+  //   max: 10000,
+  //   valueFormatter: (v) => (v != null ? `${Number(v).toFixed(2)}%` : "-"),
+  //   cellClassName: (params) =>
+  //     params.value > 0
+  //       ? "text-green-600 font-medium"
+  //       : params.value < 0
+  //       ? "text-red-600 font-medium"
+  //       : "",
+  // },
 ];
 
 const computeFromISO = (range: string) => {
@@ -204,10 +234,10 @@ const ChartsPage: React.FC = () => {
 
   const [selectedEvent, setSelectedEvent] = useState<TopEventRow | null>(null);
   const [timeRange, setTimeRange] = useState<string>("1d");
-  const [interval, setInterval] = useState<string>(defaultInterval("1d"));
+  const [graphInterval, setGraphInterval] = useState<string>(defaultInterval("1d"));
 
   useEffect(() => {
-    setInterval(defaultInterval(timeRange));
+    setGraphInterval(defaultInterval(timeRange));
   }, [timeRange]);
 
   // ------------- Effects: compute from & fetch charts -------------
@@ -232,6 +262,12 @@ const ChartsPage: React.FC = () => {
       ],
     };
     dispatch(getListingsMeta({ filters, page: -1, pageSize: -1 }));
+
+    const intervalId = setInterval(() => {
+      dispatch(getListingsMeta({ filters, page: -1, pageSize: -1 }));
+    }, 600000); // 60,0000 ms = 10 minute
+
+    return () => clearInterval(intervalId);
   }, [selectedEvent, dispatch]);
 
   // ------------- Derived data: filtering, sorting, pagination -------------
@@ -334,11 +370,11 @@ const ChartsPage: React.FC = () => {
     const rangeStart = fromDate.valueOf();
     const rangeEnd = now.valueOf();
 
-    const intervalMs = interval.endsWith("d")
-      ? parseInt(interval) * 24 * 60 * 60 * 1000
-      : interval.endsWith("h")
-      ? parseInt(interval) * 60 * 60 * 1000
-      : parseInt(interval) * 60 * 1000;
+    const intervalMs = graphInterval.endsWith("d")
+      ? parseInt(graphInterval) * 24 * 60 * 60 * 1000
+      : graphInterval.endsWith("h")
+      ? parseInt(graphInterval) * 60 * 60 * 1000
+      : parseInt(graphInterval) * 60 * 1000;
 
     const sortedData = [...listingsMeta].sort(
       (a, b) =>
@@ -419,7 +455,7 @@ const ChartsPage: React.FC = () => {
     }
 
     return result;
-  }, [listingsMeta, interval, timeRange]);
+  }, [listingsMeta, graphInterval, timeRange]);
 
   // ------------- Series definitions -------------
   const lineSeries: LineSeriesType[] = useMemo(
@@ -588,9 +624,9 @@ const ChartsPage: React.FC = () => {
                     <FormControl size="small">
                       <InputLabel>Interval</InputLabel>
                       <Select
-                        value={interval}
+                        value={graphInterval}
                         label="Interval"
-                        onChange={(e) => setInterval(e.target.value)}
+                        onChange={(e) => setGraphInterval(e.target.value)}
                         sx={{ minWidth: 120 }}
                       >
                         {INTERVAL_OPTIONS_MAP[timeRange].map((i) => (
