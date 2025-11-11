@@ -201,6 +201,113 @@ const computeFromISO = (range: string) => {
   return fromDate.toISOString();
 };
 
+const buildDataset = (lm: any[], graphTimeRange: string, interval: string) => {
+  if (!lm || lm.length === 0) return [];
+
+  const now = moment.utc();
+  const fromDate = now.clone();
+
+  switch (graphTimeRange) {
+    case "1d":
+      fromDate.subtract(1, "day");
+      break;
+    case "7d":
+      fromDate.subtract(7, "days");
+      break;
+    case "30d":
+      fromDate.subtract(30, "days");
+      break;
+    case "3m":
+      fromDate.subtract(3, "months");
+      break;
+    case "6m":
+      fromDate.subtract(6, "months");
+      break;
+    case "1y":
+      fromDate.subtract(1, "year");
+      break;
+  }
+
+  const rangeStart = fromDate.valueOf();
+  const rangeEnd = now.valueOf();
+
+  const intervalMs = interval.endsWith("d")
+    ? parseInt(interval) * 24 * 60 * 60 * 1000
+    : interval.endsWith("h")
+    ? parseInt(interval) * 60 * 60 * 1000
+    : parseInt(interval) * 60 * 1000;
+
+  const sorted = [...lm].sort(
+    (a, b) =>
+      moment.utc(a.createdAt).valueOf() - moment.utc(b.createdAt).valueOf()
+  );
+
+  let lastBefore = null;
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const t = moment.utc(sorted[i].createdAt).valueOf();
+    if (t < rangeStart) {
+      lastBefore = sorted[i];
+      break;
+    }
+  }
+
+  const rangeData = sorted.filter((item) => {
+    const t = moment.utc(item.createdAt).valueOf();
+    return t >= rangeStart && t <= rangeEnd;
+  });
+
+  const grouped: Record<number, any[]> = {};
+  rangeData.forEach((item) => {
+    const time = moment.utc(item.createdAt).valueOf();
+    const bucket = Math.floor(time / intervalMs) * intervalMs;
+    if (!grouped[bucket]) grouped[bucket] = [];
+    grouped[bucket].push(item);
+  });
+
+  const result: any[] = [];
+  let lastValue = lastBefore
+    ? {
+        tickets: lastBefore.ticketCount ?? 0,
+        priceMin: lastBefore.priceMin ?? 0,
+        twoPlusPriceMin: lastBefore.twoPlusPriceMin ?? 0,
+        getInPriceMin: lastBefore.getInPriceMin ?? 0,
+      }
+    : { tickets: 0, priceMin: 0, twoPlusPriceMin: 0, getInPriceMin: 0 };
+
+  const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
+  const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
+
+  for (let t = startBucket; t <= endBucket; t += intervalMs) {
+    const arr = grouped[t] || [];
+
+    if (arr.length === 0) {
+      result.push({
+        ...lastValue,
+        time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
+        bucketStartUTC: moment.utc(t).toISOString(),
+      });
+    } else {
+      const avg = (f: string) =>
+        arr.reduce((s, i) => s + (i[f] ?? 0), 0) / arr.length;
+
+      lastValue = {
+        tickets: Math.round(avg("ticketCount")),
+        priceMin: +avg("priceMin").toFixed(2),
+        twoPlusPriceMin: +avg("twoPlusPriceMin").toFixed(2),
+        getInPriceMin: +avg("getInPriceMin").toFixed(2),
+      };
+
+      result.push({
+        ...lastValue,
+        time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
+        bucketStartUTC: moment.utc(t).toISOString(),
+      });
+    }
+  }
+
+  return result;
+};
+
 // ---------------------- Component ----------------------
 const ChartsPage: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -233,12 +340,14 @@ const ChartsPage: React.FC = () => {
   });
 
   const [selectedEvent, setSelectedEvent] = useState<TopEventRow | null>(null);
-  const [timeRange, setTimeRange] = useState<string>("1d");
-  const [graphInterval, setGraphInterval] = useState<string>(defaultInterval("1d"));
+  const [graphTimeRange, setGraphTimeRange] = useState<string>("1d");
+  const [graphInterval, setGraphInterval] = useState<string>(
+    defaultInterval("1d")
+  );
 
   useEffect(() => {
-    setGraphInterval(defaultInterval(timeRange));
-  }, [timeRange]);
+    setGraphInterval(defaultInterval(graphTimeRange));
+  }, [graphTimeRange]);
 
   // ------------- Effects: compute from & fetch charts -------------
   useEffect(() => {
@@ -340,122 +449,10 @@ const ChartsPage: React.FC = () => {
   }, [sortedRows, paginationModel]);
 
   // ------------- Dataset for charts -------------
-  const dataset = React.useMemo(() => {
-    if (!listingsMeta || listingsMeta.length === 0) return [];
-
-    const now = moment.utc();
-    const fromDate = now.clone();
-
-    switch (timeRange) {
-      case "1d":
-        fromDate.subtract(1, "day");
-        break;
-      case "7d":
-        fromDate.subtract(7, "days");
-        break;
-      case "30d":
-        fromDate.subtract(30, "days");
-        break;
-      case "3m":
-        fromDate.subtract(3, "months");
-        break;
-      case "6m":
-        fromDate.subtract(6, "months");
-        break;
-      case "1y":
-        fromDate.subtract(1, "year");
-        break;
-    }
-
-    const rangeStart = fromDate.valueOf();
-    const rangeEnd = now.valueOf();
-
-    const intervalMs = graphInterval.endsWith("d")
-      ? parseInt(graphInterval) * 24 * 60 * 60 * 1000
-      : graphInterval.endsWith("h")
-      ? parseInt(graphInterval) * 60 * 60 * 1000
-      : parseInt(graphInterval) * 60 * 1000;
-
-    const sortedData = [...listingsMeta].sort(
-      (a, b) =>
-        moment.utc(a.createdAt).valueOf() - moment.utc(b.createdAt).valueOf()
-    );
-
-    // find last known value BEFORE range start (for replication)
-    let lastBeforeRange = null;
-    for (let i = sortedData.length - 1; i >= 0; i--) {
-      const t = moment.utc(sortedData[i].createdAt).valueOf();
-      if (t < rangeStart) {
-        lastBeforeRange = sortedData[i];
-        break;
-      }
-    }
-
-    // filter within range only for charting
-    const rangeData = sortedData.filter((item) => {
-      const t = moment.utc(item.createdAt).valueOf();
-      return t >= rangeStart && t <= rangeEnd;
-    });
-
-    // group by buckets
-    const grouped: Record<number, any[]> = {};
-    rangeData.forEach((item) => {
-      const time = moment.utc(item.createdAt).valueOf();
-      const bucket = Math.floor(time / intervalMs) * intervalMs;
-      if (!grouped[bucket]) grouped[bucket] = [];
-      grouped[bucket].push(item);
-    });
-
-    const result: any[] = [];
-    let lastValue = lastBeforeRange
-      ? {
-          tickets: lastBeforeRange.ticketCount ?? 0,
-          priceMin: lastBeforeRange.priceMin ?? 0,
-          twoPlusPriceMin: lastBeforeRange.twoPlusPriceMin ?? 0,
-          getInPriceMin: lastBeforeRange.getInPriceMin ?? 0,
-        }
-      : {
-          tickets: 0,
-          priceMin: 0,
-          twoPlusPriceMin: 0,
-          getInPriceMin: 0,
-        };
-
-    const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
-    const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
-
-    for (let t = startBucket; t <= endBucket; t += intervalMs) {
-      const arr = grouped[t] || [];
-
-      if (arr.length === 0) {
-        // No data → replicate last known value
-        result.push({
-          ...lastValue,
-          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
-          bucketStartUTC: moment.utc(t).toISOString(),
-        });
-      } else {
-        // Average within bucket
-        const avg = (field: string) =>
-          arr.reduce((sum, i) => sum + (i[field] ?? 0), 0) / arr.length;
-
-        lastValue = {
-          tickets: Math.round(avg("ticketCount")),
-          priceMin: +avg("priceMin").toFixed(2),
-          twoPlusPriceMin: +avg("twoPlusPriceMin").toFixed(2),
-          getInPriceMin: +avg("getInPriceMin").toFixed(2),
-        };
-
-        result.push({
-          ...lastValue,
-          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
-          bucketStartUTC: moment.utc(t).toISOString(),
-        });
-      }
-    }
-
-    return result;
-  }, [listingsMeta, graphInterval, timeRange]);
+  const dataset = React.useMemo(
+    () => buildDataset(listingsMeta || [], graphTimeRange, graphInterval),
+    [listingsMeta, graphTimeRange, graphInterval]
+  );
 
   // ------------- Series definitions -------------
   const lineSeries: LineSeriesType[] = useMemo(
@@ -608,9 +605,9 @@ const ChartsPage: React.FC = () => {
                     <FormControl size="small">
                       <InputLabel>Time Range</InputLabel>
                       <Select
-                        value={timeRange}
+                        value={graphTimeRange}
                         label="Time Range"
-                        onChange={(e) => setTimeRange(e.target.value)}
+                        onChange={(e) => setGraphTimeRange(e.target.value)}
                         sx={{ minWidth: 150 }}
                       >
                         {TIME_RANGE_OPTIONS.map((o) => (
@@ -629,7 +626,7 @@ const ChartsPage: React.FC = () => {
                         onChange={(e) => setGraphInterval(e.target.value)}
                         sx={{ minWidth: 120 }}
                       >
-                        {INTERVAL_OPTIONS_MAP[timeRange].map((i) => (
+                        {INTERVAL_OPTIONS_MAP[graphTimeRange].map((i) => (
                           <MenuItem key={i} value={i}>
                             {i}
                           </MenuItem>
