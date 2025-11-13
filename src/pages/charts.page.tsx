@@ -17,6 +17,7 @@ import {
   Paper,
   IconButton,
   Collapse,
+  Button,
 } from "@mui/material";
 import { useAppDispatch } from "../store/reducers/root.reducer";
 import { useSelector } from "react-redux";
@@ -45,6 +46,9 @@ import {
 } from "@mui/x-charts";
 import { ExpandLess, ExpandMore, FindReplace } from "@mui/icons-material";
 import dayjs from "dayjs";
+import { useNavigate } from "react-router-dom";
+import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 
 type TopEventRow = {
   eventId: string;
@@ -55,8 +59,8 @@ type TopEventRow = {
   percentChange?: number | null;
   // optional fields used when selecting the event
   utcDate?: string | null;
-  venueDBId?: any;
-  performerDBIds?: any[];
+  venue?: any;
+  performers?: any[];
 };
 
 // ---------------------- Constants ----------------------
@@ -119,72 +123,6 @@ const INTERVAL_OPTIONS_MAP: Record<string, string[]> = {
 };
 
 const defaultInterval = (range: string) => INTERVAL_OPTIONS_MAP[range][2];
-
-const COLUMNS: CustomGridColDef[] = [
-  { field: "eventId", headerName: "Event ID", flex: 1.2, minWidth: 150 },
-  {
-    field: "startValue",
-    headerName: "Start Value",
-    flex: 0.8,
-    type: "number",
-    min: 0,
-    max: 10000,
-  },
-  {
-    field: "endValue",
-    headerName: "End Value",
-    flex: 0.8,
-    type: "number",
-    min: 0,
-    max: 10000,
-  },
-  {
-    field: "change",
-    headerName: "Change",
-    flex: 0.8,
-    type: "number",
-    min: 0,
-    max: 10000,
-  },
-  {
-    field: "percentChange",
-    headerName: "Change %",
-    flex: 0.8,
-    type: "number",
-    min: 0,
-    max: 10000,
-    valueFormatter: (v) => (v != null ? `${Number(v).toFixed(2)}%` : "-"),
-    cellClassName: (params) =>
-      params.value > 0
-        ? "text-green-600 font-medium"
-        : params.value < 0
-        ? "text-red-600 font-medium"
-        : "",
-  },
-  // {
-  //   field: "avgChange",
-  //   headerName: "Avg. Change",
-  //   flex: 0.8,
-  //   type: "number",
-  //   min: 0,
-  //   max: 10000,
-  // },
-  // {
-  //   field: "avgChangeInPercentage",
-  //   headerName: "Avg. % Change",
-  //   flex: 0.8,
-  //   type: "number",
-  //   min: 0,
-  //   max: 10000,
-  //   valueFormatter: (v) => (v != null ? `${Number(v).toFixed(2)}%` : "-"),
-  //   cellClassName: (params) =>
-  //     params.value > 0
-  //       ? "text-green-600 font-medium"
-  //       : params.value < 0
-  //       ? "text-red-600 font-medium"
-  //       : "",
-  // },
-];
 
 const computeFromISO = (range: string) => {
   let fromDate = moment.utc();
@@ -311,6 +249,7 @@ const buildDataset = (lm: any[], graphTimeRange: string, interval: string) => {
 // ---------------------- Component ----------------------
 const ChartsPage: React.FC = () => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
 
   // charts slice
   const {
@@ -378,6 +317,129 @@ const ChartsPage: React.FC = () => {
 
     return () => clearInterval(intervalId);
   }, [selectedEvent, dispatch]);
+
+  const COLUMNS: CustomGridColDef[] = [
+    { field: "eventId", headerName: "Event ID", flex: 1.2, minWidth: 150 },
+    {
+      field: "name",
+      headerName: "Event Name",
+      flex: 1.8,
+      minWidth: 180,
+      type: "string",
+    },
+    {
+      field: "utcDate",
+      headerName: "Date & Time (UTC)",
+      type: "dateTime",
+      flex: 1.3,
+      minWidth: 160,
+      valueFormatter: (value) =>
+        value ? moment(value).format("MM/DD/YYYY hh:mm A") : "-",
+      renderEditCell: (params) => (
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DateTimePicker
+            value={params.value ? dayjs(params.value) : dayjs()}
+            onChange={(value) =>
+              params.api.setEditCellValue({
+                id: params.id,
+                field: params.field,
+                value: value,
+              })
+            }
+            minDateTime={dayjs()} // prevent past selection
+          />
+        </LocalizationProvider>
+      ),
+    },
+    {
+      field: "startValue",
+      headerName: "Start Value",
+      flex: 0.8,
+      type: "number",
+      min: 0,
+      max: 10000,
+    },
+    {
+      field: "endValue",
+      headerName: "End Value",
+      flex: 0.8,
+      type: "number",
+      min: 0,
+      max: 10000,
+    },
+    {
+      field: "change",
+      headerName: "Change",
+      flex: 0.8,
+      type: "number",
+      min: 0,
+      max: 10000,
+    },
+    {
+      field: "percentChange",
+      headerName: "Change %",
+      flex: 0.8,
+      type: "number",
+      min: 0,
+      max: 10000,
+      valueFormatter: (v) => (v != null ? `${Number(v).toFixed(2)}%` : "-"),
+      cellClassName: (params) =>
+        params.value > 0
+          ? "text-green-600 font-medium"
+          : params.value < 0
+          ? "text-red-600 font-medium"
+          : "",
+    },
+    // {
+    //   field: "avgChange",
+    //   headerName: "Avg. Change",
+    //   flex: 0.8,
+    //   type: "number",
+    //   min: 0,
+    //   max: 10000,
+    // },
+    // {
+    //   field: "avgChangeInPercentage",
+    //   headerName: "Avg. % Change",
+    //   flex: 0.8,
+    //   type: "number",
+    //   min: 0,
+    //   max: 10000,
+    //   valueFormatter: (v) => (v != null ? `${Number(v).toFixed(2)}%` : "-"),
+    //   cellClassName: (params) =>
+    //     params.value > 0
+    //       ? "text-green-600 font-medium"
+    //       : params.value < 0
+    //       ? "text-red-600 font-medium"
+    //       : "",
+    // },
+    {
+      field: "actions",
+      type: "actions",
+      headerName: "Actions",
+      flex: 0.7,
+      minWidth: 140,
+      getActions: (params) => [
+        <Button
+          key={params.row.eventId}
+          onClick={(e) => {
+            e.stopPropagation();
+            const url = `/listings/${params.row.eventId}`;
+            if (e.ctrlKey || e.metaKey) {
+              window.open(url, "_blank");
+            } else {
+              navigate(url);
+            }
+          }}
+          variant="contained"
+          size="small"
+          sx={{ borderRadius: 2 }}
+        >
+          View Listings
+        </Button>,
+      ],
+    },
+  ];
 
   // ------------- Derived data: filtering, sorting, pagination -------------
   const filteredRows = useMemo(() => {
@@ -588,141 +650,193 @@ const ChartsPage: React.FC = () => {
         </Grid>
 
         {selectedEvent && (
-          <Grid size={{ xs: 12 }}>
-            <Card variant="outlined">
-              <CardContent sx={{ position: "relative" }}>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  sx={{ mb: 3 }}
-                  flexWrap="wrap"
-                >
-                  <Typography variant="h6" fontWeight={600} gutterBottom>
-                    Trends
+          <>
+            <Grid size={{ xs: 12 }}>
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="h4" fontWeight="bold" gutterBottom>
+                    {selectedEvent?.name}
                   </Typography>
+                  <Divider sx={{ mb: 2 }} />
 
-                  <Stack direction="row" spacing={3} alignItems="center">
-                    <FormControl size="small">
-                      <InputLabel>Time Range</InputLabel>
-                      <Select
-                        value={graphTimeRange}
-                        label="Time Range"
-                        onChange={(e) => setGraphTimeRange(e.target.value)}
-                        sx={{ minWidth: 150 }}
-                      >
-                        {TIME_RANGE_OPTIONS.map((o) => (
-                          <MenuItem key={o.value} value={o.value}>
-                            {o.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
+                  <Grid container spacing={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Date & Time (UTC)
+                      </Typography>
+                      <Typography variant="body1">
+                        {selectedEvent?.utcDate
+                          ? moment(selectedEvent.utcDate).format(
+                              "MM/DD/YYYY hh:mm A"
+                            )
+                          : ""}
+                      </Typography>
+                    </Grid>
 
-                    <FormControl size="small">
-                      <InputLabel>Interval</InputLabel>
-                      <Select
-                        value={graphInterval}
-                        label="Interval"
-                        onChange={(e) => setGraphInterval(e.target.value)}
-                        sx={{ minWidth: 120 }}
-                      >
-                        {INTERVAL_OPTIONS_MAP[graphTimeRange].map((i) => (
-                          <MenuItem key={i} value={i}>
-                            {i}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Venue
+                      </Typography>
+                      <Typography variant="body1">
+                        {selectedEvent?.venue
+                          ? `${selectedEvent.venue?.city}, ${selectedEvent.venue?.stateCode} (${selectedEvent.venue.countryCode})`
+                          : "-"}
+                      </Typography>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Performer
+                      </Typography>
+                      <Typography variant="body1">
+                        {selectedEvent?.performers?.length
+                          ? selectedEvent.performers
+                              .map((p: any) => p?.name)
+                              .filter(Boolean)
+                              .join(", ")
+                          : "-"}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <Card variant="outlined">
+                <CardContent sx={{ position: "relative" }}>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    sx={{ mb: 3 }}
+                    flexWrap="wrap"
+                  >
+                    <Typography variant="h6" fontWeight={600} gutterBottom>
+                      Trends
+                    </Typography>
+
+                    <Stack direction="row" spacing={3} alignItems="center">
+                      <FormControl size="small">
+                        <InputLabel>Time Range</InputLabel>
+                        <Select
+                          value={graphTimeRange}
+                          label="Time Range"
+                          onChange={(e) => setGraphTimeRange(e.target.value)}
+                          sx={{ minWidth: 150 }}
+                        >
+                          {TIME_RANGE_OPTIONS.map((o) => (
+                            <MenuItem key={o.value} value={o.value}>
+                              {o.label}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+
+                      <FormControl size="small">
+                        <InputLabel>Interval</InputLabel>
+                        <Select
+                          value={graphInterval}
+                          label="Interval"
+                          onChange={(e) => setGraphInterval(e.target.value)}
+                          sx={{ minWidth: 120 }}
+                        >
+                          {INTERVAL_OPTIONS_MAP[graphTimeRange].map((i) => (
+                            <MenuItem key={i} value={i}>
+                              {i}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Stack>
                   </Stack>
-                </Stack>
 
-                <ChartContainer
-                  dataset={dataset || []}
-                  series={[...lineSeries, ...barSeries]}
-                  xAxis={[
-                    {
-                      dataKey: "time",
-                      scaleType: "band",
-                      label: "Date & Time",
-                      tickLabelMinGap: 20,
-                      disableTicks: true,
-                    },
-                  ]}
-                  yAxis={[
-                    { id: "leftAxis", label: "Price ($)", min: 0 },
-                    {
-                      id: "rightAxis",
-                      label: "Tickets Qty",
-                      position: "right",
-                      min: 0,
-                    },
-                  ]}
-                  height={300}
-                >
-                  <ChartsGrid horizontal />
-                  <BarPlot />
-                  <LinePlot />
-                  <MarkPlot
-                    slots={{
-                      mark: ({ x, y, color, isHighlighted }) => (
-                        <circle
-                          cx={x}
-                          cy={y}
-                          r={5}
-                          fill={isHighlighted ? color : "transparent"}
-                        />
-                      ),
-                    }}
-                    slotProps={{
-                      mark: { shape: "circle", skipAnimation: false },
-                    }}
-                  />
-
-                  <ChartsXAxis />
-                  <ChartsYAxis axisId="leftAxis" />
-                  <ChartsYAxis axisId="rightAxis" />
-                  <ChartsTooltip />
-                </ChartContainer>
-
-                {listingsMetaLoading && (
-                  <Box
-                    sx={{
-                      position: "absolute",
-                      inset: 0,
-                      bgcolor: "rgba(255,255,255,0.4)",
-                      backdropFilter: "blur(4px)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      zIndex: 5,
-                    }}
+                  <ChartContainer
+                    dataset={dataset || []}
+                    series={[...lineSeries, ...barSeries]}
+                    xAxis={[
+                      {
+                        dataKey: "time",
+                        scaleType: "band",
+                        label: "Date & Time",
+                        tickLabelMinGap: 20,
+                        disableTicks: true,
+                      },
+                    ]}
+                    yAxis={[
+                      { id: "leftAxis", label: "Price ($)", min: 0 },
+                      {
+                        id: "rightAxis",
+                        label: "Tickets Qty",
+                        position: "right",
+                        min: 0,
+                      },
+                    ]}
+                    height={300}
                   >
-                    <CircularProgress
-                      size={32}
-                      thickness={4}
-                      sx={{ color: "primary.main" }}
+                    <ChartsGrid horizontal />
+                    <BarPlot />
+                    <LinePlot />
+                    <MarkPlot
+                      slots={{
+                        mark: ({ x, y, color, isHighlighted }) => (
+                          <circle
+                            cx={x}
+                            cy={y}
+                            r={5}
+                            fill={isHighlighted ? color : "transparent"}
+                          />
+                        ),
+                      }}
+                      slotProps={{
+                        mark: { shape: "circle", skipAnimation: false },
+                      }}
                     />
-                  </Box>
-                )}
 
-                {dataset.length === 0 && (
-                  <Typography
-                    variant="body2"
-                    color="textSecondary"
-                    align="center"
-                    sx={{
-                      position: "absolute",
-                      top: "50%",
-                      left: "50%",
-                      transform: "translate(-50%, -50%)",
-                    }}
-                  >
-                    No data available
-                  </Typography>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
+                    <ChartsXAxis />
+                    <ChartsYAxis axisId="leftAxis" />
+                    <ChartsYAxis axisId="rightAxis" />
+                    <ChartsTooltip />
+                  </ChartContainer>
+
+                  {listingsMetaLoading && (
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        inset: 0,
+                        bgcolor: "rgba(255,255,255,0.4)",
+                        backdropFilter: "blur(4px)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 5,
+                      }}
+                    >
+                      <CircularProgress
+                        size={32}
+                        thickness={4}
+                        sx={{ color: "primary.main" }}
+                      />
+                    </Box>
+                  )}
+
+                  {dataset.length === 0 && (
+                    <Typography
+                      variant="body2"
+                      color="textSecondary"
+                      align="center"
+                      sx={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                      }}
+                    >
+                      No data available
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          </>
         )}
 
         <Grid size={{ xs: 12 }}>
