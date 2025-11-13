@@ -26,7 +26,7 @@ const initialState: EventsState = {
 
 // Async thunk to fetch listings
 export const getSingleListingsDetails = createAsyncThunk(
-  "listings/listingsDetais",
+  "listingsDetais",
   async (
     data: {
       listingDBId: string;
@@ -48,10 +48,12 @@ export const getSingleListingsDetails = createAsyncThunk(
   }
 );
 
-const listingsSlice = createSlice({
+const listingsDetailesSlice = createSlice({
   name: "listings",
   initialState,
-  reducers: {},
+  reducers: {
+    resetListingDetails: () => initialState
+  },
   extraReducers: (builder) => {
     builder
       .addCase(getSingleListingsDetails.pending, (state) => {
@@ -69,6 +71,6 @@ const listingsSlice = createSlice({
   },
 });
 
-export const {} = listingsSlice.actions;
+export const { resetListingDetails } = listingsDetailesSlice.actions;
 
-export default listingsSlice.reducer;
+export default listingsDetailesSlice.reducer;

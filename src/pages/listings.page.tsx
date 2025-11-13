@@ -20,16 +20,20 @@ import type { RootState } from "../store";
 import { getListings } from "../store/slices/listings.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
 import { useNavigate, useParams } from "react-router-dom";
-import type {
-  GridPaginationModel,
-  GridSortModel,
-} from "@mui/x-data-grid";
+import type { GridPaginationModel, GridSortModel } from "@mui/x-data-grid";
 import type { StepData } from "../components/common/models/types.model";
 import StepperModal from "../components/common/models/stepper.model";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import { getSingleListingsDetails } from "../store/slices/listingsDetails.slice";
-import { createOrder, createQuote } from "../store/slices/purchases.slice";
+import {
+  getSingleListingsDetails,
+  resetListingDetails,
+} from "../store/slices/listingsDetails.slice";
+import {
+  createOrder,
+  createQuote,
+  resetPurchase,
+} from "../store/slices/purchases.slice";
 import moment from "moment";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { GridFilterModel } from "@mui/x-data-grid";
@@ -166,6 +170,8 @@ export default function ListingsPage() {
     setModelActiveStep(0);
     setMdelCompleted(false);
     setOpenModel(false);
+    resetPurchase();
+    resetListingDetails();
   };
 
   const allColumns: CustomGridColDef[] = [
