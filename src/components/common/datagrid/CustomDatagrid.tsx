@@ -15,7 +15,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import CustomFilterToolbar from "./CustomToolbar";
 import type { CustomGridColDef } from "../../../shared/types/mui.type";
 
-const INITIAL_PAGE_SIZE = 10;
+const INITIAL_PAGE_SIZE = 25;
 
 interface CustomDataGridProps {
   title: string;
@@ -71,14 +71,20 @@ export default function CustomDataGrid({
 
 
   return (
-    <Box sx={{ flex: 1, width: "100%", p: 2, overflowX: "auto" }}>
+    <Box sx={{ 
+      display: "flex", 
+      flexDirection: "column", 
+      height: "100%", 
+      width: "100%",
+      minHeight: 0
+    }}>
       {title || onRefresh ? (
         <Stack
           direction="row"
           alignItems="center"
           justifyContent="space-between"
           spacing={1}
-          sx={{ mb: 2 }}
+          sx={{ mb: 2, flexShrink: 0 }}
         >
           <Box component="h2" sx={{ m: 0 }}>
             {title}
@@ -100,15 +106,17 @@ export default function CustomDataGrid({
       ) : (
         <>
           {filterModel && setFilterModel ? (
-            <CustomFilterToolbar
-              columns={columns}
-              filterModel={filterModel}
-              setFilterModel={setFilterModel}
-            />
+            <Box sx={{ flexShrink: 0 }}>
+              <CustomFilterToolbar
+                columns={columns}
+                filterModel={filterModel}
+                setFilterModel={setFilterModel}
+              />
+            </Box>
           ) : (
             <></>
           )}
-          <Box sx={{ height: 600, width: "100%" }}>
+          <Box sx={{ height: 800, width: "100%" }}>
             {/* Wrapper for scroll */}
             <DataGrid
               rows={rows}
@@ -126,7 +134,7 @@ export default function CustomDataGrid({
               disableRowSelectionOnClick
               onRowClick={onRowClick}
               loading={isLoading}
-              pageSizeOptions={[5, INITIAL_PAGE_SIZE, 25, 50, 100]}
+              pageSizeOptions={[5, 10, INITIAL_PAGE_SIZE, 50, 100]}
               autoHeight={autoHeight}
               sx={{
                 "& .MuiDataGrid-cell": {

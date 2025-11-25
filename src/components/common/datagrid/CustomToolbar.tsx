@@ -75,7 +75,7 @@ const DynamicFiltersToolbar: React.FC<DynamicFiltersToolbarProps> = ({
 }) => {
   const [localValues, setLocalValues] = useState<Record<string, any>>({});
   const timersRef = useRef<Record<string, number | null>>({});
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   // Sync filterModel → local state
   useEffect(() => {
@@ -392,7 +392,6 @@ const DynamicFiltersToolbar: React.FC<DynamicFiltersToolbarProps> = ({
 
   return (
     <Paper
-      elevation={2}
       sx={{
         p: 2,
         mb: 2,
@@ -424,7 +423,7 @@ const DynamicFiltersToolbar: React.FC<DynamicFiltersToolbarProps> = ({
         <Divider sx={{ mb: 2 }} />
         <Grid container spacing={2}>
           {validColumns.map((col) => (
-            <Grid key={col.field} size={{ xs: 12, sm: 6, md: 4 }}>
+            <Grid key={col.field} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
               {renderFilterRow(col)}
             </Grid>
           ))}

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Container,
   FormControl,
   InputLabel,
   MenuItem,
@@ -18,6 +17,8 @@ import {
   IconButton,
   Collapse,
   Button,
+  Link,
+  Tooltip,
 } from "@mui/material";
 import { useAppDispatch } from "../store/reducers/root.reducer";
 import { useSelector } from "react-redux";
@@ -44,9 +45,13 @@ import {
   type BarSeriesType,
   type LineSeriesType,
 } from "@mui/x-charts";
-import { ExpandLess, ExpandMore, FindReplace } from "@mui/icons-material";
+import {
+  ExpandLess,
+  ExpandMore,
+  FindReplace,
+  Visibility,
+} from "@mui/icons-material";
 import dayjs from "dayjs";
-import { useNavigate } from "react-router-dom";
 import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 
@@ -249,7 +254,7 @@ const buildDataset = (lm: any[], graphTimeRange: string, interval: string) => {
 // ---------------------- Component ----------------------
 const ChartsPage: React.FC = () => {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
+  const chartRef = React.useRef<HTMLDivElement>(null);
 
   // charts slice
   const {
@@ -271,7 +276,7 @@ const ChartsPage: React.FC = () => {
 
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({
     page: 0,
-    pageSize: 10,
+    pageSize: 25,
   });
   const [sortModel, setSortModel] = useState<GridSortModel>([]);
   const [filterModel, setFilterModel] = useState<GridFilterModel>({
@@ -319,20 +324,59 @@ const ChartsPage: React.FC = () => {
   }, [selectedEvent, dispatch]);
 
   const COLUMNS: CustomGridColDef[] = [
-    { field: "eventId", headerName: "Event ID", flex: 1.2, minWidth: 150 },
+    {
+      field: "view",
+      headerName: "",
+      width: 60,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      renderCell: (params) => (
+        <Tooltip title="View listings Meta Data">
+          <IconButton
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRowClick(params.row);
+            }}
+            color="primary"
+            size="small"
+          >
+            <Visibility />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
+    {
+      field: "eventId",
+      headerName: "Event ID",
+      flex: 0.7,
+      minWidth: 110,
+      renderCell: (params) => (
+        <Link
+          href={`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${params.value}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          underline="hover"
+          color="primary"
+          sx={{ fontWeight: 500 }}
+        >
+          {params.value}
+        </Link>
+      ),
+    },
     {
       field: "name",
       headerName: "Event Name",
-      flex: 1.8,
-      minWidth: 180,
+      flex: 2,
+      minWidth: 200,
       type: "string",
     },
     {
       field: "utcDate",
       headerName: "Date & Time (UTC)",
       type: "dateTime",
-      flex: 1.3,
-      minWidth: 160,
+      flex: 1.2,
+      minWidth: 170,
       valueFormatter: (value) =>
         value ? moment(value).format("MM/DD/YYYY hh:mm A") : "-",
       renderEditCell: (params) => (
@@ -354,7 +398,8 @@ const ChartsPage: React.FC = () => {
     {
       field: "startValue",
       headerName: "Start Value",
-      flex: 0.8,
+      flex: 0.7,
+      minWidth: 100,
       type: "number",
       min: 0,
       max: 10000,
@@ -362,7 +407,8 @@ const ChartsPage: React.FC = () => {
     {
       field: "endValue",
       headerName: "End Value",
-      flex: 0.8,
+      flex: 0.7,
+      minWidth: 100,
       type: "number",
       min: 0,
       max: 10000,
@@ -370,7 +416,8 @@ const ChartsPage: React.FC = () => {
     {
       field: "change",
       headerName: "Change",
-      flex: 0.8,
+      flex: 0.7,
+      minWidth: 90,
       type: "number",
       min: 0,
       max: 10000,
@@ -379,6 +426,7 @@ const ChartsPage: React.FC = () => {
       field: "percentChange",
       headerName: "Change %",
       flex: 0.8,
+      minWidth: 100,
       type: "number",
       min: 0,
       max: 10000,
@@ -417,20 +465,14 @@ const ChartsPage: React.FC = () => {
       field: "actions",
       type: "actions",
       headerName: "Actions",
-      flex: 0.7,
-      minWidth: 140,
+      flex: 1,
+      minWidth: 150,
       getActions: (params) => [
         <Button
-          key={params.row.eventId}
-          onClick={(e) => {
-            e.stopPropagation();
-            const url = `/listings/${params.row.eventId}`;
-            if (e.ctrlKey || e.metaKey) {
-              window.open(url, "_blank");
-            } else {
-              navigate(url);
-            }
-          }}
+          key="listings"
+          onClick={() =>
+            window.open(`/listings/${params.row.eventId}`, "_blank")
+          }
           variant="contained"
           size="small"
           sx={{ borderRadius: 2 }}
@@ -571,6 +613,14 @@ const ChartsPage: React.FC = () => {
     (row: any) => {
       if (row.eventId === selectedEvent?.eventId) return;
       setSelectedEvent(row);
+
+      // Smooth scroll to top
+      setTimeout(() => {
+        chartRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 150);
     },
     [selectedEvent]
   );
@@ -579,7 +629,7 @@ const ChartsPage: React.FC = () => {
 
   // ------------- Render -------------
   return (
-    <Container maxWidth="xl" sx={{ py: 3 }}>
+    <Stack padding={3}>
       <Grid container spacing={3}>
         <Grid size={{ xs: 12 }}>
           <Paper
@@ -651,7 +701,7 @@ const ChartsPage: React.FC = () => {
 
         {selectedEvent && (
           <>
-            <Grid size={{ xs: 12 }}>
+            <Grid size={{ xs: 12 }} ref={chartRef}>
               <Card variant="outlined">
                 <CardContent>
                   <Typography variant="h4" fontWeight="bold" gutterBottom>
@@ -756,9 +806,22 @@ const ChartsPage: React.FC = () => {
                       {
                         dataKey: "time",
                         scaleType: "band",
-                        label: "Date & Time",
+                        label: graphTimeRange === "1d" ? "Time" : "Date",
                         tickLabelMinGap: 20,
                         disableTicks: true,
+                        valueFormatter: (value: string) => {
+                          const parsed = moment(value, "MM/DD/YYYY hh:mm A");
+                          if (!parsed.isValid()) return value;
+
+                          // For same day (1d): show time in 12-hour format with AM/PM
+                          if (graphTimeRange === "1d") {
+                            return parsed.format("hh:mm A");
+                          }
+                          // For more than one day: show day and month
+                          else {
+                            return parsed.format("MM/DD");
+                          }
+                        },
                       },
                     ]}
                     yAxis={[
@@ -857,12 +920,11 @@ const ChartsPage: React.FC = () => {
               filterModel={filterModel}
               setFilterModel={setFilterModel}
               onRefresh={handleRefresh}
-              onRowClick={(value) => handleRowClick(value.row)}
             />
           )}
         </Grid>
       </Grid>
-    </Container>
+    </Stack>
   );
 };
 

@@ -5,7 +5,7 @@ import {
   type GridPaginationModel,
   type GridSortModel,
 } from "@mui/x-data-grid";
-import { Typography, Grid, Alert, Container } from "@mui/material";
+import { Typography, Grid, Alert, Link, Stack } from "@mui/material";
 import type { AppDispatch, RootState } from "../store";
 import { getPurchases } from "../store/slices/purchases.slice";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
@@ -20,7 +20,7 @@ const PurchasesPage: React.FC = () => {
   } = useSelector((state: RootState) => state.purchases);
 
   const [paginationModel, setPaginationModel] =
-    React.useState<GridPaginationModel>({ page: 0, pageSize: 10 });
+    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
   const [sortModel, setSortModel] = React.useState<GridSortModel>([
     //   { field: "utcDate", sort: "asc" },
   ]);
@@ -57,86 +57,100 @@ const PurchasesPage: React.FC = () => {
     );
   }, [dispatch, paginationModel, sortModel, filterModel]);
 
-const columns: CustomGridColDef[] = [
-  {
-    field: "eventId",
-    headerName: "Event ID",
-    type: "string",
-    flex: 1,
-    minWidth: 160,
-  },
-  {
-    field: "listingId",
-    headerName: "Listing ID",
-    type: "string",
-    flex: 1,
-    minWidth: 160,
-  },
-  {
-    field: "row",
-    headerName: "Row",
-    type: "string",
-    flex: 0.5,
-    minWidth: 100,
-  },
-  {
-    field: "sectionName",
-    headerName: "Section",
-    type: "string",
-    flex: 0.7,
-    minWidth: 120,
-  },
-  {
-    field: "quantity",
-    headerName: "Qty",
-    flex: 0.4,
-    minWidth: 90,
-    align: "center",
-    headerAlign: "center",
-    type: "number",
-    min: 0,
-    max: 1000
-  },
-  {
-    field: "pricePer",
-    headerName: "Price/Unit",
-    flex: 0.6,
-    minWidth: 120,
-    type: "number",
-    min: 0,
-    max: 10000,
-    renderCell: (params) => (
-      <Typography fontWeight={500}>${params.value?.toFixed?.(2) || 0}</Typography>
-    ),
-  },
-  {
-    field: "totalAmount",
-    headerName: "Total ($)",
-    flex: 0.7,
-    minWidth: 130,
-    type: "number",
-    min: 0,
-    max: 10000,
-    renderCell: (params) => (
-      <Typography fontWeight={600} color="text.primary">
-        ${params.value?.toFixed?.(2) || 0}
-      </Typography>
-    ),
-  },
-  {
-    field: "status",
-    headerName: "Status",
-    flex: 0.6,
-    type: "string",
-    minWidth: 130
-  },
-];
+  const columns: CustomGridColDef[] = [
+    {
+      field: "eventId",
+      headerName: "Event ID",
+      type: "string",
+      flex: 1,
+      minWidth: 160,
+      renderCell: (params) => (
+        <Link
+          href={`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${params.value}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          underline="hover"
+          color="primary"
+          sx={{ fontWeight: 500 }}
+        >
+          {params.value}
+        </Link>
+      ),
+    },
+    {
+      field: "listingId",
+      headerName: "Listing ID",
+      type: "string",
+      flex: 1,
+      minWidth: 160,
+    },
+    {
+      field: "row",
+      headerName: "Row",
+      type: "string",
+      flex: 0.5,
+      minWidth: 100,
+    },
+    {
+      field: "sectionName",
+      headerName: "Section",
+      type: "string",
+      flex: 0.7,
+      minWidth: 120,
+    },
+    {
+      field: "quantity",
+      headerName: "Qty",
+      flex: 0.4,
+      minWidth: 90,
+      align: "center",
+      headerAlign: "center",
+      type: "number",
+      min: 0,
+      max: 1000
+    },
+    {
+      field: "pricePer",
+      headerName: "Price/Unit",
+      flex: 0.6,
+      minWidth: 120,
+      type: "number",
+      min: 0,
+      max: 10000,
+      renderCell: (params) => (
+        <Typography fontWeight={500}>${params.value?.toFixed?.(2) || 0}</Typography>
+      ),
+    },
+    {
+      field: "totalAmount",
+      headerName: "Total ($)",
+      flex: 0.7,
+      minWidth: 130,
+      type: "number",
+      min: 0,
+      max: 10000,
+      renderCell: (params) => (
+        <Typography fontWeight={600} color="text.primary">
+          ${params.value?.toFixed?.(2) || 0}
+        </Typography>
+      ),
+    },
+    {
+      field: "status",
+      headerName: "Status",
+      headerAlign: "center",
+      align:"center",
+      flex: 0.6,
+      type: "string",
+      minWidth: 130
+    },
+  ];
 
 
   return (
-    <Container maxWidth="xl" sx={{ py: 3 }}>
-      <Grid size={{ xs: 12 }}>
-        <Grid size={{ xs: 12 }}>
+    <Stack padding={3} sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
+      <Grid size={{ xs: 12 }} sx={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <Grid size={{ xs: 12 }} sx={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
           {purchasesError ? (
             <Alert severity="error">{purchasesError}</Alert>
           ) : (
@@ -158,7 +172,7 @@ const columns: CustomGridColDef[] = [
           )}
         </Grid>
       </Grid>
-    </Container>
+    </Stack>
   );
 };
 

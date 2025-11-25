@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   CardContent,
-  Container,
   Divider,
   Grid,
   Stack,
@@ -443,7 +442,7 @@ export default function ListingsPage() {
   ];
 
   const [paginationModel, setPaginationModel] =
-    React.useState<GridPaginationModel>({ page: 0, pageSize: 10 });
+    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
 
   const [sortModel, setSortModel] = React.useState<GridSortModel>([]);
   const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
@@ -535,7 +534,7 @@ export default function ListingsPage() {
   }, [sortedRows, paginationModel]);
 
   return (
-    <Container maxWidth="xl" sx={{ py: 3 }}>
+    <Stack padding={3} sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
       {listingsError ? (
         <Alert severity="error">{listingsError}</Alert>
       ) : (
@@ -898,6 +897,6 @@ export default function ListingsPage() {
         }
         layout="vertical"
       />
-    </Container>
+    </Stack>
   );
 }

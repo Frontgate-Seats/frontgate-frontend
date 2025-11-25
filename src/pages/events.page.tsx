@@ -14,14 +14,13 @@ import {
   Grid,
   Stack,
   Divider,
-  Container,
   CircularProgress,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
+  Link,
 } from "@mui/material";
-import { useNavigate } from "react-router-dom";
 import {
   ChartContainer,
   ChartsGrid,
@@ -34,6 +33,9 @@ import {
   type BarSeriesType,
   type LineSeriesType,
 } from "@mui/x-charts";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import type {
   GridPaginationModel,
   GridSortModel,
@@ -54,7 +56,7 @@ import type { CustomGridColDef } from "../shared/types/mui.type";
 
 export default function EventsPage() {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
+  const chartRef = React.useRef<HTMLDivElement>(null);
 
   // ------------------------
   // Time Range
@@ -97,7 +99,7 @@ export default function EventsPage() {
   // Grid State
   // ------------------------
   const [paginationModel, setPaginationModel] =
-    React.useState<GridPaginationModel>({ page: 0, pageSize: 10 });
+    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
   const [sortModel, setSortModel] = React.useState<GridSortModel>([
     { field: "utcDate", sort: "asc" },
   ]);
@@ -117,10 +119,16 @@ export default function EventsPage() {
   // ------------------------
   const [selectedEvent, setSelectedEvent] = React.useState<any>(null);
   const [timeRangeGraphOne, setTimeRangeGraphOne] = React.useState("1d");
-  const [intervalGraphOne, setIntervalGraphOne] = React.useState("10m");
+  const [intervalGraphOne, setIntervalGraphOne] = React.useState("1h");
 
-  const [timeRangeGraphTwo, setTimeRangeGraphTwo] = React.useState("1d");
-  const [intervalGraphTwo, setIntervalGraphTwo] = React.useState("30m");
+  const [timeRangeGraphTwo, setTimeRangeGraphTwo] = React.useState("7d");
+  const [intervalGraphTwo, setIntervalGraphTwo] = React.useState("1d");
+
+  const [timeRangeGraphThree, setTimeRangeGraphThree] = React.useState("30d");
+  const [intervalGraphThree, setIntervalGraphThree] = React.useState("1d");
+
+  const [timeRangeGraphFour, setTimeRangeGraphFour] = React.useState("3m");
+  const [intervalGraphFour, setIntervalGraphFour] = React.useState("7d");
 
   React.useEffect(() => {
     setIntervalGraphOne(defaultInterval(timeRangeGraphOne));
@@ -129,6 +137,14 @@ export default function EventsPage() {
   React.useEffect(() => {
     setIntervalGraphTwo(defaultInterval(timeRangeGraphTwo));
   }, [timeRangeGraphTwo]);
+
+  React.useEffect(() => {
+    setIntervalGraphThree(defaultInterval(timeRangeGraphThree));
+  }, [timeRangeGraphThree]);
+
+  React.useEffect(() => {
+    setIntervalGraphFour(defaultInterval(timeRangeGraphFour));
+  }, [timeRangeGraphFour]);
 
   // ------------------------
   // Fetch events
@@ -158,6 +174,14 @@ export default function EventsPage() {
   const handleRowClick = (row: any) => {
     if (row.eventId === selectedEvent?.eventId) return;
     setSelectedEvent(row);
+    
+    // Smooth scroll to top using ref
+    setTimeout(() => {
+      chartRef.current?.scrollIntoView({ 
+        behavior: "smooth",
+        block: "center"
+      });
+    }, 150);
   };
 
   // ------------------------
@@ -220,8 +244,8 @@ export default function EventsPage() {
     const intervalMs = interval.endsWith("d")
       ? parseInt(interval) * 24 * 60 * 60 * 1000
       : interval.endsWith("h")
-      ? parseInt(interval) * 60 * 60 * 1000
-      : parseInt(interval) * 60 * 1000;
+        ? parseInt(interval) * 60 * 60 * 1000
+        : parseInt(interval) * 60 * 1000;
 
     const sorted = [...lm].sort(
       (a, b) =>
@@ -253,11 +277,11 @@ export default function EventsPage() {
     const result: any[] = [];
     let lastValue = lastBefore
       ? {
-          tickets: lastBefore.ticketCount ?? 0,
-          priceMin: lastBefore.priceMin ?? 0,
-          twoPlusPriceMin: lastBefore.twoPlusPriceMin ?? 0,
-          getInPriceMin: lastBefore.getInPriceMin ?? 0,
-        }
+        tickets: lastBefore.ticketCount ?? 0,
+        priceMin: lastBefore.priceMin ?? 0,
+        twoPlusPriceMin: lastBefore.twoPlusPriceMin ?? 0,
+        getInPriceMin: lastBefore.getInPriceMin ?? 0,
+      }
       : { tickets: 0, priceMin: 0, twoPlusPriceMin: 0, getInPriceMin: 0 };
 
     const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
@@ -304,6 +328,16 @@ export default function EventsPage() {
     [listingsMeta, timeRangeGraphTwo, intervalGraphTwo]
   );
 
+  const datasetThree = React.useMemo(
+    () => buildDataset(listingsMeta || [], timeRangeGraphThree, intervalGraphThree),
+    [listingsMeta, timeRangeGraphThree, intervalGraphThree]
+  );
+
+  const datasetFour = React.useMemo(
+    () => buildDataset(listingsMeta || [], timeRangeGraphFour, intervalGraphFour),
+    [listingsMeta, timeRangeGraphFour, intervalGraphFour]
+  );
+
   // ------------------------
   // Charts Config
   // ------------------------
@@ -346,25 +380,61 @@ export default function EventsPage() {
 
   const columns: CustomGridColDef[] = [
     {
+      field: "view",
+      headerName: "",
+      width: 60,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      renderCell: (params) => (
+        <Tooltip title="View listings Meta Data">
+          <IconButton
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRowClick(params.row);
+            }}
+            color="primary"
+            size="small"
+          >
+            <VisibilityIcon />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
+    {
       field: "eventId",
       headerName: "Event ID",
-      flex: 0.6,
-      minWidth: 100,
+      flex: 0.7,
+      minWidth: 110,
       type: "number",
+      headerAlign: "left",
+      align: "left",
+      renderCell: (params) => (
+        <Link
+          href={`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${params.value}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          underline="hover"
+          color="primary"
+          sx={{ fontWeight: 500 }}
+        >
+          {params.value}
+        </Link>
+      ),
     },
     {
       field: "name",
       headerName: "Event Name",
-      flex: 1.8,
-      minWidth: 180,
+      flex: 2,
+      minWidth: 200,
       type: "string",
     },
     {
       field: "utcDate",
       headerName: "Date & Time (UTC)",
       type: "dateTime",
-      flex: 1.3,
-      minWidth: 160,
+      flex: 1.2,
+      minWidth: 170,
       valueFormatter: (value) =>
         value ? moment(value).format("MM/DD/YYYY hh:mm A") : "-",
       renderEditCell: (params) => (
@@ -387,7 +457,7 @@ export default function EventsPage() {
       field: "venueDBId",
       headerName: "Venue",
       flex: 1.5,
-      minWidth: 180,
+      minWidth: 200,
       valueGetter: (value: any) =>
         value
           ? `${value.city}, ${value.stateCode} (${value.countryCode})`
@@ -398,7 +468,7 @@ export default function EventsPage() {
     {
       field: "category",
       headerName: "Category",
-      flex: 0.8,
+      flex: 0.7,
       minWidth: 100,
       type: "singleSelect",
       valueOptions: ["Sports"],
@@ -406,8 +476,8 @@ export default function EventsPage() {
     {
       field: "ticketCount",
       headerName: "Tickets",
-      flex: 0.8,
-      minWidth: 100,
+      flex: 0.7,
+      minWidth: 90,
       type: "number",
       min: 0,
       max: 20000,
@@ -415,8 +485,8 @@ export default function EventsPage() {
     {
       field: "listingCount",
       headerName: "Listings",
-      flex: 0.8,
-      minWidth: 100,
+      flex: 0.7,
+      minWidth: 90,
       type: "number",
       min: 0,
       max: 20000,
@@ -424,7 +494,7 @@ export default function EventsPage() {
     {
       field: "getInPriceMedian",
       headerName: "Median Price",
-      flex: 0.9,
+      flex: 0.8,
       minWidth: 110,
       type: "number",
       min: 0,
@@ -435,20 +505,14 @@ export default function EventsPage() {
       field: "actions",
       type: "actions",
       headerName: "Actions",
-      flex: 0.7,
-      minWidth: 140,
+      headerAlign: "center",
+      align: "center",
+      flex: 1,
+      minWidth: 150,
       getActions: (params) => [
         <Button
-          key={params.row.eventId}
-          onClick={(e) => {
-            e.stopPropagation();
-            const url = `/listings/${params.row.eventId}`;
-            if (e.ctrlKey || e.metaKey) {
-              window.open(url, "_blank");
-            } else {
-              navigate(url);
-            }
-          }}
+          key="listings"
+          onClick={() => window.open(`/listings/${params.row.eventId}`, "_blank")}
           variant="contained"
           size="small"
           sx={{ borderRadius: 2 }}
@@ -463,12 +527,12 @@ export default function EventsPage() {
   // Render
   // ------------------------
   return (
-    <Container maxWidth="xl" sx={{ py: 3 }}>
+    <Stack padding={3} sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
       <Grid container spacing={3}>
         {selectedEvent && (
           <>
             {/* EVENT DETAILS */}
-            <Grid size={{ xs: 12 }}>
+            <Grid size={{ xs: 12 }} ref={chartRef}>
               <Card variant="outlined">
                 <CardContent>
                   <Typography variant="h4" fontWeight="bold" gutterBottom>
@@ -484,8 +548,8 @@ export default function EventsPage() {
                       <Typography variant="body1">
                         {selectedEvent?.utcDate
                           ? moment(selectedEvent.utcDate).format(
-                              "MM/DD/YYYY hh:mm A"
-                            )
+                            "MM/DD/YYYY hh:mm A"
+                          )
                           : ""}
                       </Typography>
                     </Grid>
@@ -508,9 +572,9 @@ export default function EventsPage() {
                       <Typography variant="body1">
                         {selectedEvent?.performerDBIds?.length
                           ? selectedEvent.performerDBIds
-                              .map((p: any) => p?.name)
-                              .filter(Boolean)
-                              .join(", ")
+                            .map((p: any) => p?.name)
+                            .filter(Boolean)
+                            .join(", ")
                           : "-"}
                       </Typography>
                     </Grid>
@@ -519,8 +583,8 @@ export default function EventsPage() {
               </Card>
             </Grid>
 
-            {/* PRICE CHART */}
-            <Grid size={{ xs: 12 }}>
+            {/* GRAPH 1 */}
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card variant="outlined">
                 <CardContent sx={{ position: "relative" }}>
                   <Stack
@@ -530,7 +594,7 @@ export default function EventsPage() {
                     flexWrap="wrap"
                   >
                     <Typography variant="h6" fontWeight={600} gutterBottom>
-                      Trends
+                      Trends - Graph 1
                     </Typography>
 
                     <Stack direction="row" spacing={3} alignItems="center">
@@ -575,9 +639,21 @@ export default function EventsPage() {
                       {
                         dataKey: "time",
                         scaleType: "band",
-                        label: "Date & Time",
+                        label: timeRangeGraphOne === "1d" ? "Time" : "Date",
                         tickLabelMinGap: 20,
                         disableTicks: true,
+                        valueFormatter: (value: string) => {
+                          const parsed = moment(value, "MM/DD/YYYY hh:mm A");
+                          if (!parsed.isValid()) return value;
+                          // For same day (1d): show time in 12-hour format with AM/PM
+                          if (timeRangeGraphOne === "1d") {
+                            return parsed.format("hh:mm A");
+                          }
+                          // For more than one day: show day and month
+                          else {
+                            return parsed.format("MM/DD");
+                          }
+                        },
                       },
                     ]}
                     yAxis={[
@@ -604,14 +680,14 @@ export default function EventsPage() {
                           <circle
                             cx={x}
                             cy={y}
-                            r={5} // bigger on hover
-                            fill={isHighlighted ? color : "transparent"} // use series color automatically
+                            r={5}
+                            fill={isHighlighted ? color : "transparent"}
                           />
                         ),
                       }}
                       slotProps={{
                         mark: {
-                          shape: "circle", // default shape, required
+                          shape: "circle",
                           skipAnimation: false,
                         },
                       }}
@@ -643,8 +719,8 @@ export default function EventsPage() {
               </Card>
             </Grid>
 
-            {/* TICKETS CHART */}
-            <Grid size={{ xs: 12 }}>
+            {/* GRAPH 2 */}
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card variant="outlined">
                 <CardContent sx={{ position: "relative" }}>
                   <Stack
@@ -654,7 +730,7 @@ export default function EventsPage() {
                     flexWrap="wrap"
                   >
                     <Typography variant="h6" fontWeight={600} gutterBottom>
-                      Trends
+                      Trends - Graph 2
                     </Typography>
 
                     <Stack direction="row" spacing={3} alignItems="center">
@@ -699,9 +775,21 @@ export default function EventsPage() {
                       {
                         dataKey: "time",
                         scaleType: "band",
-                        label: "Date & Time",
+                        label: timeRangeGraphTwo === "1d" ? "Time" : "Date",
                         tickLabelMinGap: 20,
                         disableTicks: true,
+                        valueFormatter: (value: string) => {
+                          const parsed = moment(value, "MM/DD/YYYY hh:mm A");
+                          if (!parsed.isValid()) return value;
+                          // For same day (1d): show time in 12-hour format with AM/PM
+                          if (timeRangeGraphTwo === "1d") {
+                            return parsed.format("hh:mm A");
+                          }
+                          // For more than one day: show day and month
+                          else {
+                            return parsed.format("MM/DD");
+                          }
+                        },
                       },
                     ]}
                     yAxis={[
@@ -728,14 +816,286 @@ export default function EventsPage() {
                           <circle
                             cx={x}
                             cy={y}
-                            r={5} // bigger on hover
-                            fill={isHighlighted ? color : "transparent"} // use series color automatically
+                            r={5}
+                            fill={isHighlighted ? color : "transparent"}
                           />
                         ),
                       }}
                       slotProps={{
                         mark: {
-                          shape: "circle", // default shape, required
+                          shape: "circle",
+                          skipAnimation: false,
+                        },
+                      }}
+                    />
+
+                    <ChartsXAxis />
+                    <ChartsYAxis axisId="leftAxis" />
+                    <ChartsYAxis axisId="rightAxis" />
+                    <ChartsTooltip />
+                  </ChartContainer>
+
+                  {listingsMetaLoading && (
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        inset: 0,
+                        bgcolor: "rgba(255,255,255,0.4)",
+                        backdropFilter: "blur(4px)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 5,
+                      }}
+                    >
+                      <CircularProgress size={32} thickness={4} />
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* GRAPH 3 */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Card variant="outlined">
+                <CardContent sx={{ position: "relative" }}>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    sx={{ mb: 3 }}
+                    flexWrap="wrap"
+                  >
+                    <Typography variant="h6" fontWeight={600} gutterBottom>
+                      Trends - Graph 3
+                    </Typography>
+
+                    <Stack direction="row" spacing={3} alignItems="center">
+                      <FormControl size="small">
+                        <InputLabel>Time Range</InputLabel>
+                        <Select
+                          value={timeRangeGraphThree}
+                          label="Time Range"
+                          onChange={(e) => setTimeRangeGraphThree(e.target.value)}
+                          sx={{ minWidth: 150 }}
+                        >
+                          {timeRangeOptions.map((o) => (
+                            <MenuItem key={o.value} value={o.value}>
+                              {o.label}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+
+                      <FormControl size="small">
+                        <InputLabel>Interval</InputLabel>
+                        <Select
+                          value={intervalGraphThree}
+                          label="Interval"
+                          onChange={(e) => setIntervalGraphThree(e.target.value)}
+                          sx={{ minWidth: 120 }}
+                        >
+                          {intervalOptionsMap[timeRangeGraphThree].map((i) => (
+                            <MenuItem key={i} value={i}>
+                              {i}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Stack>
+                  </Stack>
+
+                  <ChartContainer
+                    dataset={datasetThree || []}
+                    series={[...lineSeries, ...barSeries]}
+                    xAxis={[
+                      {
+                        dataKey: "time",
+                        scaleType: "band",
+                        label: timeRangeGraphThree === "1d" ? "Time" : "Date",
+                        tickLabelMinGap: 20,
+                        disableTicks: true,
+                        valueFormatter: (value: string) => {
+                          const parsed = moment(value, "MM/DD/YYYY hh:mm A");
+                          if (!parsed.isValid()) return value;
+                          // For same day (1d): show time in 12-hour format with AM/PM
+                          if (timeRangeGraphThree === "1d") {
+                            return parsed.format("hh:mm A");
+                          }
+                          // For more than one day: show day and month
+                          else {
+                            return parsed.format("MM/DD");
+                          }
+                        },
+                      },
+                    ]}
+                    yAxis={[
+                      {
+                        id: "leftAxis",
+                        label: "Price ($)",
+                        min: 0,
+                      },
+                      {
+                        id: "rightAxis",
+                        label: "Tickets Qty",
+                        position: "right",
+                        min: 0,
+                      },
+                    ]}
+                    height={300}
+                  >
+                    <ChartsGrid horizontal />
+                    <BarPlot />
+                    <LinePlot />
+                    <MarkPlot
+                      slots={{
+                        mark: ({ x, y, color, isHighlighted }) => (
+                          <circle
+                            cx={x}
+                            cy={y}
+                            r={5}
+                            fill={isHighlighted ? color : "transparent"}
+                          />
+                        ),
+                      }}
+                      slotProps={{
+                        mark: {
+                          shape: "circle",
+                          skipAnimation: false,
+                        },
+                      }}
+                    />
+
+                    <ChartsXAxis />
+                    <ChartsYAxis axisId="leftAxis" />
+                    <ChartsYAxis axisId="rightAxis" />
+                    <ChartsTooltip />
+                  </ChartContainer>
+
+                  {listingsMetaLoading && (
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        inset: 0,
+                        bgcolor: "rgba(255,255,255,0.4)",
+                        backdropFilter: "blur(4px)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 5,
+                      }}
+                    >
+                      <CircularProgress size={32} thickness={4} />
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* GRAPH 4 */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Card variant="outlined">
+                <CardContent sx={{ position: "relative" }}>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    sx={{ mb: 3 }}
+                    flexWrap="wrap"
+                  >
+                    <Typography variant="h6" fontWeight={600} gutterBottom>
+                      Trends - Graph 4
+                    </Typography>
+
+                    <Stack direction="row" spacing={3} alignItems="center">
+                      <FormControl size="small">
+                        <InputLabel>Time Range</InputLabel>
+                        <Select
+                          value={timeRangeGraphFour}
+                          label="Time Range"
+                          onChange={(e) => setTimeRangeGraphFour(e.target.value)}
+                          sx={{ minWidth: 150 }}
+                        >
+                          {timeRangeOptions.map((o) => (
+                            <MenuItem key={o.value} value={o.value}>
+                              {o.label}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+
+                      <FormControl size="small">
+                        <InputLabel>Interval</InputLabel>
+                        <Select
+                          value={intervalGraphFour}
+                          label="Interval"
+                          onChange={(e) => setIntervalGraphFour(e.target.value)}
+                          sx={{ minWidth: 120 }}
+                        >
+                          {intervalOptionsMap[timeRangeGraphFour].map((i) => (
+                            <MenuItem key={i} value={i}>
+                              {i}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Stack>
+                  </Stack>
+
+                  <ChartContainer
+                    dataset={datasetFour || []}
+                    series={[...lineSeries, ...barSeries]}
+                    xAxis={[
+                      {
+                        dataKey: "time",
+                        scaleType: "band",
+                        label: timeRangeGraphFour === "1d" ? "Time" : "Date",
+                        tickLabelMinGap: 20,
+                        disableTicks: true,
+                        valueFormatter: (value: string) => {
+                          const parsed = moment(value, "MM/DD/YYYY hh:mm A");
+                          if (!parsed.isValid()) return value;
+                          // For same day (1d): show time in 12-hour format with AM/PM
+                          if (timeRangeGraphFour === "1d") {
+                            return parsed.format("hh:mm A");
+                          }
+                          // For more than one day: show day and month
+                          else {
+                            return parsed.format("MM/DD");
+                          }
+                        },
+                      },
+                    ]}
+                    yAxis={[
+                      {
+                        id: "leftAxis",
+                        label: "Price ($)",
+                        min: 0,
+                      },
+                      {
+                        id: "rightAxis",
+                        label: "Tickets Qty",
+                        position: "right",
+                        min: 0,
+                      },
+                    ]}
+                    height={300}
+                  >
+                    <ChartsGrid horizontal />
+                    <BarPlot />
+                    <LinePlot />
+                    <MarkPlot
+                      slots={{
+                        mark: ({ x, y, color, isHighlighted }) => (
+                          <circle
+                            cx={x}
+                            cy={y}
+                            r={5}
+                            fill={isHighlighted ? color : "transparent"}
+                          />
+                        ),
+                      }}
+                      slotProps={{
+                        mark: {
+                          shape: "circle",
                           skipAnimation: false,
                         },
                       }}
@@ -770,7 +1130,7 @@ export default function EventsPage() {
         )}
 
         {/* EVENT GRID */}
-        <Grid size={{ xs: 12 }}>
+        <Grid size={{ xs: 12 }} sx={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
           {eventsError ? (
             <Alert severity="error">{eventsError}</Alert>
           ) : (
@@ -787,12 +1147,11 @@ export default function EventsPage() {
               setSortingModel={setSortModel}
               filterModel={filterModel}
               setFilterModel={setFilterModel}
-              onRowClick={(value) => handleRowClick(value.row)}
               onRefresh={handleRefresh}
             />
           )}
         </Grid>
       </Grid>
-    </Container>
+    </Stack>
   );
 }
