@@ -700,7 +700,13 @@ export default function ListingsPage() {
                   [
                     "Date & Time (UTC)",
                     eventInfo?.utcDate
-                      ? moment(eventInfo?.utcDate).format("DD/MM/YYYY hh:mm A")
+                      ? moment.parseZone(eventInfo?.utcDate).format("DD/MM/YYYY hh:mm A")
+                      : "-",
+                  ],
+                  [
+                    "Local Date & Time",
+                    eventInfo?.localDate
+                      ? moment.parseZone(eventInfo?.localDate).format("DD/MM/YYYY hh:mm A")
                       : "-",
                   ],
                   [
@@ -872,7 +878,24 @@ export default function ListingsPage() {
                     </Typography>
                     <Typography variant="caption">
                       {eventInfo?.utcDate
-                        ? moment(eventInfo?.utcDate).format(
+                        ? moment.parseZone(eventInfo?.utcDate).format(
+                            "DD/MM/YYYY hh:mm A"
+                          )
+                        : "-"}
+                    </Typography>
+                  </Grid>
+<Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ lineHeight: 1 }}
+                      fontWeight={600}
+                    >
+                      Local Date & Time
+                    </Typography>
+                    <Typography variant="caption">
+                      {eventInfo?.localDate
+                        ? moment.parseZone(eventInfo?.localDate).format(
                             "DD/MM/YYYY hh:mm A"
                           )
                         : "-"}
