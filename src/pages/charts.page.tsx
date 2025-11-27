@@ -49,7 +49,7 @@ import {
   ExpandLess,
   ExpandMore,
   FindReplace,
-  Visibility,
+  BarChart,
 } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
@@ -341,7 +341,7 @@ const ChartsPage: React.FC = () => {
             color="primary"
             size="small"
           >
-            <Visibility />
+            <BarChart />
           </IconButton>
         </Tooltip>
       ),

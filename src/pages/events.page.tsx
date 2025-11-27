@@ -33,7 +33,7 @@ import {
   type BarSeriesType,
   type LineSeriesType,
 } from "@mui/x-charts";
-import VisibilityIcon from "@mui/icons-material/Visibility";
+import { BarChart } from "@mui/icons-material";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import type {
@@ -109,7 +109,12 @@ export default function EventsPage() {
       {
         field: "utcDate",
         operator: "onOrAfter",
-        value: moment().utc().toISOString(),
+        value: dayjs().toISOString(),
+      },
+      {
+        field: "utcDate",
+        operator: "onOrBefore",
+        value: dayjs().add(6, "months").toISOString(),
       },
     ],
   });
@@ -396,7 +401,7 @@ export default function EventsPage() {
             color="primary"
             size="small"
           >
-            <VisibilityIcon />
+            <BarChart />
           </IconButton>
         </Tooltip>
       ),

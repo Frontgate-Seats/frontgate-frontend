@@ -80,6 +80,8 @@ const DynamicFiltersToolbar: React.FC<DynamicFiltersToolbarProps> = ({
   // Sync filterModel → local state
   useEffect(() => {
     const vals: Record<string, any> = {};
+    const dateRanges: Record<string, [any, any]> = {};
+    
     (filterModel.items || []).forEach((item) => {
       if (
         item?.field &&
@@ -87,9 +89,24 @@ const DynamicFiltersToolbar: React.FC<DynamicFiltersToolbarProps> = ({
         item.value !== null &&
         item.value !== ""
       ) {
-        vals[item.field] = item.value;
+        // Handle date range filters (onOrAfter/onOrBefore)
+        if (item.operator === "onOrAfter" || item.operator === ">=") {
+          if (!dateRanges[item.field]) dateRanges[item.field] = [null, null];
+          dateRanges[item.field][0] = item.value;
+        } else if (item.operator === "onOrBefore" || item.operator === "<=") {
+          if (!dateRanges[item.field]) dateRanges[item.field] = [null, null];
+          dateRanges[item.field][1] = item.value;
+        } else {
+          vals[item.field] = item.value;
+        }
       }
     });
+    
+    // Merge date ranges into vals
+    Object.entries(dateRanges).forEach(([field, range]) => {
+      vals[field] = range;
+    });
+    
     setLocalValues((prev) => ({ ...vals, ...prev }));
   }, [filterModel]);
 
