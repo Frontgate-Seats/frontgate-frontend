@@ -64,6 +64,7 @@ type TopEventRow = {
   percentChange?: number | null;
   // optional fields used when selecting the event
   utcDate?: string | null;
+  localDate?: string | null;
   venue?: any;
   performers?: any[];
 };
@@ -374,6 +375,30 @@ const ChartsPage: React.FC = () => {
     {
       field: "utcDate",
       headerName: "Date & Time (UTC)",
+      type: "dateTime",
+      flex: 1.2,
+      minWidth: 170,
+      valueFormatter: (value) =>
+        value ? moment(value).format("MM/DD/YYYY hh:mm A") : "-",
+      renderEditCell: (params) => (
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DateTimePicker
+            value={params.value ? dayjs(params.value) : dayjs()}
+            onChange={(value) =>
+              params.api.setEditCellValue({
+                id: params.id,
+                field: params.field,
+                value: value,
+              })
+            }
+            minDateTime={dayjs()} // prevent past selection
+          />
+        </LocalizationProvider>
+      ),
+    },
+    {
+      field: "localDate",
+      headerName: "Local Date & Time",
       type: "dateTime",
       flex: 1.2,
       minWidth: 170,
@@ -717,6 +742,18 @@ const ChartsPage: React.FC = () => {
                       <Typography variant="body1">
                         {selectedEvent?.utcDate
                           ? moment(selectedEvent.utcDate).format(
+                              "MM/DD/YYYY hh:mm A"
+                            )
+                          : ""}
+                      </Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Local Date & Time
+                      </Typography>
+                      <Typography variant="body1">
+                        {selectedEvent?.localDate
+                          ? moment(selectedEvent.localDate).format(
                               "MM/DD/YYYY hh:mm A"
                             )
                           : ""}

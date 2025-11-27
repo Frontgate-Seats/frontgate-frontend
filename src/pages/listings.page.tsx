@@ -534,77 +534,97 @@ export default function ListingsPage() {
   }, [sortedRows, paginationModel]);
 
   return (
-    <Stack padding={3} sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
-      {listingsError ? (
-        <Alert severity="error">{listingsError}</Alert>
-      ) : (
-        <>
-          {eventInfo?.name && (
-            <Card
-              variant="outlined"
-              sx={{
-                mb: 3,
-              }}
-            >
-              <CardContent>
-                <Typography variant="h4" fontWeight="bold" gutterBottom>
-                  {eventInfo?.name}
-                </Typography>
-                <Divider sx={{ mb: 2 }} />
-                <Grid container spacing={3}>
-                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Date & Time (UTC)
+    <Stack
+      padding={3}
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+      }}
+    >
+      <Grid container spacing={3}>
+        {listingsError ? (
+          <Alert severity="error">{listingsError}</Alert>
+        ) : (
+          <>
+            <Grid size={{ xs: 12 }}>
+              {eventInfo?.name && (
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="h4" fontWeight="bold" gutterBottom>
+                      {eventInfo?.name}
                     </Typography>
-                    <Typography variant="body1">
-                      {eventInfo?.utcDate
-                        ? moment(eventInfo?.utcDate).format(
-                            "DD/MM/YYYY hh:mm A"
-                          )
-                        : ""}
-                    </Typography>
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Venue
-                    </Typography>
-                    <Typography variant="body1">
-                      {venueInfo
-                        ? `${venueInfo?.city}, ${venueInfo?.stateCode} (${venueInfo.countryCode})`
-                        : "-"}
-                    </Typography>
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Performer
-                    </Typography>
-                    <Typography variant="body1">
-                      {performerInfo ? `${performerInfo?.name}` : "-"}
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
-          )}
+                    <Divider sx={{ mb: 2 }} />
+                    <Grid container spacing={3}>
+                      <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Date & Time (UTC)
+                        </Typography>
+                        <Typography variant="body1">
+                          {eventInfo?.utcDate
+                            ? moment(eventInfo?.utcDate).format(
+                                "DD/MM/YYYY hh:mm A"
+                              )
+                            : ""}
+                        </Typography>
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Local Date & Time
+                        </Typography>
+                        <Typography variant="body1">
+                          {eventInfo?.localDate
+                            ? moment(eventInfo?.localDate).format(
+                                "DD/MM/YYYY hh:mm A"
+                              )
+                            : ""}
+                        </Typography>
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Venue
+                        </Typography>
+                        <Typography variant="body1">
+                          {venueInfo
+                            ? `${venueInfo?.city}, ${venueInfo?.stateCode} (${venueInfo.countryCode})`
+                            : "-"}
+                        </Typography>
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Performer
+                        </Typography>
+                        <Typography variant="body1">
+                          {performerInfo ? `${performerInfo?.name}` : "-"}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+              )}
+            </Grid>
 
-          <CustomDataGrid
-            title="Listings"
-            rows={paginatedRows}
-            rowCount={flattenedRows.length}
-            isLoading={listingLoading}
-            error={listingsError}
-            columns={allColumns}
-            paginationModel={paginationModel}
-            setPaginationModel={setPaginationModel}
-            sortingModel={sortModel}
-            setSortingModel={setSortModel}
-            filterModel={filterModel}
-            setFilterModel={setFilterModel}
-            onRefresh={handleRefresh}
-          />
-        </>
-      )}
-
+            <Grid size={{ xs: 12 }}>
+              <CustomDataGrid
+                title="Listings"
+                rows={paginatedRows}
+                rowCount={flattenedRows.length}
+                isLoading={listingLoading}
+                error={listingsError}
+                columns={allColumns}
+                paginationModel={paginationModel}
+                setPaginationModel={setPaginationModel}
+                sortingModel={sortModel}
+                setSortingModel={setSortModel}
+                filterModel={filterModel}
+                setFilterModel={setFilterModel}
+                onRefresh={handleRefresh}
+              />
+            </Grid>
+          </>
+        )}
+      </Grid>
       {/* Stepper Modal */}
       <StepperModal
         open={openModel}
