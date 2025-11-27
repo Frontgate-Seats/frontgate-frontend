@@ -569,18 +569,18 @@ export default function ListingsPage() {
                             : ""}
                         </Typography>
                       </Grid>
-                      {/* <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                      <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                         <Typography variant="body2" color="text.secondary">
                           Local Date & Time
                         </Typography>
                         <Typography variant="body1">
                           {eventInfo?.localDate
-                            ? moment(eventInfo?.localDate).format(
+                            ? moment.parseZone(eventInfo?.localDate).format(
                                 "DD/MM/YYYY hh:mm A"
                               )
                             : ""}
                         </Typography>
-                      </Grid> */}
+                      </Grid>
                       <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                         <Typography variant="body2" color="text.secondary">
                           Venue

@@ -396,30 +396,30 @@ const ChartsPage: React.FC = () => {
         </LocalizationProvider>
       ),
     },
-    // {
-    //   field: "localDate",
-    //   headerName: "Local Date & Time",
-    //   type: "dateTime",
-    //   flex: 1.2,
-    //   minWidth: 170,
-    //   valueFormatter: (value) =>
-    //     value ? moment(value).format("MM/DD/YYYY hh:mm A") : "-",
-    //   renderEditCell: (params) => (
-    //     <LocalizationProvider dateAdapter={AdapterDayjs}>
-    //       <DateTimePicker
-    //         value={params.value ? dayjs(params.value) : dayjs()}
-    //         onChange={(value) =>
-    //           params.api.setEditCellValue({
-    //             id: params.id,
-    //             field: params.field,
-    //             value: value,
-    //           })
-    //         }
-    //         minDateTime={dayjs()} // prevent past selection
-    //       />
-    //     </LocalizationProvider>
-    //   ),
-    // },
+    {
+      field: "localDate",
+      headerName: "Local Date & Time",
+      type: "dateTime",
+      flex: 1.2,
+      minWidth: 170,
+      valueFormatter: (value) =>
+        value ? moment.parseZone(value).format("MM/DD/YYYY hh:mm A") : "-",
+      renderEditCell: (params) => (
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DateTimePicker
+            value={params.value ? dayjs(params.value) : dayjs()}
+            onChange={(value) =>
+              params.api.setEditCellValue({
+                id: params.id,
+                field: params.field,
+                value: value,
+              })
+            }
+            minDateTime={dayjs()} // prevent past selection
+          />
+        </LocalizationProvider>
+      ),
+    },
     {
       field: "startValue",
       headerName: "Start Value",
@@ -747,18 +747,18 @@ const ChartsPage: React.FC = () => {
                           : ""}
                       </Typography>
                     </Grid>
-                    {/* <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                       <Typography variant="body2" color="text.secondary">
                         Local Date & Time
                       </Typography>
                       <Typography variant="body1">
                         {selectedEvent?.localDate
-                          ? moment(selectedEvent.localDate).format(
+                          ? moment.parseZone(selectedEvent.localDate).format(
                               "MM/DD/YYYY hh:mm A"
                             )
                           : ""}
                       </Typography>
-                    </Grid> */}
+                    </Grid>
 
                     <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                       <Typography variant="body2" color="text.secondary">
