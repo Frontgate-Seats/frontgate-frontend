@@ -458,30 +458,30 @@ export default function EventsPage() {
         </LocalizationProvider>
       ),
     },
-    {
-      field: "localDate",
-      headerName: "Local Date & Time",
-      type: "dateTime",
-      flex: 1.2,
-      minWidth: 170,
-      valueFormatter: (value) =>
-        value ? moment(value).format("MM/DD/YYYY hh:mm A") : "-",
-      renderEditCell: (params) => (
-        <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <DateTimePicker
-            value={params.value ? dayjs(params.value) : dayjs()}
-            onChange={(value) =>
-              params.api.setEditCellValue({
-                id: params.id,
-                field: params.field,
-                value: value,
-              })
-            }
-            minDateTime={dayjs()} // prevent past selection
-          />
-        </LocalizationProvider>
-      ),
-    },
+    // {
+    //   field: "localDate",
+    //   headerName: "Local Date & Time",
+    //   type: "dateTime",
+    //   flex: 1.2,
+    //   minWidth: 170,
+    //   valueFormatter: (value) =>
+    //     value ? moment(value).format("MM/DD/YYYY hh:mm A") : "-",
+    //   renderEditCell: (params) => (
+    //     <LocalizationProvider dateAdapter={AdapterDayjs}>
+    //       <DateTimePicker
+    //         value={params.value ? dayjs(params.value) : dayjs()}
+    //         onChange={(value) =>
+    //           params.api.setEditCellValue({
+    //             id: params.id,
+    //             field: params.field,
+    //             value: value,
+    //           })
+    //         }
+    //         minDateTime={dayjs()} // prevent past selection
+    //       />
+    //     </LocalizationProvider>
+    //   ),
+    // },
     {
       field: "venueDBId",
       headerName: "Venue",
@@ -582,7 +582,7 @@ export default function EventsPage() {
                           : ""}
                       </Typography>
                     </Grid>
-                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    {/* <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                       <Typography variant="body2" color="text.secondary">
                         Local Date & Time
                       </Typography>
@@ -593,7 +593,7 @@ export default function EventsPage() {
                           )
                           : ""}
                       </Typography>
-                    </Grid>
+                    </Grid> */}
 
                     <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                       <Typography variant="body2" color="text.secondary">
