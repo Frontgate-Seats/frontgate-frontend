@@ -63,7 +63,6 @@ const PurchasesPage: React.FC = () => {
       headerName: "Event ID",
       type: "string",
       flex: 1,
-      minWidth: 160,
       renderCell: (params) => (
         <Link
           href={`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${params.value}`}
@@ -71,64 +70,74 @@ const PurchasesPage: React.FC = () => {
           rel="noopener noreferrer"
           underline="hover"
           color="primary"
-          sx={{ fontWeight: 500 }}
+        >
+          {params.value}
+        </Link>
+      ),
+    },
+     {
+      field: "listingId",
+      headerName: "Listing ID",
+      type: "string",
+      flex: 1,
+    },
+    {
+      field: "purchaseId",
+      headerName: "PO ID",
+      type: "string",
+      flex: 1,
+      renderCell: (params) => (
+        <Link
+          href={`https://skybox.vividseats.com/purchases/${params.value}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          underline="hover"
+          color="primary"
         >
           {params.value}
         </Link>
       ),
     },
     {
-      field: "listingId",
-      headerName: "Listing ID",
+      field: "inventoryId",
+      headerName: "Inventory ID",
       type: "string",
       flex: 1,
-      minWidth: 160,
-    },
-    {
-      field: "row",
-      headerName: "Row",
-      type: "string",
-      flex: 0.5,
-      minWidth: 100,
     },
     {
       field: "sectionName",
       headerName: "Section",
       type: "string",
-      flex: 0.7,
-      minWidth: 120,
+      flex: 1,
+    },
+    {
+      field: "row",
+      headerName: "Row",
+      type: "string",
+      flex: 1,
+      align: "center",
+      headerAlign: "center",
     },
     {
       field: "quantity",
       headerName: "Qty",
-      flex: 0.4,
-      minWidth: 90,
+      flex: 1,
       align: "center",
       headerAlign: "center",
       type: "number",
       min: 0,
       max: 1000
     },
-    {
-      field: "pricePer",
-      headerName: "Price/Unit",
-      flex: 0.6,
-      minWidth: 120,
-      type: "number",
-      min: 0,
-      max: 10000,
-      renderCell: (params) => (
-        <Typography fontWeight={500}>${params.value?.toFixed?.(2) || 0}</Typography>
-      ),
-    },
+   
     {
       field: "totalAmount",
-      headerName: "Total ($)",
-      flex: 0.7,
-      minWidth: 130,
+      headerName: "Total",
+      flex: 1,
       type: "number",
       min: 0,
       max: 10000,
+      align: "right",
+      headerAlign: "right",
       renderCell: (params) => (
         <Typography fontWeight={600} color="text.primary">
           ${params.value?.toFixed?.(2) || 0}
@@ -139,10 +148,25 @@ const PurchasesPage: React.FC = () => {
       field: "status",
       headerName: "Status",
       headerAlign: "center",
-      align:"center",
-      flex: 0.6,
+      align: "center",
+      flex: 1,
       type: "string",
-      minWidth: 130
+    },
+    {
+      field: "purchaseStatus",
+      headerName: "PO Status",
+      headerAlign: "center",
+      align: "center",
+      flex: 1,
+      type: "string",
+    },
+    {
+      field: "inventoryStatus",
+      headerName: "Inventory Status",
+      headerAlign: "center",
+      align: "center",
+      flex: 1,
+      type: "string",
     },
   ];
 
