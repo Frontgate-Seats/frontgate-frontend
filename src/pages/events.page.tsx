@@ -500,7 +500,7 @@ export default function EventsPage() {
       flex: 0.7,
       minWidth: 100,
       type: "singleSelect",
-      valueOptions: ["Sports"],
+      valueOptions: ["Sports", "Concerts"],
     },
     {
       field: "ticketCount",
