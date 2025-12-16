@@ -4,6 +4,7 @@ import snackbarReducer from "../slices/snackbar.slice";
 import eventsReducer from "../slices/events.slice";
 import listingsReducer from "../slices/listings.slice";
 import listingsMetaReducer from "../slices/listingsMeta.slice";
+import salesMetaReducer from "../slices/salesMeta.slice";
 import purchasedReducer from "../slices/purchases.slice";
 import listingsDetailsReducer from "../slices/listingsDetails.slice";
 import chartsReducer from "../slices/charts.slice";
@@ -17,6 +18,7 @@ const rootReducer = combineReducers({
   events: eventsReducer,
   listings: listingsReducer,
   listingsMeta: listingsMetaReducer,
+  salesMeta: salesMetaReducer,
   purchases: purchasedReducer,
   listingsDetails:  listingsDetailsReducer,
   charts:  chartsReducer

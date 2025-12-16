@@ -21,18 +21,9 @@ const PurchasesPage: React.FC = () => {
 
   const [paginationModel, setPaginationModel] =
     React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
-  const [sortModel, setSortModel] = React.useState<GridSortModel>([
-    //   { field: "utcDate", sort: "asc" },
-  ]);
+  const [sortModel, setSortModel] = React.useState<GridSortModel>([]);
   const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
-    items: [
-      // { field: "category", operator: "equals", value: "Sports" },
-      // {
-      //   field: "utcDate",
-      //   operator: "onOrAfter",
-      //   value: moment().utc().toISOString(),
-      // },
-    ],
+    items: [],
   });
 
   React.useEffect(() => {

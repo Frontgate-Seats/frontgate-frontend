@@ -71,10 +71,9 @@ type TopEventRow = {
 
 // ---------------------- Constants ----------------------
 const CHART_TIME_RANGE_OPTIONS = [
-  { value: "10m", label: "Last 10 Minutes" },
-  { value: "20m", label: "Last 20 Minutes" },
-  { value: "30m", label: "Last 30 Minutes" },
   { value: "1h", label: "Last 1 Hour" },
+  { value: "2h", label: "Last 2 Hour" },
+  { value: "3h", label: "Last 3 Hour" },
   { value: "6h", label: "Last 6 Hours" },
   { value: "12h", label: "Last 12 Hours" },
   { value: "1d", label: "Last 1 Day" },
@@ -120,7 +119,7 @@ const TIME_RANGE_OPTIONS = [
 ];
 
 const INTERVAL_OPTIONS_MAP: Record<string, string[]> = {
-  "1d": ["10m", "30m", "1h", "3h", "6h"],
+  "1d": ["1h", "3h", "6h"],
   "7d": ["3h", "6h", "12h", "1d", "3d"],
   "30d": ["12h", "1d", "3d", "7d", "15d"],
   "3m": ["3d", "7d", "30d"],
@@ -373,32 +372,8 @@ const ChartsPage: React.FC = () => {
       type: "string",
     },
     {
-      field: "utcDate",
-      headerName: "Date & Time (UTC)",
-      type: "dateTime",
-      flex: 1.2,
-      minWidth: 170,
-      valueFormatter: (value) =>
-        value ? moment(value).format("MM/DD/YYYY hh:mm A") : "-",
-      renderEditCell: (params) => (
-        <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <DateTimePicker
-            value={params.value ? dayjs(params.value) : dayjs()}
-            onChange={(value) =>
-              params.api.setEditCellValue({
-                id: params.id,
-                field: params.field,
-                value: value,
-              })
-            }
-            minDateTime={dayjs()} // prevent past selection
-          />
-        </LocalizationProvider>
-      ),
-    },
-    {
       field: "localDate",
-      headerName: "Local Date & Time",
+      headerName: "Date & Time",
       type: "dateTime",
       flex: 1.2,
       minWidth: 170,
@@ -737,19 +712,7 @@ const ChartsPage: React.FC = () => {
                   <Grid container spacing={3}>
                     <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                       <Typography variant="body2" color="text.secondary">
-                        Date & Time (UTC)
-                      </Typography>
-                      <Typography variant="body1">
-                        {selectedEvent?.utcDate
-                          ? moment(selectedEvent.utcDate).format(
-                              "MM/DD/YYYY hh:mm A"
-                            )
-                          : ""}
-                      </Typography>
-                    </Grid>
-                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Local Date & Time
+                        Date & Time
                       </Typography>
                       <Typography variant="body1">
                         {selectedEvent?.localDate

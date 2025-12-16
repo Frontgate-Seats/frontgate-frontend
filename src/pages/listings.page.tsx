@@ -559,25 +559,13 @@ export default function ListingsPage() {
                     <Grid container spacing={3}>
                       <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                         <Typography variant="body2" color="text.secondary">
-                          Date & Time (UTC)
-                        </Typography>
-                        <Typography variant="body1">
-                          {eventInfo?.utcDate
-                            ? moment(eventInfo?.utcDate).format(
-                                "DD/MM/YYYY hh:mm A"
-                              )
-                            : ""}
-                        </Typography>
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          Local Date & Time
+                          Date & Time
                         </Typography>
                         <Typography variant="body1">
                           {eventInfo?.localDate
-                            ? moment.parseZone(eventInfo?.localDate).format(
-                                "DD/MM/YYYY hh:mm A"
-                              )
+                            ? moment
+                                .parseZone(eventInfo?.localDate)
+                                .format("DD/MM/YYYY hh:mm A")
                             : ""}
                         </Typography>
                       </Grid>
@@ -698,15 +686,11 @@ export default function ListingsPage() {
                 {[
                   ["Event", eventInfo?.name || "—"],
                   [
-                    "Date & Time (UTC)",
-                    eventInfo?.utcDate
-                      ? moment.parseZone(eventInfo?.utcDate).format("DD/MM/YYYY hh:mm A")
-                      : "-",
-                  ],
-                  [
-                    "Local Date & Time",
+                    "Date & Time",
                     eventInfo?.localDate
-                      ? moment.parseZone(eventInfo?.localDate).format("DD/MM/YYYY hh:mm A")
+                      ? moment
+                          .parseZone(eventInfo?.localDate)
+                          .format("DD/MM/YYYY hh:mm A")
                       : "-",
                   ],
                   [
@@ -874,30 +858,13 @@ export default function ListingsPage() {
                       sx={{ lineHeight: 1 }}
                       fontWeight={600}
                     >
-                      Date & Time (UTC)
-                    </Typography>
-                    <Typography variant="caption">
-                      {eventInfo?.utcDate
-                        ? moment.parseZone(eventInfo?.utcDate).format(
-                            "DD/MM/YYYY hh:mm A"
-                          )
-                        : "-"}
-                    </Typography>
-                  </Grid>
-<Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ lineHeight: 1 }}
-                      fontWeight={600}
-                    >
-                      Local Date & Time
+                      Date & Time
                     </Typography>
                     <Typography variant="caption">
                       {eventInfo?.localDate
-                        ? moment.parseZone(eventInfo?.localDate).format(
-                            "DD/MM/YYYY hh:mm A"
-                          )
+                        ? moment
+                            .parseZone(eventInfo?.localDate)
+                            .format("DD/MM/YYYY hh:mm A")
                         : "-"}
                     </Typography>
                   </Grid>

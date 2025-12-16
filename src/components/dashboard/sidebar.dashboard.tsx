@@ -20,7 +20,7 @@ import {
 import DashboardSidebarHeaderItem from "./headerItem.dashboard";
 import DashboardSidebarPageItem from "./pageItem.dashboard";
 import { useDashboardLayoutContext } from "../../contexts/dashboardLayout.context";
-import StoreIcon from '@mui/icons-material/Store';
+import StoreIcon from "@mui/icons-material/Store";
 
 export default function DashboardSidebar() {
   const { pathname } = useLocation();
@@ -91,22 +91,34 @@ export default function DashboardSidebar() {
               }
             />
             <DashboardSidebarPageItem
+              id="sales"
+              title="Sales"
+              icon={<ListIcon />}
+              href="/sales"
+              selected={
+                !!matchPath("/sales/*", pathname) || pathname === "/sales"
+              }
+            />
+            <DashboardSidebarPageItem
               id="purchases"
               title="Purchases"
               icon={<StoreIcon />}
               href="/purchases"
               selected={
-                !!matchPath("/purchases/*", pathname) || pathname === "/purchases"
+                !!matchPath("/purchases/*", pathname) ||
+                pathname === "/purchases"
               }
             />
 
             <DashboardSidebarPageItem
-  id="charts"
-  title="Charts"
-  icon={<BarChartIcon />}
-  href="/charts"
-  selected={!!matchPath("/charts/*", pathname) || pathname === "/charts"}
-/>
+              id="charts"
+              title="Charts"
+              icon={<BarChartIcon />}
+              href="/charts"
+              selected={
+                !!matchPath("/charts/*", pathname) || pathname === "/charts"
+              }
+            />
           </List>
         </Box>
       </Fragment>

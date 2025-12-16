@@ -1,9 +1,10 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { setSnackbar } from "./snackbar.slice";
 import type { DataGridQueryOptions } from "../../shared/types/mui.type";
-import listingsMetaApi from "../../apis/listingsMeta.api";
+import salesMetaApi from "../../apis/salesMeta.api";
 
-export interface ListingsMetaState {
+
+export interface salesMetaState {
   loading: boolean;
   rows: {
     data: any[];
@@ -13,7 +14,7 @@ export interface ListingsMetaState {
   error: any;
 }
 
-const initialState: ListingsMetaState = {
+const initialState: salesMetaState = {
   loading: false,
   rows: {
     data: [],
@@ -24,41 +25,41 @@ const initialState: ListingsMetaState = {
 };
 
 // Async thunk to fetch listings
-export const getListingsMeta = createAsyncThunk(
-  "listingsMeta",
+export const getSalesMeta = createAsyncThunk(
+  "salesMeta",
   async (data: DataGridQueryOptions, { dispatch, rejectWithValue }) => {
     try {
-      const response = await listingsMetaApi.fetchListingsMeta(data);
+      const response = await salesMetaApi.fetchSalesMeta(data);
       return response.data;
     } catch (err: any) {
-      const message = err?.message || "Failed to fetch listingsMeta";
+      const message = err?.message || "Failed to fetch salesMeta";
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
   }
 );
 
-const listingsMetaSlice = createSlice({
-  name: "listingsMeta",
+const salesSlice = createSlice({
+  name: "salesMeta",
   initialState,
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(getListingsMeta.pending, (state) => {
+      .addCase(getSalesMeta.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(getListingsMeta.fulfilled, (state, action) => {
+      .addCase(getSalesMeta.fulfilled, (state, action) => {
         state.loading = false;
         state.rows = action.payload.data;
       })
-      .addCase(getListingsMeta.rejected, (state, action) => {
+      .addCase(getSalesMeta.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || "Something went wrong";
       });
   },
 });
 
-export const {} = listingsMetaSlice.actions;
+export const {} = salesSlice.actions;
 
-export default listingsMetaSlice.reducer;
+export default salesSlice.reducer;

@@ -53,6 +53,7 @@ import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import dayjs from "dayjs";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
+import { getSalesMeta } from "../store/slices/salesMeta.slice";
 
 export default function EventsPage() {
   const dispatch = useAppDispatch();
@@ -71,7 +72,7 @@ export default function EventsPage() {
   ];
 
   const intervalOptionsMap: Record<string, string[]> = {
-    "1d": ["10m", "30m", "1h", "3h", "6h"],
+    "1d": ["1h", "3h", "6h"],
     "7d": ["3h", "6h", "12h", "1d", "3d"],
     "30d": ["12h", "1d", "3d", "7d", "15d"],
     "3m": ["3d", "7d", "30d"],
@@ -79,7 +80,7 @@ export default function EventsPage() {
     "1y": ["30d", "90d", "180d"],
   };
 
-  const defaultInterval = (range: string) => intervalOptionsMap[range][2];
+  const defaultInterval = (range: string) => intervalOptionsMap[range][0];
 
   // ------------------------
   // Redux Data
@@ -95,24 +96,29 @@ export default function EventsPage() {
     loading: listingsMetaLoading,
   } = useSelector((state: RootState) => state.listingsMeta);
 
+  const {
+    rows: { data: salesMeta },
+    loading: salesMetaLoading,
+  } = useSelector((state: RootState) => state.salesMeta);
+
   // ------------------------
   // Grid State
   // ------------------------
   const [paginationModel, setPaginationModel] =
     React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
   const [sortModel, setSortModel] = React.useState<GridSortModel>([
-    { field: "utcDate", sort: "asc" },
+    { field: "localDate", sort: "asc" },
   ]);
   const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
     items: [
       { field: "category", operator: "is", value: "Sports" },
       {
-        field: "utcDate",
+        field: "localDate",
         operator: "onOrAfter",
         value: dayjs().toISOString(),
       },
       {
-        field: "utcDate",
+        field: "localDate",
         operator: "onOrBefore",
         value: dayjs().add(6, "months").toISOString(),
       },
@@ -129,11 +135,11 @@ export default function EventsPage() {
   const [timeRangeGraphTwo, setTimeRangeGraphTwo] = React.useState("7d");
   const [intervalGraphTwo, setIntervalGraphTwo] = React.useState("1d");
 
-  const [timeRangeGraphThree, setTimeRangeGraphThree] = React.useState("30d");
-  const [intervalGraphThree, setIntervalGraphThree] = React.useState("1d");
+  const [timeRangeGraphThree, setTimeRangeGraphThree] = React.useState("1d");
+  const [intervalGraphThree, setIntervalGraphThree] = React.useState("1h");
 
-  const [timeRangeGraphFour, setTimeRangeGraphFour] = React.useState("3m");
-  const [intervalGraphFour, setIntervalGraphFour] = React.useState("7d");
+  const [timeRangeGraphFour, setTimeRangeGraphFour] = React.useState("7d");
+  const [intervalGraphFour, setIntervalGraphFour] = React.useState("1d");
 
   React.useEffect(() => {
     setIntervalGraphOne(defaultInterval(timeRangeGraphOne));
@@ -179,12 +185,12 @@ export default function EventsPage() {
   const handleRowClick = (row: any) => {
     if (row.eventId === selectedEvent?.eventId) return;
     setSelectedEvent(row);
-    
+
     // Smooth scroll to top using ref
     setTimeout(() => {
-      chartRef.current?.scrollIntoView({ 
+      chartRef.current?.scrollIntoView({
         behavior: "smooth",
-        block: "center"
+        block: "center",
       });
     }, 150);
   };
@@ -195,28 +201,51 @@ export default function EventsPage() {
   React.useEffect(() => {
     if (!selectedEvent) return;
 
-    const filters = {
+    const listingsMetaFilters = {
       items: [
         { field: "eventId", operator: "equals", value: selectedEvent.eventId },
       ],
     };
 
-    // ✅ Call immediately once
-    dispatch(getListingsMeta({ filters, page: -1, pageSize: -1 }));
+    // Find seatgeek match for sales data
+    const seatgeekMatch = selectedEvent.matches?.find((m: any) => m.providerName === "seatgeek");
+    
+    const salesMetaFilters = {
+      items: [
+        { field: "eventId", operator: "equals", value: seatgeekMatch?.eventId},
+      ],
+    };
 
-    // ✅ Then call every 1 minute
+    // ✅ Call immediately once
+    dispatch(
+      getListingsMeta({ filters: listingsMetaFilters, page: -1, pageSize: -1 })
+    );
+    dispatch(
+      getSalesMeta({ filters: salesMetaFilters, page: -1, pageSize: -1 })
+    );
+
+    // ✅ Then call every 10 minutes
     const intervalId = setInterval(() => {
-      dispatch(getListingsMeta({ filters, page: -1, pageSize: -1 }));
-    }, 600000); // 60,0000 ms = 10 minute
+      dispatch(
+        getListingsMeta({
+          filters: listingsMetaFilters,
+          page: -1,
+          pageSize: -1,
+        })
+      );
+      dispatch(
+        getSalesMeta({ filters: salesMetaFilters, page: -1, pageSize: -1 })
+      );
+    }, 600000); // 600000 ms = 10 minutes
 
     // ✅ Cleanup on unmount or change in selectedEvent
     return () => clearInterval(intervalId);
   }, [selectedEvent, dispatch]);
 
   // ------------------------
-  // Dataset Builder (Reusable)
+  // Dataset Builder for Listings Meta (Reusable)
   // ------------------------
-  const buildDataset = (lm: any[], timeRange: string, interval: string) => {
+  const buildListingsDataset = (lm: any[], timeRange: string, interval: string) => {
     if (!lm || lm.length === 0) return [];
 
     const now = moment.utc();
@@ -249,8 +278,8 @@ export default function EventsPage() {
     const intervalMs = interval.endsWith("d")
       ? parseInt(interval) * 24 * 60 * 60 * 1000
       : interval.endsWith("h")
-        ? parseInt(interval) * 60 * 60 * 1000
-        : parseInt(interval) * 60 * 1000;
+      ? parseInt(interval) * 60 * 60 * 1000
+      : parseInt(interval) * 60 * 1000;
 
     const sorted = [...lm].sort(
       (a, b) =>
@@ -282,11 +311,11 @@ export default function EventsPage() {
     const result: any[] = [];
     let lastValue = lastBefore
       ? {
-        tickets: lastBefore.ticketCount ?? 0,
-        priceMin: lastBefore.priceMin ?? 0,
-        twoPlusPriceMin: lastBefore.twoPlusPriceMin ?? 0,
-        getInPriceMin: lastBefore.getInPriceMin ?? 0,
-      }
+          tickets: lastBefore.ticketCount ?? 0,
+          priceMin: lastBefore.priceMin ?? 0,
+          twoPlusPriceMin: lastBefore.twoPlusPriceMin ?? 0,
+          getInPriceMin: lastBefore.getInPriceMin ?? 0,
+        }
       : { tickets: 0, priceMin: 0, twoPlusPriceMin: 0, getInPriceMin: 0 };
 
     const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
@@ -323,30 +352,130 @@ export default function EventsPage() {
     return result;
   };
 
+  // ------------------------
+  // Dataset Builder for Sales Meta (Reusable)
+  // ------------------------
+    const buildSalesDataset = (sm: any[], timeRange: string, interval: string) => {
+    if (!sm || sm.length === 0) return [];
+
+    const now = moment.utc();
+    const fromDate = now.clone();
+
+    switch (timeRange) {
+      case "1d":
+        fromDate.subtract(1, "day");
+        break;
+      case "7d":
+        fromDate.subtract(7, "days");
+        break;
+      case "30d":
+        fromDate.subtract(30, "days");
+        break;
+      case "3m":
+        fromDate.subtract(3, "months");
+        break;
+      case "6m":
+        fromDate.subtract(6, "months");
+        break;
+      case "1y":
+        fromDate.subtract(1, "year");
+        break;
+    }
+
+    const rangeStart = fromDate.valueOf();
+    const rangeEnd = now.valueOf();
+
+    const intervalMs = interval.endsWith("d")
+      ? parseInt(interval) * 24 * 60 * 60 * 1000
+      : interval.endsWith("h")
+      ? parseInt(interval) * 60 * 60 * 1000
+      : parseInt(interval) * 60 * 1000;
+
+    const sorted = [...sm].sort(
+      (a, b) =>
+        moment.utc(a.createdAt).valueOf() - moment.utc(b.createdAt).valueOf()
+    );
+
+    const rangeData = sorted.filter((item) => {
+      const t = moment.utc(item.createdAt).valueOf();
+      return t >= rangeStart && t <= rangeEnd;
+    });
+
+    const grouped: Record<number, any[]> = {};
+    rangeData.forEach((item) => {
+      const time = moment.utc(item.createdAt).valueOf();
+      const bucket = Math.floor(time / intervalMs) * intervalMs;
+      if (!grouped[bucket]) grouped[bucket] = [];
+      grouped[bucket].push(item);
+    });
+
+    const result: any[] = [];
+    const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
+    const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
+
+    for (let t = startBucket; t <= endBucket; t += intervalMs) {
+      const arr = grouped[t] || [];
+
+      if (arr.length === 0) {
+        // Use 0 values for time slots without data
+        result.push({
+          totalSales: 0,
+          totalUnits: 0,
+          totalSalesPrice: 0,
+          minPrice: 0,
+          maxPrice: 0,
+          averagePrice: 0,
+          medianPrice: 0,
+          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
+          bucketStartUTC: moment.utc(t).toISOString(),
+        });
+      } else {
+        const avg = (f: string) =>
+          arr.reduce((s, i) => s + (i[f] ?? 0), 0) / arr.length;
+
+        result.push({
+          totalSales: Math.round(avg("totalSales")),
+          totalUnits: Math.round(avg("totalUnits")),
+          totalSalesPrice: +avg("totalSalesPrice").toFixed(2),
+          minPrice: +avg("minPrice").toFixed(2),
+          maxPrice: +avg("maxPrice").toFixed(2),
+          averagePrice: +avg("averagePrice").toFixed(2),
+          medianPrice: +avg("medianPrice").toFixed(2),
+          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
+          bucketStartUTC: moment.utc(t).toISOString(),
+        });
+      }
+    }
+
+    return result;
+  };
+
+  // Datasets for Listings Meta (Graphs 1 & 2)
   const datasetOne = React.useMemo(
-    () => buildDataset(listingsMeta || [], timeRangeGraphOne, intervalGraphOne),
+    () => buildListingsDataset(listingsMeta || [], timeRangeGraphOne, intervalGraphOne),
     [listingsMeta, timeRangeGraphOne, intervalGraphOne]
   );
 
   const datasetTwo = React.useMemo(
-    () => buildDataset(listingsMeta || [], timeRangeGraphTwo, intervalGraphTwo),
+    () => buildListingsDataset(listingsMeta || [], timeRangeGraphTwo, intervalGraphTwo),
     [listingsMeta, timeRangeGraphTwo, intervalGraphTwo]
   );
 
+  // Datasets for Sales Meta (Graphs 3 & 4)
   const datasetThree = React.useMemo(
-    () => buildDataset(listingsMeta || [], timeRangeGraphThree, intervalGraphThree),
-    [listingsMeta, timeRangeGraphThree, intervalGraphThree]
+    () => buildSalesDataset(salesMeta || [], timeRangeGraphThree, intervalGraphThree),
+    [salesMeta, timeRangeGraphThree, intervalGraphThree]
   );
 
   const datasetFour = React.useMemo(
-    () => buildDataset(listingsMeta || [], timeRangeGraphFour, intervalGraphFour),
-    [listingsMeta, timeRangeGraphFour, intervalGraphFour]
+    () => buildSalesDataset(salesMeta || [], timeRangeGraphFour, intervalGraphFour),
+    [salesMeta, timeRangeGraphFour, intervalGraphFour]
   );
 
   // ------------------------
-  // Charts Config
+  // Charts Config - Listings Meta (Graphs 1 & 2)
   // ------------------------
-  const lineSeries: LineSeriesType[] = [
+  const listingsLineSeries: LineSeriesType[] = [
     {
       type: "line",
       label: "Min Price",
@@ -373,12 +502,67 @@ export default function EventsPage() {
     },
   ];
 
-  const barSeries: BarSeriesType[] = [
+  const listingsBarSeries: BarSeriesType[] = [
     {
       type: "bar",
       label: "Tickets",
       dataKey: "tickets",
       color: "rgba(144,164,174,0.45)",
+      yAxisId: "rightAxis",
+    },
+  ];
+
+  // ------------------------
+  // Charts Config - Sales Meta (Graphs 3 & 4)
+  // ------------------------
+  const salesLineSeries: LineSeriesType[] = [
+    {
+      type: "line",
+      label: "Min Price",
+      dataKey: "minPrice",
+      color: "#1976d2",
+      yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+    },
+    {
+      type: "line",
+      label: "Average Price",
+      dataKey: "averagePrice",
+      color: "#ff7043",
+      yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+    },
+    {
+      type: "line",
+      label: "Median Price",
+      dataKey: "medianPrice",
+      color: "#26a69a",
+      yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+    },
+    {
+      type: "line",
+      label: "Max Price",
+      dataKey: "maxPrice",
+      color: "#9c27b0",
+      yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+    },
+  ];
+
+  const salesBarSeries: BarSeriesType[] = [
+    {
+      type: "bar",
+      label: "Total Sales",
+      dataKey: "totalSales",
+      color: "rgba(76,175,80,0.45)",
+      yAxisId: "rightAxis",
+    },
+    {
+      type: "bar",
+      label: "Total Units",
+      dataKey: "totalUnits",
+      color: "rgba(33,150,243,0.45)",
       yAxisId: "rightAxis",
     },
   ];
@@ -435,32 +619,8 @@ export default function EventsPage() {
       type: "string",
     },
     {
-      field: "utcDate",
-      headerName: "Date & Time (UTC)",
-      type: "dateTime",
-      flex: 1.2,
-      minWidth: 170,
-      valueFormatter: (value) =>
-        value ? moment.parseZone(value).format("MM/DD/YYYY hh:mm A") : "-",
-      renderEditCell: (params) => (
-        <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <DateTimePicker
-            value={params.value ? dayjs(params.value): dayjs()}
-            onChange={(value) =>
-              params.api.setEditCellValue({
-                id: params.id,
-                field: params.field,
-                value: value?.toISOString(),
-              })
-            }
-            minDateTime={dayjs()} // prevent past selection
-          />
-        </LocalizationProvider>
-      ),
-    },
-    {
       field: "localDate",
-      headerName: "Local Date & Time",
+      headerName: "Date & Time",
       type: "dateTime",
       flex: 1.2,
       minWidth: 170,
@@ -541,7 +701,9 @@ export default function EventsPage() {
       getActions: (params) => [
         <Button
           key="listings"
-          onClick={() => window.open(`/listings/${params.row.eventId}`, "_blank")}
+          onClick={() =>
+            window.open(`/listings/${params.row.eventId}`, "_blank")
+          }
           variant="contained"
           size="small"
           sx={{ borderRadius: 2 }}
@@ -556,7 +718,15 @@ export default function EventsPage() {
   // Render
   // ------------------------
   return (
-    <Stack padding={3} sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
+    <Stack
+      padding={3}
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+      }}
+    >
       <Grid container spacing={3}>
         {selectedEvent && (
           <>
@@ -572,25 +742,13 @@ export default function EventsPage() {
                   <Grid container spacing={3}>
                     <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                       <Typography variant="body2" color="text.secondary">
-                        Date & Time (UTC)
-                      </Typography>
-                      <Typography variant="body1">
-                        {selectedEvent?.utcDate
-                          ? moment.parseZone(selectedEvent.utcDate).format(
-                            "MM/DD/YYYY hh:mm A"
-                          )
-                          : ""}
-                      </Typography>
-                    </Grid>
-                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Local Date & Time
+                        Date & Time
                       </Typography>
                       <Typography variant="body1">
                         {selectedEvent?.localDate
-                          ? moment.parseZone(selectedEvent.localDate).format(
-                            "MM/DD/YYYY hh:mm A"
-                          )
+                          ? moment
+                              .parseZone(selectedEvent.localDate)
+                              .format("MM/DD/YYYY hh:mm A")
                           : ""}
                       </Typography>
                     </Grid>
@@ -613,9 +771,9 @@ export default function EventsPage() {
                       <Typography variant="body1">
                         {selectedEvent?.performerDBIds?.length
                           ? selectedEvent.performerDBIds
-                            .map((p: any) => p?.name)
-                            .filter(Boolean)
-                            .join(", ")
+                              .map((p: any) => p?.name)
+                              .filter(Boolean)
+                              .join(", ")
                           : "-"}
                       </Typography>
                     </Grid>
@@ -635,7 +793,7 @@ export default function EventsPage() {
                     flexWrap="wrap"
                   >
                     <Typography variant="h6" fontWeight={600} gutterBottom>
-                      Trends - Graph 1
+                      Listings Meta - Graph 1
                     </Typography>
 
                     <Stack direction="row" spacing={3} alignItems="center">
@@ -675,7 +833,7 @@ export default function EventsPage() {
 
                   <ChartContainer
                     dataset={datasetOne || []}
-                    series={[...lineSeries, ...barSeries]}
+                    series={[...listingsLineSeries, ...listingsBarSeries]}
                     xAxis={[
                       {
                         dataKey: "time",
@@ -771,7 +929,7 @@ export default function EventsPage() {
                     flexWrap="wrap"
                   >
                     <Typography variant="h6" fontWeight={600} gutterBottom>
-                      Trends - Graph 2
+                      Listings Meta - Graph 2
                     </Typography>
 
                     <Stack direction="row" spacing={3} alignItems="center">
@@ -811,7 +969,7 @@ export default function EventsPage() {
 
                   <ChartContainer
                     dataset={datasetTwo || []}
-                    series={[...lineSeries, ...barSeries]}
+                    series={[...listingsLineSeries, ...listingsBarSeries]}
                     xAxis={[
                       {
                         dataKey: "time",
@@ -907,7 +1065,7 @@ export default function EventsPage() {
                     flexWrap="wrap"
                   >
                     <Typography variant="h6" fontWeight={600} gutterBottom>
-                      Trends - Graph 3
+                      Sales Meta - Graph 3
                     </Typography>
 
                     <Stack direction="row" spacing={3} alignItems="center">
@@ -916,7 +1074,9 @@ export default function EventsPage() {
                         <Select
                           value={timeRangeGraphThree}
                           label="Time Range"
-                          onChange={(e) => setTimeRangeGraphThree(e.target.value)}
+                          onChange={(e) =>
+                            setTimeRangeGraphThree(e.target.value)
+                          }
                           sx={{ minWidth: 150 }}
                         >
                           {timeRangeOptions.map((o) => (
@@ -932,7 +1092,9 @@ export default function EventsPage() {
                         <Select
                           value={intervalGraphThree}
                           label="Interval"
-                          onChange={(e) => setIntervalGraphThree(e.target.value)}
+                          onChange={(e) =>
+                            setIntervalGraphThree(e.target.value)
+                          }
                           sx={{ minWidth: 120 }}
                         >
                           {intervalOptionsMap[timeRangeGraphThree].map((i) => (
@@ -947,7 +1109,7 @@ export default function EventsPage() {
 
                   <ChartContainer
                     dataset={datasetThree || []}
-                    series={[...lineSeries, ...barSeries]}
+                    series={[...salesLineSeries, ...salesBarSeries]}
                     xAxis={[
                       {
                         dataKey: "time",
@@ -977,7 +1139,7 @@ export default function EventsPage() {
                       },
                       {
                         id: "rightAxis",
-                        label: "Tickets Qty",
+                        label: "Sales Count",
                         position: "right",
                         min: 0,
                       },
@@ -1012,7 +1174,7 @@ export default function EventsPage() {
                     <ChartsTooltip />
                   </ChartContainer>
 
-                  {listingsMetaLoading && (
+                  {salesMetaLoading && (
                     <Box
                       sx={{
                         position: "absolute",
@@ -1043,7 +1205,7 @@ export default function EventsPage() {
                     flexWrap="wrap"
                   >
                     <Typography variant="h6" fontWeight={600} gutterBottom>
-                      Trends - Graph 4
+                      Sales Meta - Graph 4
                     </Typography>
 
                     <Stack direction="row" spacing={3} alignItems="center">
@@ -1052,7 +1214,9 @@ export default function EventsPage() {
                         <Select
                           value={timeRangeGraphFour}
                           label="Time Range"
-                          onChange={(e) => setTimeRangeGraphFour(e.target.value)}
+                          onChange={(e) =>
+                            setTimeRangeGraphFour(e.target.value)
+                          }
                           sx={{ minWidth: 150 }}
                         >
                           {timeRangeOptions.map((o) => (
@@ -1083,7 +1247,7 @@ export default function EventsPage() {
 
                   <ChartContainer
                     dataset={datasetFour || []}
-                    series={[...lineSeries, ...barSeries]}
+                    series={[...salesLineSeries, ...salesBarSeries]}
                     xAxis={[
                       {
                         dataKey: "time",
@@ -1113,7 +1277,7 @@ export default function EventsPage() {
                       },
                       {
                         id: "rightAxis",
-                        label: "Tickets Qty",
+                        label: "Sales Count",
                         position: "right",
                         min: 0,
                       },
@@ -1148,7 +1312,7 @@ export default function EventsPage() {
                     <ChartsTooltip />
                   </ChartContainer>
 
-                  {listingsMetaLoading && (
+                  {salesMetaLoading && (
                     <Box
                       sx={{
                         position: "absolute",
@@ -1171,7 +1335,15 @@ export default function EventsPage() {
         )}
 
         {/* EVENT GRID */}
-        <Grid size={{ xs: 12 }} sx={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <Grid
+          size={{ xs: 12 }}
+          sx={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
+          }}
+        >
           {eventsError ? (
             <Alert severity="error">{eventsError}</Alert>
           ) : (
