@@ -52,8 +52,16 @@ export const route: RouteObject[] = [
         element: <EventsPage />,
       },
       {
+        path: "/listings",
+        element: <ListingsPage />,
+      },
+      {
         path: "/listings/:eventId",
         element: <ListingsPage />,
+      },
+      {
+        path: "/sales",
+        element: <SalesPage />,
       },
       {
         path: "/sales/:eventId",

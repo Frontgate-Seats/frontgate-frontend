@@ -92,7 +92,7 @@ export default function DashboardSidebar() {
             />
             <DashboardSidebarPageItem
               id="sales"
-              title="Sales"
+              title="Seatgeek Sales"
               icon={<ListIcon />}
               href="/sales"
               selected={
