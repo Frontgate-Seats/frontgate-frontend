@@ -1,14 +1,9 @@
 import * as React from "react";
-import {
-  Alert,
-  Grid,
-  Stack,
-} from "@mui/material";
+import { Alert, Grid, Stack } from "@mui/material";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import { getSales } from "../store/slices/sales.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
-import { useParams } from "react-router-dom";
 import type { GridPaginationModel, GridSortModel } from "@mui/x-data-grid";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { GridFilterModel } from "@mui/x-data-grid";
@@ -17,84 +12,47 @@ import type { CustomGridColDef } from "../shared/types/mui.type";
 
 export default function SalesPage() {
   const dispatch = useAppDispatch();
-  const { eventId } = useParams();
 
   const {
-    rows: { data: salesData },
+    rows: { data: sales, total: totalSales },
     loading: salesLoading,
     error: salesError,
   } = useSelector((state: RootState) => state.sales);
 
-  const flattenedRows = React.useMemo(() => {
-    const result: any[] = [];
-    salesData.forEach((sale) => {
-      (sale.data || []).forEach((s: any) => {
-        result.push({
-          id: s.id,
-          saleId: s.id,
-          listingDBId: sale._id,
-          eventId: sale.eventId,
-          eventDBId: sale.eventDBId,
-          eventName: sale.name,
-          venueId: sale.venueId,
-          performerIds: sale.performerIds,
-          providerDBId: sale.providerDBId,
-          row: s.row,
-          section: s.section,
-          quantity: s.quantity,
-          price: s.broadcastPrice,
-          stockType: s.stockType,
-        });
-      });
-    });
-    return result;
-  }, [salesData]);
+  const [paginationModel, setPaginationModel] =
+    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  const [sortModel, setSortModel] = React.useState<GridSortModel>([
+    { field: "localDate", sort: "asc" },
+  ]);
+  const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
+    items: [
+    ],
+  });
 
   React.useEffect(() => {
     dispatch(
       getSales({
-        filters: {
-          items: [
-            ...(eventId
-              ? [
-                  {
-                    id: "default",
-                    field: "eventId",
-                    operator: "equals",
-                    value: eventId,
-                  },
-                ]
-              : []),
-          ],
-        },
+        pageSize: paginationModel.pageSize,
+        sortFields: sortModel,
+        filters: filterModel,
       })
     );
-  }, [dispatch, eventId]);
+  }, [dispatch, paginationModel, sortModel, filterModel]);
 
   const handleRefresh = () => {
     dispatch(
       getSales({
-        filters: {
-          items: [
-            ...(eventId
-              ? [
-                  {
-                    id: "default",
-                    field: "eventId",
-                    operator: "equals",
-                    value: eventId,
-                  },
-                ]
-              : []),
-          ],
-        },
+        pageSize: paginationModel.pageSize,
+        sortFields: sortModel,
+        filters: filterModel,
       })
     );
   };
 
   const allColumns: CustomGridColDef[] = [
-    { field: "eventId", headerName: "eventId", flex: 1, type: "string" },
-    { field: "section", headerName: "Section", flex: 1, type: "string" },
+    { field: "eventId", headerName: "Event ID", flex: 1, type: "string" },
+    { field: "eventDBId", headerName: "Event Name", flex: 1.5, type: "custom" ,valueFormatter: (value: any) => (value ? `$${value.name}` : "-"), filterable: false },
+    { field: "section", headerName: "Section", flex: 0.8, type: "string" },
     { field: "row", headerName: "Row", flex: 0.5, type: "string" },
     {
       field: "quantity",
@@ -105,7 +63,7 @@ export default function SalesPage() {
       max: 10000,
     },
     {
-      field: "price",
+      field: "broadcastPrice",
       headerName: "Price",
       type: "number",
       flex: 0.7,
@@ -121,99 +79,36 @@ export default function SalesPage() {
       align: "center",
       headerAlign: "center",
     },
+    {
+      field: "deliveryMethod",
+      headerName: "Delivery",
+      flex: 0.8,
+      type: "string",
+    },
+    {
+      field: "isInstantDelivery",
+      headerName: "Instant",
+      flex: 0.5,
+      type: "boolean",
+      valueFormatter: (value) => (value ? "Yes" : "No"),
+    },
+    {
+      field: "inHandDate",
+      headerName: "In Hand Date",
+      flex: 1,
+      type: "dateTime",
+      valueFormatter: (value) =>
+        value ? dayjs(value).format("MM/DD/YYYY hh:mm  A") : "-",
+    },
+    {
+      field: "purchaseUtc",
+      headerName: "Purchase Date",
+      flex: 1,
+      type: "dateTime",
+      valueFormatter: (value) =>
+        value ? dayjs(value).format("MM/DD/YYYY hh:mm  A") : "-",
+    },
   ];
-
-  const [paginationModel, setPaginationModel] =
-    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
-
-  const [sortModel, setSortModel] = React.useState<GridSortModel>([]);
-  const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
-    items: [],
-  });
-
-  const filteredRows = React.useMemo(() => {
-    if (!filterModel?.items?.length) return flattenedRows;
-
-    return flattenedRows.filter((row) =>
-      filterModel.items.every(({ field, operator, value }) => {
-        if (value == null || value === "") return true;
-
-        const col = allColumns.find((c) => c.field === field);
-        const colType = col?.type || "string";
-        const fieldValue = row[field];
-
-        switch (colType) {
-          // -------------------- TEXT --------------------
-          default: {
-            if (operator === "contains") {
-              return String(fieldValue ?? "")
-                .toLowerCase()
-                .includes(String(value).toLowerCase());
-            }
-            if (operator === "equals") {
-              return (
-                String(fieldValue ?? "").toLowerCase() ===
-                String(value).toLowerCase()
-              );
-            }
-            return true;
-          }
-
-          // -------------------- NUMBER --------------------
-          case "number": {
-            const fv = Number(fieldValue);
-            const val = Number(value);
-            if (isNaN(fv) || isNaN(val)) return false;
-
-            if (operator === ">=") return fv >= val;
-            if (operator === "<=") return fv <= val;
-            if (operator === "equals") return fv === val;
-            return true;
-          }
-
-          // -------------------- DATE --------------------
-          case "date":
-          case "dateTime": {
-            const fv = dayjs(fieldValue);
-            const val = dayjs(value);
-            if (!fv.isValid() || !val.isValid()) return false;
-
-            if (operator === "onOrAfter")
-              return fv.isSame(val, "day") || fv.isAfter(val, "day");
-            if (operator === "onOrBefore")
-              return fv.isSame(val, "day") || fv.isBefore(val, "day");
-            return true;
-          }
-
-          // -------------------- SINGLE SELECT --------------------
-          case "singleSelect": {
-            return String(fieldValue ?? "") === String(value);
-          }
-        }
-      })
-    );
-  }, [flattenedRows, filterModel, allColumns]);
-
-  const sortedRows = React.useMemo(() => {
-    if (!sortModel?.length) return filteredRows;
-
-    const { field, sort } = sortModel[0];
-    return [...filteredRows].sort((a, b) => {
-      const aValue = a[field];
-      const bValue = b[field];
-      if (aValue == null) return 1;
-      if (bValue == null) return -1;
-      if (aValue < bValue) return sort === "asc" ? -1 : 1;
-      if (aValue > bValue) return sort === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [filteredRows, sortModel]);
-
-  const paginatedRows = React.useMemo(() => {
-    const start = paginationModel.page * paginationModel.pageSize;
-    const end = start + paginationModel.pageSize;
-    return sortedRows.slice(start, end);
-  }, [sortedRows, paginationModel]);
 
   return (
     <Stack
@@ -232,9 +127,9 @@ export default function SalesPage() {
           <>
             <Grid size={{ xs: 12 }}>
               <CustomDataGrid
-                title="Seatgeek Sales"
-                rows={paginatedRows}
-                rowCount={flattenedRows.length}
+                title="Seat Geek Sales"
+                rows={sales}
+                rowCount={totalSales}
                 isLoading={salesLoading}
                 error={salesError}
                 columns={allColumns}
