@@ -41,6 +41,8 @@ import type {
   GridSortModel,
   GridFilterModel,
 } from "@mui/x-data-grid";
+import { DataGrid } from "@mui/x-data-grid";
+
 import moment from "moment";
 
 import type { RootState } from "../store";
@@ -54,6 +56,7 @@ import dayjs from "dayjs";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { getSalesMeta } from "../store/slices/salesMeta.slice";
+import { getSales } from "../store/slices/sales.slice";
 
 export default function EventsPage() {
   const dispatch = useAppDispatch();
@@ -101,6 +104,11 @@ export default function EventsPage() {
     loading: salesMetaLoading,
   } = useSelector((state: RootState) => state.salesMeta);
 
+  const {
+    rows: { data: sales, total: salesTotal },
+    loading: salesLoading,
+  } = useSelector((state: RootState) => state.sales);
+
   // ------------------------
   // Grid State
   // ------------------------
@@ -138,9 +146,6 @@ export default function EventsPage() {
   const [timeRangeGraphThree, setTimeRangeGraphThree] = React.useState("1d");
   const [intervalGraphThree, setIntervalGraphThree] = React.useState("1h");
 
-  const [timeRangeGraphFour, setTimeRangeGraphFour] = React.useState("7d");
-  const [intervalGraphFour, setIntervalGraphFour] = React.useState("1d");
-
   React.useEffect(() => {
     setIntervalGraphOne(defaultInterval(timeRangeGraphOne));
   }, [timeRangeGraphOne]);
@@ -152,10 +157,6 @@ export default function EventsPage() {
   React.useEffect(() => {
     setIntervalGraphThree(defaultInterval(timeRangeGraphThree));
   }, [timeRangeGraphThree]);
-
-  React.useEffect(() => {
-    setIntervalGraphFour(defaultInterval(timeRangeGraphFour));
-  }, [timeRangeGraphFour]);
 
   // ------------------------
   // Fetch events
@@ -208,11 +209,13 @@ export default function EventsPage() {
     };
 
     // Find seatgeek match for sales data
-    const seatgeekMatch = selectedEvent.matches?.find((m: any) => m.providerName === "seatgeek");
-    
+    const seatgeekMatch = selectedEvent.matches?.find(
+      (m: any) => m.providerName === "seatgeek"
+    );
+
     const salesMetaFilters = {
       items: [
-        { field: "eventId", operator: "equals", value: seatgeekMatch?.eventId},
+        { field: "eventId", operator: "equals", value: seatgeekMatch?.eventId },
       ],
     };
 
@@ -223,6 +226,7 @@ export default function EventsPage() {
     dispatch(
       getSalesMeta({ filters: salesMetaFilters, page: -1, pageSize: -1 })
     );
+    dispatch(getSales({ filters: salesMetaFilters, page: -1, pageSize: -1 }));
 
     // ✅ Then call every 10 minutes
     const intervalId = setInterval(() => {
@@ -236,16 +240,22 @@ export default function EventsPage() {
       dispatch(
         getSalesMeta({ filters: salesMetaFilters, page: -1, pageSize: -1 })
       );
+      dispatch(getSales({ filters: salesMetaFilters, page: -1, pageSize: -1 }));
     }, 600000); // 600000 ms = 10 minutes
 
     // ✅ Cleanup on unmount or change in selectedEvent
     return () => clearInterval(intervalId);
   }, [selectedEvent, dispatch]);
 
+  
   // ------------------------
   // Dataset Builder for Listings Meta (Reusable)
   // ------------------------
-  const buildListingsDataset = (lm: any[], timeRange: string, interval: string) => {
+  const buildListingsDataset = (
+    lm: any[],
+    timeRange: string,
+    interval: string
+  ) => {
     if (!lm || lm.length === 0) return [];
 
     const now = moment.utc();
@@ -355,7 +365,11 @@ export default function EventsPage() {
   // ------------------------
   // Dataset Builder for Sales Meta (Reusable)
   // ------------------------
-    const buildSalesDataset = (sm: any[], timeRange: string, interval: string) => {
+  const buildSalesDataset = (
+    sm: any[],
+    timeRange: string,
+    interval: string
+  ) => {
     if (!sm || sm.length === 0) return [];
 
     const now = moment.utc();
@@ -452,24 +466,34 @@ export default function EventsPage() {
 
   // Datasets for Listings Meta (Graphs 1 & 2)
   const datasetOne = React.useMemo(
-    () => buildListingsDataset(listingsMeta || [], timeRangeGraphOne, intervalGraphOne),
+    () =>
+      buildListingsDataset(
+        listingsMeta || [],
+        timeRangeGraphOne,
+        intervalGraphOne
+      ),
     [listingsMeta, timeRangeGraphOne, intervalGraphOne]
   );
 
   const datasetTwo = React.useMemo(
-    () => buildListingsDataset(listingsMeta || [], timeRangeGraphTwo, intervalGraphTwo),
+    () =>
+      buildListingsDataset(
+        listingsMeta || [],
+        timeRangeGraphTwo,
+        intervalGraphTwo
+      ),
     [listingsMeta, timeRangeGraphTwo, intervalGraphTwo]
   );
 
-  // Datasets for Sales Meta (Graphs 3 & 4)
+  // Dataset for Sales Meta (Graph 3)
   const datasetThree = React.useMemo(
-    () => buildSalesDataset(salesMeta || [], timeRangeGraphThree, intervalGraphThree),
+    () =>
+      buildSalesDataset(
+        salesMeta || [],
+        timeRangeGraphThree,
+        intervalGraphThree
+      ),
     [salesMeta, timeRangeGraphThree, intervalGraphThree]
-  );
-
-  const datasetFour = React.useMemo(
-    () => buildSalesDataset(salesMeta || [], timeRangeGraphFour, intervalGraphFour),
-    [salesMeta, timeRangeGraphFour, intervalGraphFour]
   );
 
   // ------------------------
@@ -564,6 +588,51 @@ export default function EventsPage() {
       dataKey: "totalUnits",
       color: "rgba(33,150,243,0.45)",
       yAxisId: "rightAxis",
+    },
+  ];
+
+  // Sales data grid columns
+  const salesColumns: CustomGridColDef[] = [
+    {
+      field: "purchaseUtc",
+      headerName: "Date & Time",
+      flex: 1.2,
+      minWidth: 170,
+      type: "dateTime",
+      valueFormatter: (value) =>
+        value ? moment.utc(value).local().format("MM/DD/YYYY hh:mm A") : "-",
+    },
+    {
+      field: "section",
+      headerName: "Section",
+      flex: 0.8,
+      minWidth: 100,
+      type: "string",
+    },
+    {
+      field: "row",
+      headerName: "Row",
+      flex: 0.8,
+      minWidth: 100,
+      type: "string",
+    },
+    {
+      field: "broadcastPrice",
+      headerName: "Price",
+      flex: 1,
+      minWidth: 130,
+      type: "number",
+      valueFormatter: (value: any) =>
+        typeof value === "number" && value >= 0 ? `$${value.toFixed(2)}` : "-",
+    },
+    {
+      field: "quantity",
+      headerName: "Quantity",
+      flex: 0.8,
+      minWidth: 100,
+      type: "number",
+      valueFormatter: (value: any) =>
+        typeof value === "number" && value >= 0 ? value.toString() : "-",
     },
   ];
 
@@ -1194,140 +1263,37 @@ export default function EventsPage() {
               </Card>
             </Grid>
 
-            {/* GRAPH 4 */}
+            {/* SALES DATA GRID */}
             <Grid size={{ xs: 12, md: 6 }}>
               <Card variant="outlined">
-                <CardContent sx={{ position: "relative" }}>
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    sx={{ mb: 3 }}
-                    flexWrap="wrap"
-                  >
-                    <Typography variant="h6" fontWeight={600} gutterBottom>
-                      Sales Meta - Graph 4
-                    </Typography>
+                <CardContent sx={{ position: "relative", height: 400 }}>
+                  <Typography variant="h6" fontWeight={600} gutterBottom>
+                    Sales Data
+                  </Typography>
 
-                    <Stack direction="row" spacing={3} alignItems="center">
-                      <FormControl size="small">
-                        <InputLabel>Time Range</InputLabel>
-                        <Select
-                          value={timeRangeGraphFour}
-                          label="Time Range"
-                          onChange={(e) =>
-                            setTimeRangeGraphFour(e.target.value)
-                          }
-                          sx={{ minWidth: 150 }}
-                        >
-                          {timeRangeOptions.map((o) => (
-                            <MenuItem key={o.value} value={o.value}>
-                              {o.label}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-
-                      <FormControl size="small">
-                        <InputLabel>Interval</InputLabel>
-                        <Select
-                          value={intervalGraphFour}
-                          label="Interval"
-                          onChange={(e) => setIntervalGraphFour(e.target.value)}
-                          sx={{ minWidth: 120 }}
-                        >
-                          {intervalOptionsMap[timeRangeGraphFour].map((i) => (
-                            <MenuItem key={i} value={i}>
-                              {i}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Stack>
-                  </Stack>
-
-                  <ChartContainer
-                    dataset={datasetFour || []}
-                    series={[...salesLineSeries, ...salesBarSeries]}
-                    xAxis={[
-                      {
-                        dataKey: "time",
-                        scaleType: "band",
-                        label: timeRangeGraphFour === "1d" ? "Time" : "Date",
-                        tickLabelMinGap: 20,
-                        disableTicks: true,
-                        valueFormatter: (value: string) => {
-                          const parsed = moment(value, "MM/DD/YYYY hh:mm A");
-                          if (!parsed.isValid()) return value;
-                          // For same day (1d): show time in 12-hour format with AM/PM
-                          if (timeRangeGraphFour === "1d") {
-                            return parsed.format("hh:mm A");
-                          }
-                          // For more than one day: show day and month
-                          else {
-                            return parsed.format("MM/DD");
-                          }
+                  <Box sx={{ height: "calc(100% - 40px)", width: "100%" }}>
+                    <DataGrid
+                      rows={sales || []}
+                      getRowId={(row) => row._id || row.id}
+                      rowCount={salesTotal || 0}
+                      columns={salesColumns}
+                      loading={salesLoading}
+                      paginationMode="client"
+                      sortingMode="client"
+                      filterMode="client"
+                     pageSizeOptions={[5, 10, 25, 50]}
+                      disableRowSelectionOnClick
+                      sx={{
+                        "& .MuiDataGrid-cell": {
+                          borderBottom: "1px solid #e0e0e0",
                         },
-                      },
-                    ]}
-                    yAxis={[
-                      {
-                        id: "leftAxis",
-                        label: "Price ($)",
-                        min: 0,
-                      },
-                      {
-                        id: "rightAxis",
-                        label: "Sales Count",
-                        position: "right",
-                        min: 0,
-                      },
-                    ]}
-                    height={300}
-                  >
-                    <ChartsGrid horizontal />
-                    <BarPlot />
-                    <LinePlot />
-                    <MarkPlot
-                      slots={{
-                        mark: ({ x, y, color, isHighlighted }) => (
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r={5}
-                            fill={isHighlighted ? color : "transparent"}
-                          />
-                        ),
-                      }}
-                      slotProps={{
-                        mark: {
-                          shape: "circle",
-                          skipAnimation: false,
+                        "& .MuiDataGrid-columnHeaders": {
+                          backgroundColor: "#f5f5f5",
+                          borderBottom: "2px solid #e0e0e0",
                         },
                       }}
                     />
-
-                    <ChartsXAxis />
-                    <ChartsYAxis axisId="leftAxis" />
-                    <ChartsYAxis axisId="rightAxis" />
-                    <ChartsTooltip />
-                  </ChartContainer>
-
-                  {salesMetaLoading && (
-                    <Box
-                      sx={{
-                        position: "absolute",
-                        inset: 0,
-                        bgcolor: "rgba(255,255,255,0.4)",
-                        backdropFilter: "blur(4px)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 5,
-                      }}
-                    >
-                      <CircularProgress size={32} thickness={4} />
-                    </Box>
-                  )}
+                  </Box>
                 </CardContent>
               </Card>
             </Grid>
