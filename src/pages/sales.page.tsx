@@ -51,7 +51,7 @@ export default function SalesPage() {
 
   const allColumns: CustomGridColDef[] = [
     { field: "eventId", headerName: "Event ID", flex: 1, type: "string" },
-    { field: "eventDBId", headerName: "Event Name", flex: 1.5, type: "custom" ,valueFormatter: (value: any) => (value ? `$${value.name}` : "-"), filterable: false },
+    { field: "eventName", headerName: "Event Name", flex: 1.5, type: "string" },
     { field: "section", headerName: "Section", flex: 0.8, type: "string" },
     { field: "row", headerName: "Row", flex: 0.5, type: "string" },
     {
