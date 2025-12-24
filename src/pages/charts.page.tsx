@@ -51,9 +51,8 @@ import {
   FindReplace,
   BarChart,
 } from "@mui/icons-material";
-import dayjs from "dayjs";
 import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { AdapterMoment } from "@mui/x-date-pickers/AdapterMoment";
 
 type TopEventRow = {
   eventId: string;
@@ -380,9 +379,9 @@ const ChartsPage: React.FC = () => {
       valueFormatter: (value) =>
         value ? moment.parseZone(value).format("MM/DD/YYYY hh:mm A") : "-",
       renderEditCell: (params) => (
-        <LocalizationProvider dateAdapter={AdapterDayjs}>
+        <LocalizationProvider dateAdapter={AdapterMoment}>
           <DateTimePicker
-            value={params.value ? dayjs(params.value) : dayjs()}
+            value={params.value ? moment(params.value) : moment()}
             onChange={(value) =>
               params.api.setEditCellValue({
                 id: params.id,
@@ -390,7 +389,7 @@ const ChartsPage: React.FC = () => {
                 value: value,
               })
             }
-            minDateTime={dayjs()} // prevent past selection
+            minDateTime={moment()} // prevent past selection
           />
         </LocalizationProvider>
       ),
@@ -506,8 +505,8 @@ const ChartsPage: React.FC = () => {
           }
           case "date":
           case "dateTime": {
-            const fv = dayjs(fieldValue);
-            const val = dayjs(value);
+            const fv = moment(fieldValue);
+            const val = moment(value);
             if (!fv.isValid() || !val.isValid()) return false;
             if (operator === "onOrAfter")
               return fv.isSame(val, "day") || fv.isAfter(val, "day");

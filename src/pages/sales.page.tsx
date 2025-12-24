@@ -7,7 +7,7 @@ import { useAppDispatch } from "../store/reducers/root.reducer";
 import type { GridPaginationModel, GridSortModel } from "@mui/x-data-grid";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { GridFilterModel } from "@mui/x-data-grid";
-import dayjs from "dayjs";
+import moment from "moment";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 
 export default function SalesPage() {
@@ -98,7 +98,7 @@ export default function SalesPage() {
       flex: 1,
       type: "dateTime",
       valueFormatter: (value) =>
-        value ? dayjs(value).format("MM/DD/YYYY hh:mm  A") : "-",
+        value ? moment(value).format("MM/DD/YYYY hh:mm A") : "-",
     },
     {
       field: "purchaseUtc",
@@ -106,7 +106,7 @@ export default function SalesPage() {
       flex: 1,
       type: "dateTime",
       valueFormatter: (value) =>
-        value ? dayjs(value).format("MM/DD/YYYY hh:mm  A") : "-",
+        value ? moment(value).format("MM/DD/YYYY hh:mm A") : "-",
     },
   ];
 

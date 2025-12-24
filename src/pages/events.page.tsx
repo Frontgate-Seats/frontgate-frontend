@@ -49,10 +49,9 @@ import type { RootState } from "../store";
 import { getEvents } from "../store/slices/events.slice";
 import { getListingsMeta } from "../store/slices/listingsMeta.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { AdapterMoment } from "@mui/x-date-pickers/AdapterMoment";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
-import dayjs from "dayjs";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { getSalesMeta } from "../store/slices/salesMeta.slice";
@@ -123,12 +122,12 @@ export default function EventsPage() {
       {
         field: "localDate",
         operator: "onOrAfter",
-        value: dayjs().toISOString(),
+        value: moment().toISOString(),
       },
       {
         field: "localDate",
         operator: "onOrBefore",
-        value: dayjs().add(6, "months").toISOString(),
+        value: moment().add(6, "months").toISOString(),
       },
     ],
   });
@@ -696,9 +695,9 @@ export default function EventsPage() {
       valueFormatter: (value) =>
         value ? moment.parseZone(value).format("MM/DD/YYYY hh:mm A") : "-",
       renderEditCell: (params) => (
-        <LocalizationProvider dateAdapter={AdapterDayjs}>
+        <LocalizationProvider dateAdapter={AdapterMoment}>
           <DateTimePicker
-            value={params.value ? dayjs(params.value) : dayjs()}
+            value={params.value ? moment(params.value) : moment()}
             onChange={(value) =>
               params.api.setEditCellValue({
                 id: params.id,
@@ -706,7 +705,7 @@ export default function EventsPage() {
                 value: value,
               })
             }
-            minDateTime={dayjs()} // prevent past selection
+            minDateTime={moment()} // prevent past selection
           />
         </LocalizationProvider>
       ),

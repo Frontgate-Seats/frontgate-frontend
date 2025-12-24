@@ -15,8 +15,8 @@ import {
 } from "@mui/material";
 import { ExpandLess, ExpandMore, FilterAltOutlined } from "@mui/icons-material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import dayjs, { Dayjs } from "dayjs";
+import { AdapterMoment } from "@mui/x-date-pickers/AdapterMoment";
+import moment from "moment";
 import type {
   GridFilterModel,
   GridSingleSelectColDef,
@@ -58,10 +58,10 @@ const isEmptyValue = (v: any): boolean =>
   (typeof v === "string" && v.trim() === "") ||
   (Array.isArray(v) && v.length === 0);
 
-const safeDayjs = (v: any): Dayjs | null => {
+const safeMoment = (v: any): moment.Moment | null => {
   if (v == null || v === "") return null;
-  const d = dayjs(v);
-  return d.isValid() ? d : null;
+  const m = moment(v);
+  return m.isValid() ? m : null;
 };
 
 // =======================
@@ -304,11 +304,11 @@ const DynamicFiltersToolbar: React.FC<DynamicFiltersToolbarProps> = ({
               {col.headerName}
             </Typography>
 
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <LocalizationProvider dateAdapter={AdapterMoment}>
               <Stack direction="row" spacing={1}>
                 <DatePicker
                   label="From"
-                  value={val?.[0] ? safeDayjs(val?.[0]) : null}
+                  value={val?.[0] ? safeMoment(val?.[0]) : null}
                   onChange={(v) =>
                     setFieldValue(
                       col.field,
@@ -320,7 +320,7 @@ const DynamicFiltersToolbar: React.FC<DynamicFiltersToolbarProps> = ({
                 />
                 <DatePicker
                   label="To"
-                  value={safeDayjs(val?.[1])}
+                  value={safeMoment(val?.[1])}
                   onChange={(v) =>
                     setFieldValue(
                       col.field,

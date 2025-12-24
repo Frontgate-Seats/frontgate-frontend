@@ -36,7 +36,6 @@ import {
 import moment from "moment";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { GridFilterModel } from "@mui/x-data-grid";
-import dayjs from "dayjs";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 
 export default function ListingsPage() {
@@ -492,8 +491,8 @@ export default function ListingsPage() {
           // -------------------- DATE --------------------
           case "date":
           case "dateTime": {
-            const fv = dayjs(fieldValue);
-            const val = dayjs(value);
+            const fv = moment(fieldValue);
+            const val = moment(value);
             if (!fv.isValid() || !val.isValid()) return false;
 
             if (operator === "onOrAfter")
