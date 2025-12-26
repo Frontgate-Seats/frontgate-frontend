@@ -1,7 +1,3 @@
-// Full updated file with two separate charts
-// (Chart 1 = Price Trends, Chart 2 = Trends)
-// React + MUI + MUI X Charts
-
 import * as React from "react";
 import { useSelector } from "react-redux";
 import {
@@ -14,25 +10,8 @@ import {
   Grid,
   Stack,
   Divider,
-  CircularProgress,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Link,
 } from "@mui/material";
-import {
-  ChartContainer,
-  ChartsGrid,
-  ChartsTooltip,
-  ChartsXAxis,
-  ChartsYAxis,
-  LinePlot,
-  BarPlot,
-  MarkPlot,
-  type BarSeriesType,
-  type LineSeriesType,
-} from "@mui/x-charts";
 import { BarChart } from "@mui/icons-material";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -46,7 +25,7 @@ import { DataGrid } from "@mui/x-data-grid";
 import moment from "moment";
 
 import type { RootState } from "../store";
-import { formatDateTime, parseChartTime } from "../shared/utils/dateTime.util";
+import { formatDateTime } from "../shared/utils/dateTime.util";
 import { getEvents } from "../store/slices/events.slice";
 import { getListingsMeta } from "../store/slices/listingsMeta.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
@@ -57,33 +36,13 @@ import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { getSalesMeta } from "../store/slices/salesMeta.slice";
 import { getSales } from "../store/slices/sales.slice";
+import { useListingsChartData, useSalesChartData } from "../hooks/useChartData";
+import { getDefaultInterval, INTERVAL_OPTIONS_MAP, LISTINGS_META_CHART_CONFIG, SALES_META_CHART_CONFIG, TIME_RANGE_OPTIONS } from "../shared/constants/components.constants";
+import DynamicChart from "../components/common/charts/DynamicChart";
 
 export default function EventsPage() {
   const dispatch = useAppDispatch();
   const chartRef = React.useRef<HTMLDivElement>(null);
-
-  // ------------------------
-  // Time Range
-  // ------------------------
-  const timeRangeOptions = [
-    { value: "1d", label: "Last Day" },
-    { value: "7d", label: "Last Week" },
-    { value: "30d", label: "Last Month" },
-    { value: "3m", label: "Last 3 Months" },
-    { value: "6m", label: "Last 6 Months" },
-    { value: "1y", label: "Last Year" },
-  ];
-
-  const intervalOptionsMap: Record<string, string[]> = {
-    "1d": ["1h", "3h", "6h"],
-    "7d": ["3h", "6h", "12h", "1d", "3d"],
-    "30d": ["12h", "1d", "3d", "7d", "15d"],
-    "3m": ["3d", "7d", "30d"],
-    "6m": ["7d", "30d", "90d"],
-    "1y": ["30d", "90d", "180d"],
-  };
-
-  const defaultInterval = (range: string) => intervalOptionsMap[range][0];
 
   // ------------------------
   // Redux Data
@@ -147,15 +106,15 @@ export default function EventsPage() {
   const [intervalGraphThree, setIntervalGraphThree] = React.useState("1h");
 
   React.useEffect(() => {
-    setIntervalGraphOne(defaultInterval(timeRangeGraphOne));
+    setIntervalGraphOne(getDefaultInterval(timeRangeGraphOne));
   }, [timeRangeGraphOne]);
 
   React.useEffect(() => {
-    setIntervalGraphTwo(defaultInterval(timeRangeGraphTwo));
+    setIntervalGraphTwo(getDefaultInterval(timeRangeGraphTwo));
   }, [timeRangeGraphTwo]);
 
   React.useEffect(() => {
-    setIntervalGraphThree(defaultInterval(timeRangeGraphThree));
+    setIntervalGraphThree(getDefaultInterval(timeRangeGraphThree));
   }, [timeRangeGraphThree]);
 
   // ------------------------
@@ -247,349 +206,26 @@ export default function EventsPage() {
     return () => clearInterval(intervalId);
   }, [selectedEvent, dispatch]);
 
-  
   // ------------------------
-  // Dataset Builder for Listings Meta (Reusable)
+  // Chart Data using custom hooks
   // ------------------------
-  const buildListingsDataset = (
-    lm: any[],
-    timeRange: string,
-    interval: string
-  ) => {
-    if (!lm || lm.length === 0) return [];
-
-    const now = moment.utc();
-    const fromDate = now.clone();
-
-    switch (timeRange) {
-      case "1d":
-        fromDate.subtract(1, "day");
-        break;
-      case "7d":
-        fromDate.subtract(7, "days");
-        break;
-      case "30d":
-        fromDate.subtract(30, "days");
-        break;
-      case "3m":
-        fromDate.subtract(3, "months");
-        break;
-      case "6m":
-        fromDate.subtract(6, "months");
-        break;
-      case "1y":
-        fromDate.subtract(1, "year");
-        break;
-    }
-
-    const rangeStart = fromDate.valueOf();
-    const rangeEnd = now.valueOf();
-
-    const intervalMs = interval.endsWith("d")
-      ? parseInt(interval) * 24 * 60 * 60 * 1000
-      : interval.endsWith("h")
-      ? parseInt(interval) * 60 * 60 * 1000
-      : parseInt(interval) * 60 * 1000;
-
-    const sorted = [...lm].sort(
-      (a, b) =>
-        moment.utc(a.createdAt).valueOf() - moment.utc(b.createdAt).valueOf()
-    );
-
-    let lastBefore = null;
-    for (let i = sorted.length - 1; i >= 0; i--) {
-      const t = moment.utc(sorted[i].createdAt).valueOf();
-      if (t < rangeStart) {
-        lastBefore = sorted[i];
-        break;
-      }
-    }
-
-    const rangeData = sorted.filter((item) => {
-      const t = moment.utc(item.createdAt).valueOf();
-      return t >= rangeStart && t <= rangeEnd;
-    });
-
-    const grouped: Record<number, any[]> = {};
-    rangeData.forEach((item) => {
-      const time = moment.utc(item.createdAt).valueOf();
-      const bucket = Math.floor(time / intervalMs) * intervalMs;
-      if (!grouped[bucket]) grouped[bucket] = [];
-      grouped[bucket].push(item);
-    });
-
-    const result: any[] = [];
-    let lastValue = lastBefore
-      ? {
-          tickets: lastBefore.ticketCount ?? 0,
-          priceMin: lastBefore.priceMin ?? 0,
-          twoPlusPriceMin: lastBefore.twoPlusPriceMin ?? 0,
-          getInPriceMin: lastBefore.getInPriceMin ?? 0,
-        }
-      : { tickets: 0, priceMin: 0, twoPlusPriceMin: 0, getInPriceMin: 0 };
-
-    const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
-    const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
-
-    for (let t = startBucket; t <= endBucket; t += intervalMs) {
-      const arr = grouped[t] || [];
-
-      if (arr.length === 0) {
-        result.push({
-          ...lastValue,
-          time: formatDateTime(moment.utc(t).local()),
-          bucketStartUTC: moment.utc(t).toISOString(),
-        });
-      } else {
-        const avg = (f: string) =>
-          arr.reduce((s, i) => s + (i[f] ?? 0), 0) / arr.length;
-
-        lastValue = {
-          tickets: Math.round(avg("ticketCount")),
-          priceMin: +avg("priceMin").toFixed(2),
-          twoPlusPriceMin: +avg("twoPlusPriceMin").toFixed(2),
-          getInPriceMin: +avg("getInPriceMin").toFixed(2),
-        };
-
-        result.push({
-          ...lastValue,
-          time: formatDateTime(moment.utc(t).local()),
-          bucketStartUTC: moment.utc(t).toISOString(),
-        });
-      }
-    }
-
-    return result;
-  };
-
-  // ------------------------
-  // Dataset Builder for Sales Meta (Reusable)
-  // ------------------------
-  const buildSalesDataset = (
-    sm: any[],
-    timeRange: string,
-    interval: string
-  ) => {
-    if (!sm || sm.length === 0) return [];
-
-    const now = moment.utc();
-    const fromDate = now.clone();
-
-    switch (timeRange) {
-      case "1d":
-        fromDate.subtract(1, "day");
-        break;
-      case "7d":
-        fromDate.subtract(7, "days");
-        break;
-      case "30d":
-        fromDate.subtract(30, "days");
-        break;
-      case "3m":
-        fromDate.subtract(3, "months");
-        break;
-      case "6m":
-        fromDate.subtract(6, "months");
-        break;
-      case "1y":
-        fromDate.subtract(1, "year");
-        break;
-    }
-
-    const rangeStart = fromDate.valueOf();
-    const rangeEnd = now.valueOf();
-
-    const intervalMs = interval.endsWith("d")
-      ? parseInt(interval) * 24 * 60 * 60 * 1000
-      : interval.endsWith("h")
-      ? parseInt(interval) * 60 * 60 * 1000
-      : parseInt(interval) * 60 * 1000;
-
-    const sorted = [...sm].sort(
-      (a, b) =>
-        moment.utc(a.createdAt).valueOf() - moment.utc(b.createdAt).valueOf()
-    );
-
-    const rangeData = sorted.filter((item) => {
-      const t = moment.utc(item.createdAt).valueOf();
-      return t >= rangeStart && t <= rangeEnd;
-    });
-
-    const grouped: Record<number, any[]> = {};
-    rangeData.forEach((item) => {
-      const time = moment.utc(item.createdAt).valueOf();
-      const bucket = Math.floor(time / intervalMs) * intervalMs;
-      if (!grouped[bucket]) grouped[bucket] = [];
-      grouped[bucket].push(item);
-    });
-
-    const result: any[] = [];
-    const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
-    const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
-
-    for (let t = startBucket; t <= endBucket; t += intervalMs) {
-      const arr = grouped[t] || [];
-
-      if (arr.length === 0) {
-        // Use 0 values for time slots without data
-        result.push({
-          totalSales: 0,
-          totalUnits: 0,
-          totalSalesPrice: 0,
-          minPrice: 0,
-          maxPrice: 0,
-          averagePrice: 0,
-          medianPrice: 0,
-          time: formatDateTime(moment.utc(t).local()),
-          bucketStartUTC: moment.utc(t).toISOString(),
-        });
-      } else {
-        const avg = (f: string) =>
-          arr.reduce((s, i) => s + (i[f] ?? 0), 0) / arr.length;
-
-        result.push({
-          totalSales: Math.round(avg("totalSales")),
-          totalUnits: Math.round(avg("totalUnits")),
-          totalSalesPrice: +avg("totalSalesPrice").toFixed(2),
-          minPrice: +avg("minPrice").toFixed(2),
-          maxPrice: +avg("maxPrice").toFixed(2),
-          averagePrice: +avg("averagePrice").toFixed(2),
-          medianPrice: +avg("medianPrice").toFixed(2),
-          time: formatDateTime(moment.utc(t).local()),
-          bucketStartUTC: moment.utc(t).toISOString(),
-        });
-      }
-    }
-
-    return result;
-  };
-
-  // Datasets for Listings Meta (Graphs 1 & 2)
-  const datasetOne = React.useMemo(
-    () =>
-      buildListingsDataset(
-        listingsMeta || [],
-        timeRangeGraphOne,
-        intervalGraphOne
-      ),
-    [listingsMeta, timeRangeGraphOne, intervalGraphOne]
+  const datasetOne = useListingsChartData(
+    listingsMeta || [],
+    timeRangeGraphOne,
+    intervalGraphOne
   );
 
-  const datasetTwo = React.useMemo(
-    () =>
-      buildListingsDataset(
-        listingsMeta || [],
-        timeRangeGraphTwo,
-        intervalGraphTwo
-      ),
-    [listingsMeta, timeRangeGraphTwo, intervalGraphTwo]
+  const datasetTwo = useListingsChartData(
+    listingsMeta || [],
+    timeRangeGraphTwo,
+    intervalGraphTwo
   );
 
-  // Dataset for Sales Meta (Graph 3)
-  const datasetThree = React.useMemo(
-    () =>
-      buildSalesDataset(
-        salesMeta || [],
-        timeRangeGraphThree,
-        intervalGraphThree
-      ),
-    [salesMeta, timeRangeGraphThree, intervalGraphThree]
+  const datasetThree = useSalesChartData(
+    salesMeta || [],
+    timeRangeGraphThree,
+    intervalGraphThree
   );
-
-  // ------------------------
-  // Charts Config - Listings Meta (Graphs 1 & 2)
-  // ------------------------
-  const listingsLineSeries: LineSeriesType[] = [
-    {
-      type: "line",
-      label: "Min Price",
-      dataKey: "priceMin",
-      color: "#1976d2",
-      yAxisId: "leftAxis",
-      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-    },
-    {
-      type: "line",
-      label: "Min Price 2+",
-      dataKey: "twoPlusPriceMin",
-      color: "#ff7043",
-      yAxisId: "leftAxis",
-      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-    },
-    {
-      type: "line",
-      label: "GetIn Price Min 2+",
-      dataKey: "getInPriceMin",
-      color: "#26a69a",
-      yAxisId: "leftAxis",
-      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-    },
-  ];
-
-  const listingsBarSeries: BarSeriesType[] = [
-    {
-      type: "bar",
-      label: "Tickets",
-      dataKey: "tickets",
-      color: "rgba(144,164,174,0.45)",
-      yAxisId: "rightAxis",
-    },
-  ];
-
-  // ------------------------
-  // Charts Config - Sales Meta (Graphs 3 & 4)
-  // ------------------------
-  const salesLineSeries: LineSeriesType[] = [
-    {
-      type: "line",
-      label: "Min Price",
-      dataKey: "minPrice",
-      color: "#1976d2",
-      yAxisId: "leftAxis",
-      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-    },
-    {
-      type: "line",
-      label: "Average Price",
-      dataKey: "averagePrice",
-      color: "#ff7043",
-      yAxisId: "leftAxis",
-      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-    },
-    {
-      type: "line",
-      label: "Median Price",
-      dataKey: "medianPrice",
-      color: "#26a69a",
-      yAxisId: "leftAxis",
-      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-    },
-    {
-      type: "line",
-      label: "Max Price",
-      dataKey: "maxPrice",
-      color: "#9c27b0",
-      yAxisId: "leftAxis",
-      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-    },
-  ];
-
-  const salesBarSeries: BarSeriesType[] = [
-    {
-      type: "bar",
-      label: "Total Sales",
-      dataKey: "totalSales",
-      color: "rgba(76,175,80,0.45)",
-      yAxisId: "rightAxis",
-    },
-    {
-      type: "bar",
-      label: "Total Units",
-      dataKey: "totalUnits",
-      color: "rgba(33,150,243,0.45)",
-      yAxisId: "rightAxis",
-    },
-  ];
 
   // Sales data grid columns
   const salesColumns: CustomGridColDef[] = [
@@ -851,387 +487,53 @@ export default function EventsPage() {
 
             {/* GRAPH 1 */}
             <Grid size={{ xs: 12, md: 6 }}>
-              <Card variant="outlined">
-                <CardContent sx={{ position: "relative" }}>
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    sx={{ mb: 3 }}
-                    flexWrap="wrap"
-                  >
-                    <Typography variant="h6" fontWeight={600} gutterBottom>
-                      Listings Meta - Graph 1
-                    </Typography>
-
-                    <Stack direction="row" spacing={3} alignItems="center">
-                      <FormControl size="small">
-                        <InputLabel>Time Range</InputLabel>
-                        <Select
-                          value={timeRangeGraphOne}
-                          label="Time Range"
-                          onChange={(e) => setTimeRangeGraphOne(e.target.value)}
-                          sx={{ minWidth: 150 }}
-                        >
-                          {timeRangeOptions.map((o) => (
-                            <MenuItem key={o.value} value={o.value}>
-                              {o.label}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-
-                      <FormControl size="small">
-                        <InputLabel>Interval</InputLabel>
-                        <Select
-                          value={intervalGraphOne}
-                          label="Interval"
-                          onChange={(e) => setIntervalGraphOne(e.target.value)}
-                          sx={{ minWidth: 120 }}
-                        >
-                          {intervalOptionsMap[timeRangeGraphOne].map((i) => (
-                            <MenuItem key={i} value={i}>
-                              {i}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Stack>
-                  </Stack>
-
-                  <ChartContainer
-                    dataset={datasetOne || []}
-                    series={[...listingsLineSeries, ...listingsBarSeries]}
-                    xAxis={[
-                      {
-                        dataKey: "time",
-                        scaleType: "band",
-                        label: timeRangeGraphOne === "1d" ? "Time" : "Date",
-                        tickLabelMinGap: 20,
-                        disableTicks: true,
-                        valueFormatter: (value: string) => {
-                          return parseChartTime(value, timeRangeGraphOne);
-                        },
-                      },
-                    ]}
-                    yAxis={[
-                      {
-                        id: "leftAxis",
-                        label: "Price ($)",
-                        min: 0,
-                      },
-                      {
-                        id: "rightAxis",
-                        label: "Tickets Qty",
-                        position: "right",
-                        min: 0,
-                      },
-                    ]}
-                    height={300}
-                  >
-                    <ChartsGrid horizontal />
-                    <BarPlot />
-                    <LinePlot />
-                    <MarkPlot
-                      slots={{
-                        mark: ({ x, y, color, isHighlighted }) => (
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r={5}
-                            fill={isHighlighted ? color : "transparent"}
-                          />
-                        ),
-                      }}
-                      slotProps={{
-                        mark: {
-                          shape: "circle",
-                          skipAnimation: false,
-                        },
-                      }}
-                    />
-
-                    <ChartsXAxis />
-                    <ChartsYAxis axisId="leftAxis" />
-                    <ChartsYAxis axisId="rightAxis" />
-                    <ChartsTooltip />
-                  </ChartContainer>
-
-                  {listingsMetaLoading && (
-                    <Box
-                      sx={{
-                        position: "absolute",
-                        inset: 0,
-                        bgcolor: "rgba(255,255,255,0.4)",
-                        backdropFilter: "blur(4px)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 5,
-                      }}
-                    >
-                      <CircularProgress size={32} thickness={4} />
-                    </Box>
-                  )}
-                </CardContent>
-              </Card>
+              <DynamicChart
+                title="Listings Trends - Graph 1"
+                dataset={datasetOne}
+                chartConfig={LISTINGS_META_CHART_CONFIG}
+                loading={listingsMetaLoading}
+                timeRange={timeRangeGraphOne}
+                interval={intervalGraphOne}
+                onTimeRangeChange={setTimeRangeGraphOne}
+                onIntervalChange={setIntervalGraphOne}
+                timeRangeOptions={TIME_RANGE_OPTIONS}
+                intervalOptionsMap={INTERVAL_OPTIONS_MAP}
+                height={300}
+              />
             </Grid>
 
             {/* GRAPH 2 */}
             <Grid size={{ xs: 12, md: 6 }}>
-              <Card variant="outlined">
-                <CardContent sx={{ position: "relative" }}>
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    sx={{ mb: 3 }}
-                    flexWrap="wrap"
-                  >
-                    <Typography variant="h6" fontWeight={600} gutterBottom>
-                      Listings Meta - Graph 2
-                    </Typography>
-
-                    <Stack direction="row" spacing={3} alignItems="center">
-                      <FormControl size="small">
-                        <InputLabel>Time Range</InputLabel>
-                        <Select
-                          value={timeRangeGraphTwo}
-                          label="Time Range"
-                          onChange={(e) => setTimeRangeGraphTwo(e.target.value)}
-                          sx={{ minWidth: 150 }}
-                        >
-                          {timeRangeOptions.map((o) => (
-                            <MenuItem key={o.value} value={o.value}>
-                              {o.label}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-
-                      <FormControl size="small">
-                        <InputLabel>Interval</InputLabel>
-                        <Select
-                          value={intervalGraphTwo}
-                          label="Interval"
-                          onChange={(e) => setIntervalGraphTwo(e.target.value)}
-                          sx={{ minWidth: 120 }}
-                        >
-                          {intervalOptionsMap[timeRangeGraphTwo].map((i) => (
-                            <MenuItem key={i} value={i}>
-                              {i}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Stack>
-                  </Stack>
-
-                  <ChartContainer
-                    dataset={datasetTwo || []}
-                    series={[...listingsLineSeries, ...listingsBarSeries]}
-                    xAxis={[
-                      {
-                        dataKey: "time",
-                        scaleType: "band",
-                        label: timeRangeGraphTwo === "1d" ? "Time" : "Date",
-                        tickLabelMinGap: 20,
-                        disableTicks: true,
-                        valueFormatter: (value: string) => {
-                          return parseChartTime(value, timeRangeGraphTwo);
-                        },
-                      },
-                    ]}
-                    yAxis={[
-                      {
-                        id: "leftAxis",
-                        label: "Price ($)",
-                        min: 0,
-                      },
-                      {
-                        id: "rightAxis",
-                        label: "Tickets Qty",
-                        position: "right",
-                        min: 0,
-                      },
-                    ]}
-                    height={300}
-                  >
-                    <ChartsGrid horizontal />
-                    <BarPlot />
-                    <LinePlot />
-                    <MarkPlot
-                      slots={{
-                        mark: ({ x, y, color, isHighlighted }) => (
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r={5}
-                            fill={isHighlighted ? color : "transparent"}
-                          />
-                        ),
-                      }}
-                      slotProps={{
-                        mark: {
-                          shape: "circle",
-                          skipAnimation: false,
-                        },
-                      }}
-                    />
-
-                    <ChartsXAxis />
-                    <ChartsYAxis axisId="leftAxis" />
-                    <ChartsYAxis axisId="rightAxis" />
-                    <ChartsTooltip />
-                  </ChartContainer>
-
-                  {listingsMetaLoading && (
-                    <Box
-                      sx={{
-                        position: "absolute",
-                        inset: 0,
-                        bgcolor: "rgba(255,255,255,0.4)",
-                        backdropFilter: "blur(4px)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 5,
-                      }}
-                    >
-                      <CircularProgress size={32} thickness={4} />
-                    </Box>
-                  )}
-                </CardContent>
-              </Card>
+              <DynamicChart
+                title="Listings Trends - Graph 2"
+                dataset={datasetTwo}
+                chartConfig={LISTINGS_META_CHART_CONFIG}
+                loading={listingsMetaLoading}
+                timeRange={timeRangeGraphTwo}
+                interval={intervalGraphTwo}
+                onTimeRangeChange={setTimeRangeGraphTwo}
+                onIntervalChange={setIntervalGraphTwo}
+                timeRangeOptions={TIME_RANGE_OPTIONS}
+                intervalOptionsMap={INTERVAL_OPTIONS_MAP}
+                height={300}
+              />
             </Grid>
 
             {/* GRAPH 3 */}
             <Grid size={{ xs: 12, md: 6 }}>
-              <Card variant="outlined">
-                <CardContent sx={{ position: "relative" }}>
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    sx={{ mb: 3 }}
-                    flexWrap="wrap"
-                  >
-                    <Typography variant="h6" fontWeight={600} gutterBottom>
-                      Sales Meta - Graph 3
-                    </Typography>
-
-                    <Stack direction="row" spacing={3} alignItems="center">
-                      <FormControl size="small">
-                        <InputLabel>Time Range</InputLabel>
-                        <Select
-                          value={timeRangeGraphThree}
-                          label="Time Range"
-                          onChange={(e) =>
-                            setTimeRangeGraphThree(e.target.value)
-                          }
-                          sx={{ minWidth: 150 }}
-                        >
-                          {timeRangeOptions.map((o) => (
-                            <MenuItem key={o.value} value={o.value}>
-                              {o.label}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-
-                      <FormControl size="small">
-                        <InputLabel>Interval</InputLabel>
-                        <Select
-                          value={intervalGraphThree}
-                          label="Interval"
-                          onChange={(e) =>
-                            setIntervalGraphThree(e.target.value)
-                          }
-                          sx={{ minWidth: 120 }}
-                        >
-                          {intervalOptionsMap[timeRangeGraphThree].map((i) => (
-                            <MenuItem key={i} value={i}>
-                              {i}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Stack>
-                  </Stack>
-
-                  <ChartContainer
-                    dataset={datasetThree || []}
-                    series={[...salesLineSeries, ...salesBarSeries]}
-                    xAxis={[
-                      {
-                        dataKey: "time",
-                        scaleType: "band",
-                        label: timeRangeGraphThree === "1d" ? "Time" : "Date",
-                        tickLabelMinGap: 20,
-                        disableTicks: true,
-                        valueFormatter: (value: string) => {
-                          return parseChartTime(value, timeRangeGraphThree);
-                        },
-                      },
-                    ]}
-                    yAxis={[
-                      {
-                        id: "leftAxis",
-                        label: "Price ($)",
-                        min: 0,
-                      },
-                      {
-                        id: "rightAxis",
-                        label: "Sales Count",
-                        position: "right",
-                        min: 0,
-                      },
-                    ]}
-                    height={300}
-                  >
-                    <ChartsGrid horizontal />
-                    <BarPlot />
-                    <LinePlot />
-                    <MarkPlot
-                      slots={{
-                        mark: ({ x, y, color, isHighlighted }) => (
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r={5}
-                            fill={isHighlighted ? color : "transparent"}
-                          />
-                        ),
-                      }}
-                      slotProps={{
-                        mark: {
-                          shape: "circle",
-                          skipAnimation: false,
-                        },
-                      }}
-                    />
-
-                    <ChartsXAxis />
-                    <ChartsYAxis axisId="leftAxis" />
-                    <ChartsYAxis axisId="rightAxis" />
-                    <ChartsTooltip />
-                  </ChartContainer>
-
-                  {salesMetaLoading && (
-                    <Box
-                      sx={{
-                        position: "absolute",
-                        inset: 0,
-                        bgcolor: "rgba(255,255,255,0.4)",
-                        backdropFilter: "blur(4px)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 5,
-                      }}
-                    >
-                      <CircularProgress size={32} thickness={4} />
-                    </Box>
-                  )}
-                </CardContent>
-              </Card>
+              <DynamicChart
+                title="Sales Trends - Graph 3"
+                dataset={datasetThree}
+                chartConfig={SALES_META_CHART_CONFIG}
+                loading={salesMetaLoading}
+                timeRange={timeRangeGraphThree}
+                interval={intervalGraphThree}
+                onTimeRangeChange={setTimeRangeGraphThree}
+                onIntervalChange={setIntervalGraphThree}
+                timeRangeOptions={TIME_RANGE_OPTIONS}
+                intervalOptionsMap={INTERVAL_OPTIONS_MAP}
+                height={300}
+              />
             </Grid>
 
             {/* SALES DATA GRID */}

@@ -12,7 +12,6 @@ import {
   Divider,
   Stack,
   Box,
-  CircularProgress,
   Paper,
   IconButton,
   Collapse,
@@ -25,7 +24,7 @@ import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import { fetchTopEvents } from "../store/slices/charts.slice";
 import moment from "moment";
-import { formatDateTime, parseChartTime } from "../shared/utils/dateTime.util";
+import { formatDateTime } from "../shared/utils/dateTime.util";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type {
   GridFilterModel,
@@ -35,18 +34,6 @@ import type {
 import { getListingsMeta } from "../store/slices/listingsMeta.slice";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import {
-  BarPlot,
-  ChartContainer,
-  ChartsGrid,
-  ChartsTooltip,
-  ChartsXAxis,
-  ChartsYAxis,
-  LinePlot,
-  MarkPlot,
-  type BarSeriesType,
-  type LineSeriesType,
-} from "@mui/x-charts";
-import {
   ExpandLess,
   ExpandMore,
   FindReplace,
@@ -54,6 +41,14 @@ import {
 } from "@mui/icons-material";
 import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterMoment } from "@mui/x-date-pickers/AdapterMoment";
+import {
+  CHARTS_PAGE_CHART_CONFIG,
+  TIME_RANGE_OPTIONS,
+  INTERVAL_OPTIONS_MAP,
+  getDefaultInterval,
+} from "../shared/constants/components.constants";
+import { useChartsPageData } from "../hooks/useChartData";
+import DynamicChart from "../components/common/charts/DynamicChart";
 
 type TopEventRow = {
   eventId: string;
@@ -69,7 +64,6 @@ type TopEventRow = {
   performers?: any[];
 };
 
-// ---------------------- Constants ----------------------
 const CHART_TIME_RANGE_OPTIONS = [
   { value: "1h", label: "Last 1 Hour" },
   { value: "2h", label: "Last 2 Hour" },
@@ -109,26 +103,6 @@ const FIELD_OPTIONS = [
   { value: "twoPlusPriceMedian", label: "2+ Price Median" },
 ];
 
-const TIME_RANGE_OPTIONS = [
-  { value: "1d", label: "Last Day" },
-  { value: "7d", label: "Last Week" },
-  { value: "30d", label: "Last Month" },
-  { value: "3m", label: "Last 3 Months" },
-  { value: "6m", label: "Last 6 Months" },
-  { value: "1y", label: "Last Year" },
-];
-
-const INTERVAL_OPTIONS_MAP: Record<string, string[]> = {
-  "1d": ["1h", "3h", "6h"],
-  "7d": ["3h", "6h", "12h", "1d", "3d"],
-  "30d": ["12h", "1d", "3d", "7d", "15d"],
-  "3m": ["3d", "7d", "30d"],
-  "6m": ["7d", "30d", "90d"],
-  "1y": ["30d", "90d", "180d"],
-};
-
-const defaultInterval = (range: string) => INTERVAL_OPTIONS_MAP[range][2];
-
 const computeFromISO = (range: string) => {
   let fromDate = moment.utc();
 
@@ -142,113 +116,6 @@ const computeFromISO = (range: string) => {
     fromDate = fromDate.subtract(parseInt(range), "months");
 
   return fromDate.toISOString();
-};
-
-const buildDataset = (lm: any[], graphTimeRange: string, interval: string) => {
-  if (!lm || lm.length === 0) return [];
-
-  const now = moment.utc();
-  const fromDate = now.clone();
-
-  switch (graphTimeRange) {
-    case "1d":
-      fromDate.subtract(1, "day");
-      break;
-    case "7d":
-      fromDate.subtract(7, "days");
-      break;
-    case "30d":
-      fromDate.subtract(30, "days");
-      break;
-    case "3m":
-      fromDate.subtract(3, "months");
-      break;
-    case "6m":
-      fromDate.subtract(6, "months");
-      break;
-    case "1y":
-      fromDate.subtract(1, "year");
-      break;
-  }
-
-  const rangeStart = fromDate.valueOf();
-  const rangeEnd = now.valueOf();
-
-  const intervalMs = interval.endsWith("d")
-    ? parseInt(interval) * 24 * 60 * 60 * 1000
-    : interval.endsWith("h")
-    ? parseInt(interval) * 60 * 60 * 1000
-    : parseInt(interval) * 60 * 1000;
-
-  const sorted = [...lm].sort(
-    (a, b) =>
-      moment.utc(a.createdAt).valueOf() - moment.utc(b.createdAt).valueOf()
-  );
-
-  let lastBefore = null;
-  for (let i = sorted.length - 1; i >= 0; i--) {
-    const t = moment.utc(sorted[i].createdAt).valueOf();
-    if (t < rangeStart) {
-      lastBefore = sorted[i];
-      break;
-    }
-  }
-
-  const rangeData = sorted.filter((item) => {
-    const t = moment.utc(item.createdAt).valueOf();
-    return t >= rangeStart && t <= rangeEnd;
-  });
-
-  const grouped: Record<number, any[]> = {};
-  rangeData.forEach((item) => {
-    const time = moment.utc(item.createdAt).valueOf();
-    const bucket = Math.floor(time / intervalMs) * intervalMs;
-    if (!grouped[bucket]) grouped[bucket] = [];
-    grouped[bucket].push(item);
-  });
-
-  const result: any[] = [];
-  let lastValue = lastBefore
-    ? {
-        tickets: lastBefore.ticketCount ?? 0,
-        priceMin: lastBefore.priceMin ?? 0,
-        twoPlusPriceMin: lastBefore.twoPlusPriceMin ?? 0,
-        getInPriceMin: lastBefore.getInPriceMin ?? 0,
-      }
-    : { tickets: 0, priceMin: 0, twoPlusPriceMin: 0, getInPriceMin: 0 };
-
-  const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
-  const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
-
-  for (let t = startBucket; t <= endBucket; t += intervalMs) {
-    const arr = grouped[t] || [];
-
-    if (arr.length === 0) {
-      result.push({
-        ...lastValue,
-        time: formatDateTime(moment.utc(t).local()),
-        bucketStartUTC: moment.utc(t).toISOString(),
-      });
-    } else {
-      const avg = (f: string) =>
-        arr.reduce((s, i) => s + (i[f] ?? 0), 0) / arr.length;
-
-      lastValue = {
-        tickets: Math.round(avg("ticketCount")),
-        priceMin: +avg("priceMin").toFixed(2),
-        twoPlusPriceMin: +avg("twoPlusPriceMin").toFixed(2),
-        getInPriceMin: +avg("getInPriceMin").toFixed(2),
-      };
-
-      result.push({
-        ...lastValue,
-        time: formatDateTime(moment.utc(t).local()),
-        bucketStartUTC: moment.utc(t).toISOString(),
-      });
-    }
-  }
-
-  return result;
 };
 
 // ---------------------- Component ----------------------
@@ -286,11 +153,11 @@ const ChartsPage: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<TopEventRow | null>(null);
   const [graphTimeRange, setGraphTimeRange] = useState<string>("1d");
   const [graphInterval, setGraphInterval] = useState<string>(
-    defaultInterval("1d")
+    getDefaultInterval("1d")
   );
 
   useEffect(() => {
-    setGraphInterval(defaultInterval(graphTimeRange));
+    setGraphInterval(getDefaultInterval(graphTimeRange));
   }, [graphTimeRange]);
 
   // ------------- Effects: compute from & fetch charts -------------
@@ -438,29 +305,6 @@ const ChartsPage: React.FC = () => {
           ? "text-red-600 font-medium"
           : "",
     },
-    // {
-    //   field: "avgChange",
-    //   headerName: "Avg. Change",
-    //   flex: 0.8,
-    //   type: "number",
-    //   min: 0,
-    //   max: 10000,
-    // },
-    // {
-    //   field: "avgChangeInPercentage",
-    //   headerName: "Avg. % Change",
-    //   flex: 0.8,
-    //   type: "number",
-    //   min: 0,
-    //   max: 10000,
-    //   valueFormatter: (v) => (v != null ? `${Number(v).toFixed(2)}%` : "-"),
-    //   cellClassName: (params) =>
-    //     params.value > 0
-    //       ? "text-green-600 font-medium"
-    //       : params.value < 0
-    //       ? "text-red-600 font-medium"
-    //       : "",
-    // },
     {
       field: "actions",
       type: "actions",
@@ -553,54 +397,10 @@ const ChartsPage: React.FC = () => {
   }, [sortedRows, paginationModel]);
 
   // ------------- Dataset for charts -------------
-  const dataset = React.useMemo(
-    () => buildDataset(listingsMeta || [], graphTimeRange, graphInterval),
-    [listingsMeta, graphTimeRange, graphInterval]
-  );
-
-  // ------------- Series definitions -------------
-  const lineSeries: LineSeriesType[] = useMemo(
-    () => [
-      {
-        type: "line",
-        label: "Min Price",
-        dataKey: "priceMin",
-        color: "#1976d2",
-        yAxisId: "leftAxis",
-        valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-      },
-      {
-        type: "line",
-        label: "Min Price 2+",
-        dataKey: "twoPlusPriceMin",
-        color: "#ff7043",
-        yAxisId: "leftAxis",
-        valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-      },
-      {
-        type: "line",
-        label: "GetIn Price Min 2+",
-        dataKey: "getInPriceMin",
-        color: "#26a69a",
-        yAxisId: "leftAxis",
-        valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-      },
-    ],
-    []
-  );
-
-  const barSeries: BarSeriesType[] = useMemo(
-    () => [
-      {
-        type: "bar",
-        label: "Tickets",
-        dataKey: "tickets",
-        color: "rgba(144,164,174,0.45)",
-        yAxisId: "rightAxis",
-        valueFormatter: (v) => (v != null ? `${v}` : "-"),
-      },
-    ],
-    []
+  const dataset = useChartsPageData(
+    listingsMeta || [],
+    graphTimeRange,
+    graphInterval
   );
 
   // ------------- Handlers -------------
@@ -750,142 +550,19 @@ const ChartsPage: React.FC = () => {
               </Card>
             </Grid>
             <Grid size={{ xs: 12 }}>
-              <Card variant="outlined">
-                <CardContent sx={{ position: "relative" }}>
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    sx={{ mb: 3 }}
-                    flexWrap="wrap"
-                  >
-                    <Typography variant="h6" fontWeight={600} gutterBottom>
-                      Trends
-                    </Typography>
-
-                    <Stack direction="row" spacing={3} alignItems="center">
-                      <FormControl size="small">
-                        <InputLabel>Time Range</InputLabel>
-                        <Select
-                          value={graphTimeRange}
-                          label="Time Range"
-                          onChange={(e) => setGraphTimeRange(e.target.value)}
-                          sx={{ minWidth: 150 }}
-                        >
-                          {TIME_RANGE_OPTIONS.map((o) => (
-                            <MenuItem key={o.value} value={o.value}>
-                              {o.label}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-
-                      <FormControl size="small">
-                        <InputLabel>Interval</InputLabel>
-                        <Select
-                          value={graphInterval}
-                          label="Interval"
-                          onChange={(e) => setGraphInterval(e.target.value)}
-                          sx={{ minWidth: 120 }}
-                        >
-                          {INTERVAL_OPTIONS_MAP[graphTimeRange].map((i) => (
-                            <MenuItem key={i} value={i}>
-                              {i}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Stack>
-                  </Stack>
-
-                  <ChartContainer
-                    dataset={dataset || []}
-                    series={[...lineSeries, ...barSeries]}
-                    xAxis={[
-                      {
-                        dataKey: "time",
-                        scaleType: "band",
-                        label: graphTimeRange === "1d" ? "Time" : "Date",
-                        tickLabelMinGap: 20,
-                        disableTicks: true,
-                        valueFormatter: (value: string) => {
-                          return parseChartTime(value, graphTimeRange);
-                        },
-                      },
-                    ]}
-                    yAxis={[
-                      { id: "leftAxis", label: "Price ($)", min: 0 },
-                      {
-                        id: "rightAxis",
-                        label: "Tickets Qty",
-                        position: "right",
-                        min: 0,
-                      },
-                    ]}
-                    height={300}
-                  >
-                    <ChartsGrid horizontal />
-                    <BarPlot />
-                    <LinePlot />
-                    <MarkPlot
-                      slots={{
-                        mark: ({ x, y, color, isHighlighted }) => (
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r={5}
-                            fill={isHighlighted ? color : "transparent"}
-                          />
-                        ),
-                      }}
-                      slotProps={{
-                        mark: { shape: "circle", skipAnimation: false },
-                      }}
-                    />
-
-                    <ChartsXAxis />
-                    <ChartsYAxis axisId="leftAxis" />
-                    <ChartsYAxis axisId="rightAxis" />
-                    <ChartsTooltip />
-                  </ChartContainer>
-
-                  {listingsMetaLoading && (
-                    <Box
-                      sx={{
-                        position: "absolute",
-                        inset: 0,
-                        bgcolor: "rgba(255,255,255,0.4)",
-                        backdropFilter: "blur(4px)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 5,
-                      }}
-                    >
-                      <CircularProgress
-                        size={32}
-                        thickness={4}
-                        sx={{ color: "primary.main" }}
-                      />
-                    </Box>
-                  )}
-
-                  {dataset.length === 0 && (
-                    <Typography
-                      variant="body2"
-                      color="textSecondary"
-                      align="center"
-                      sx={{
-                        position: "absolute",
-                        top: "50%",
-                        left: "50%",
-                        transform: "translate(-50%, -50%)",
-                      }}
-                    >
-                      No data available
-                    </Typography>
-                  )}
-                </CardContent>
-              </Card>
+              <DynamicChart
+                title="Trends"
+                dataset={dataset}
+                chartConfig={CHARTS_PAGE_CHART_CONFIG}
+                loading={listingsMetaLoading}
+                timeRange={graphTimeRange}
+                interval={graphInterval}
+                onTimeRangeChange={setGraphTimeRange}
+                onIntervalChange={setGraphInterval}
+                timeRangeOptions={TIME_RANGE_OPTIONS}
+                intervalOptionsMap={INTERVAL_OPTIONS_MAP}
+                height={300}
+              />
             </Grid>
           </>
         )}
