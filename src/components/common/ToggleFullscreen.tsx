@@ -14,7 +14,6 @@ interface ToggleFullscreenProps {
 
 const ToggleFullscreen: React.FC<ToggleFullscreenProps> = ({
   children,
-  title,
   buttonProps = { size: "large", sx: {} },
   onFullscreenChange,
 }) => {
@@ -38,8 +37,8 @@ const ToggleFullscreen: React.FC<ToggleFullscreenProps> = ({
           size={buttonProps.size}
           sx={{
             position: "absolute",
-            bottom: 8,
-            right: 8,
+            bottom: 4,
+            left: 8,
             zIndex: 2,
             color: "text.secondary",
             "&:hover": { color: "primary.main" },
@@ -66,36 +65,47 @@ const ToggleFullscreen: React.FC<ToggleFullscreenProps> = ({
         <Box
           sx={{
             position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: "95vw",
-            height: "95vh",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
             bgcolor: "background.paper",
-            borderRadius: 2,
-            boxShadow: 24,
-            p: 3,
             outline: "none",
+            display: "flex",
+            flexDirection: "column",
+            p: 2,
           }}
         >
-          <Box>
-            <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-              <IconButton
-                onClick={handleFullscreenClose}
-                sx={{
-                  position: "relative",
-                  color: "text.secondary",
-                  "&:hover": { color: "error.main" },
-                }}
-              >
-                <Close />
-              </IconButton>
-            </Box>
-            <Box
-              sx={{ height: title ? "calc(100% - 60px)" : "calc(100% - 60px)" }}
-            >
-              {children}
-            </Box>
+          <IconButton
+            onClick={handleFullscreenClose}
+            sx={{
+              position: "absolute",
+              top: 16,
+              right: 16,
+              zIndex: 3,
+              color: "text.secondary",
+              "&:hover": { color: "error.main" },
+              bgcolor: "background.paper",
+              boxShadow: 1,
+            }}
+          >
+            <Close />
+          </IconButton>
+
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              pt: 6,
+              display: "flex",
+              flexDirection: "column",
+              "& > *": {
+                flex: 1,
+                minHeight: 0,
+              },
+            }}
+          >
+            {children}
           </Box>
         </Box>
       </Modal>

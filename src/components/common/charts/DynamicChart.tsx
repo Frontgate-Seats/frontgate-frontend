@@ -40,7 +40,17 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
   onFullscreenChange,
 }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const [windowHeight, setWindowHeight] = React.useState(window.innerHeight);
   const { lineSeries, barSeries, leftAxisLabel, rightAxisLabel } = chartConfig;
+
+  // Handle window resize for fullscreen mode
+  React.useEffect(() => {
+    const handleResize = () => setWindowHeight(window.innerHeight);
+    if (isFullscreen) {
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }
+  }, [isFullscreen]);
 
   const handleFullscreenChange = (fullscreenMode: boolean) => {
     setIsFullscreen(fullscreenMode);
@@ -48,11 +58,25 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
   };
 
   // Adjust height based on fullscreen mode
-  // In fullscreen, use viewport height minus space for controls and padding
-  const chartHeight = isFullscreen ? Math.max(400, window.innerHeight * 0.7) : height;
+  // In fullscreen, calculate available height minus header and controls
+  const calculateChartHeight = () => {
+    if (isFullscreen) {
+      // In fullscreen: viewport height minus card padding, header, controls, and top padding
+      const headerHeight = 80; // Title and controls
+      const cardPadding = 48; // CardContent padding
+      const topPadding = 48; // Top padding from ToggleFullscreen
+      return Math.max(
+        400,
+        windowHeight - headerHeight - cardPadding - topPadding
+      );
+    }
+    return height;
+  };
+
+  const chartHeight = calculateChartHeight();
 
   return (
-    <ToggleFullscreen onFullscreenChange={handleFullscreenChange} >
+    <ToggleFullscreen onFullscreenChange={handleFullscreenChange}>
       <Card variant="outlined">
         <CardContent sx={{ position: "relative" }}>
           <Stack

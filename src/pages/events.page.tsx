@@ -1,7 +1,6 @@
 import * as React from "react";
 import { useSelector } from "react-redux";
 import {
-  Box,
   Alert,
   Typography,
   Button,
@@ -20,7 +19,6 @@ import type {
   GridSortModel,
   GridFilterModel,
 } from "@mui/x-data-grid";
-import { DataGrid } from "@mui/x-data-grid";
 
 import moment from "moment";
 
@@ -37,7 +35,13 @@ import type { CustomGridColDef } from "../shared/types/mui.type";
 import { getSalesMeta } from "../store/slices/salesMeta.slice";
 import { getSales } from "../store/slices/sales.slice";
 import { useListingsChartData, useSalesChartData } from "../hooks/useChartData";
-import { getDefaultInterval, INTERVAL_OPTIONS_MAP, LISTINGS_META_CHART_CONFIG, SALES_META_CHART_CONFIG, TIME_RANGE_OPTIONS } from "../shared/constants/components.constants";
+import {
+  getDefaultInterval,
+  INTERVAL_OPTIONS_MAP,
+  LISTINGS_META_CHART_CONFIG,
+  SALES_META_CHART_CONFIG,
+  TIME_RANGE_OPTIONS,
+} from "../shared/constants/components.constants";
 import DynamicChart from "../components/common/charts/DynamicChart";
 
 export default function EventsPage() {
@@ -66,6 +70,7 @@ export default function EventsPage() {
   const {
     rows: { data: sales, total: salesTotal },
     loading: salesLoading,
+    error: salesErr,
   } = useSelector((state: RootState) => state.sales);
 
   // ------------------------
@@ -105,6 +110,19 @@ export default function EventsPage() {
   const [timeRangeGraphThree, setTimeRangeGraphThree] = React.useState("1d");
   const [intervalGraphThree, setIntervalGraphThree] = React.useState("1h");
 
+  // ------------------------
+  // Sales Grid State
+  // ------------------------
+  const [salesPaginationModel, setSalesPaginationModel] =
+    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  const [salesSortModel, setSalesSortModel] = React.useState<GridSortModel>([
+    { field: "purchaseUtc", sort: "desc" },
+  ]);
+  const [salesFilterModel, setSalesFilterModel] =
+    React.useState<GridFilterModel>({
+      items: [],
+    });
+
   React.useEffect(() => {
     setIntervalGraphOne(getDefaultInterval(timeRangeGraphOne));
   }, [timeRangeGraphOne]);
@@ -142,6 +160,66 @@ export default function EventsPage() {
     );
   }, [dispatch, paginationModel, sortModel, filterModel]);
 
+  const handleSalesRefresh = React.useCallback(() => {
+    if (!selectedEvent) return;
+
+    const seatgeekMatch = selectedEvent.matches?.find(
+      (m: any) => m.providerName === "seatgeek"
+    );
+
+    const salesFilters = {
+      items: [
+        { field: "eventId", operator: "equals", value: seatgeekMatch?.eventId },
+        ...salesFilterModel.items,
+      ],
+    };
+
+    dispatch(
+      getSales({
+        filters: salesFilters,
+        page: salesPaginationModel.page,
+        pageSize: salesPaginationModel.pageSize,
+        sortFields: salesSortModel,
+      })
+    );
+  }, [
+    dispatch,
+    selectedEvent,
+    salesPaginationModel,
+    salesSortModel,
+    salesFilterModel,
+  ]);
+
+  React.useEffect(() => {
+    if (!selectedEvent) return;
+
+    const seatgeekMatch = selectedEvent.matches?.find(
+      (m: any) => m.providerName === "seatgeek"
+    );
+
+    const salesFilters = {
+      items: [
+        { field: "eventId", operator: "equals", value: seatgeekMatch?.eventId },
+        ...salesFilterModel.items,
+      ],
+    };
+
+    dispatch(
+      getSales({
+        filters: salesFilters,
+        page: salesPaginationModel.page,
+        pageSize: salesPaginationModel.pageSize,
+        sortFields: salesSortModel,
+      })
+    );
+  }, [
+    dispatch,
+    selectedEvent,
+    salesPaginationModel,
+    salesSortModel,
+    salesFilterModel,
+  ]);
+
   const handleRowClick = (row: any) => {
     if (row.eventId === selectedEvent?.eventId) return;
     setSelectedEvent(row);
@@ -156,7 +234,7 @@ export default function EventsPage() {
   };
 
   // ------------------------
-  // Fetch listingsMeta for selected event
+  // Fetch listingsMeta and salesMeta for selected event (initial load + auto-refresh)
   // ------------------------
   React.useEffect(() => {
     if (!selectedEvent) return;
@@ -178,6 +256,13 @@ export default function EventsPage() {
       ],
     };
 
+    const salesFilters = {
+      items: [
+        { field: "eventId", operator: "equals", value: seatgeekMatch?.eventId },
+        ...salesFilterModel.items,
+      ],
+    };
+
     // ✅ Call immediately once
     dispatch(
       getListingsMeta({ filters: listingsMetaFilters, page: -1, pageSize: -1 })
@@ -185,9 +270,16 @@ export default function EventsPage() {
     dispatch(
       getSalesMeta({ filters: salesMetaFilters, page: -1, pageSize: -1 })
     );
-    dispatch(getSales({ filters: salesMetaFilters, page: -1, pageSize: -1 }));
+    dispatch(
+      getSales({
+        filters: salesFilters,
+        page: salesPaginationModel.page,
+        pageSize: salesPaginationModel.pageSize,
+        sortFields: salesSortModel,
+      })
+    );
 
-    // ✅ Then call every 10 minutes
+    // ✅ Then call every 10 minutes (only listings and sales meta, not sales data)
     const intervalId = setInterval(() => {
       dispatch(
         getListingsMeta({
@@ -199,11 +291,37 @@ export default function EventsPage() {
       dispatch(
         getSalesMeta({ filters: salesMetaFilters, page: -1, pageSize: -1 })
       );
-      dispatch(getSales({ filters: salesMetaFilters, page: -1, pageSize: -1 }));
     }, 600000); // 600000 ms = 10 minutes
 
     // ✅ Cleanup on unmount or change in selectedEvent
     return () => clearInterval(intervalId);
+  }, [selectedEvent, dispatch]);
+
+  // ------------------------
+  // Fetch sales data when sales table state changes
+  // ------------------------
+  React.useEffect(() => {
+    if (!selectedEvent) return;
+
+    const seatgeekMatch = selectedEvent.matches?.find(
+      (m: any) => m.providerName === "seatgeek"
+    );
+
+    const salesFilters = {
+      items: [
+        { field: "eventId", operator: "equals", value: seatgeekMatch?.eventId },
+        ...salesFilterModel.items,
+      ],
+    };
+
+    dispatch(
+      getSales({
+        filters: salesFilters,
+        page: salesPaginationModel.page,
+        pageSize: salesPaginationModel.pageSize,
+        sortFields: salesSortModel,
+      })
+    );
   }, [selectedEvent, dispatch]);
 
   // ------------------------
@@ -235,8 +353,7 @@ export default function EventsPage() {
       flex: 1.2,
       minWidth: 170,
       type: "dateTime",
-      valueFormatter: (value) =>
-        value ? formatDateTime(value) : "-",
+      valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
     },
     {
       field: "section",
@@ -451,7 +568,9 @@ export default function EventsPage() {
                       </Typography>
                       <Typography variant="body1">
                         {selectedEvent?.localDate
-                          ? formatDateTime(moment.parseZone(selectedEvent.localDate))
+                          ? formatDateTime(
+                              moment.parseZone(selectedEvent.localDate)
+                            )
                           : ""}
                       </Typography>
                     </Grid>
@@ -539,34 +658,29 @@ export default function EventsPage() {
             {/* SALES DATA GRID */}
             <Grid size={{ xs: 12, md: 6 }}>
               <Card variant="outlined">
-                <CardContent sx={{ position: "relative", height: 400 }}>
-                  <Typography variant="h6" fontWeight={600} gutterBottom>
-                    Sales Data
-                  </Typography>
-
-                  <Box sx={{ height: "calc(100% - 40px)", width: "100%" }}>
-                    <DataGrid
-                      rows={sales || []}
-                      getRowId={(row) => row._id || row.id}
-                      rowCount={salesTotal || 0}
-                      columns={salesColumns}
-                      loading={salesLoading}
-                      paginationMode="client"
-                      sortingMode="client"
-                      filterMode="client"
-                     pageSizeOptions={[5, 10, 25, 50]}
-                      disableRowSelectionOnClick
-                      sx={{
-                        "& .MuiDataGrid-cell": {
-                          borderBottom: "1px solid #e0e0e0",
-                        },
-                        "& .MuiDataGrid-columnHeaders": {
-                          backgroundColor: "#f5f5f5",
-                          borderBottom: "2px solid #e0e0e0",
-                        },
-                      }}
-                    />
-                  </Box>
+                <CardContent sx={{ position: "relative", height: 400, p: 2 }}>
+                  <CustomDataGrid
+                    title="Sales Data"
+                    rows={sales || []}
+                    rowCount={salesTotal || 0}
+                    columns={salesColumns}
+                    isLoading={salesLoading}
+                    error={salesErr}
+                    paginationModel={salesPaginationModel}
+                    setPaginationModel={setSalesPaginationModel}
+                    sortingModel={salesSortModel}
+                    setSortingModel={setSalesSortModel}
+                    filterModel={salesFilterModel}
+                    setFilterModel={setSalesFilterModel}
+                    defaultFilterType="header"
+                    onRefresh={handleSalesRefresh}
+                    height={320}
+                    headerComponent={
+                      <Typography variant="h6" fontWeight={600} gutterBottom>
+                        {"Sales Data"}
+                      </Typography>
+                    }
+                  />
                 </CardContent>
               </Card>
             </Grid>
