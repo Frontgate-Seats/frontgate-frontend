@@ -37,6 +37,7 @@ import moment from "moment";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { GridFilterModel } from "@mui/x-data-grid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
+import { formatDateTime } from "../shared/utils/dateTime.util";
 
 export default function ListingsPage() {
   const dispatch = useAppDispatch();
@@ -562,9 +563,7 @@ export default function ListingsPage() {
                         </Typography>
                         <Typography variant="body1">
                           {eventInfo?.localDate
-                            ? moment
-                                .parseZone(eventInfo?.localDate)
-                                .format("DD/MM/YYYY hh:mm A")
+                            ? formatDateTime(eventInfo?.localDate)
                             : ""}
                         </Typography>
                       </Grid>
@@ -687,9 +686,7 @@ export default function ListingsPage() {
                   [
                     "Date & Time",
                     eventInfo?.localDate
-                      ? moment
-                          .parseZone(eventInfo?.localDate)
-                          .format("DD/MM/YYYY hh:mm A")
+                      ? formatDateTime(eventInfo?.localDate)
                       : "-",
                   ],
                   [
@@ -861,9 +858,7 @@ export default function ListingsPage() {
                     </Typography>
                     <Typography variant="caption">
                       {eventInfo?.localDate
-                        ? moment
-                            .parseZone(eventInfo?.localDate)
-                            .format("DD/MM/YYYY hh:mm A")
+                        ? formatDateTime(eventInfo?.localDate)
                         : "-"}
                     </Typography>
                   </Grid>

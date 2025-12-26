@@ -25,6 +25,7 @@ import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import { fetchTopEvents } from "../store/slices/charts.slice";
 import moment from "moment";
+import { formatDateTime, parseChartTime } from "../shared/utils/dateTime.util";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type {
   GridFilterModel,
@@ -225,7 +226,7 @@ const buildDataset = (lm: any[], graphTimeRange: string, interval: string) => {
     if (arr.length === 0) {
       result.push({
         ...lastValue,
-        time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
+        time: formatDateTime(moment.utc(t).local()),
         bucketStartUTC: moment.utc(t).toISOString(),
       });
     } else {
@@ -241,7 +242,7 @@ const buildDataset = (lm: any[], graphTimeRange: string, interval: string) => {
 
       result.push({
         ...lastValue,
-        time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
+        time: formatDateTime(moment.utc(t).local()),
         bucketStartUTC: moment.utc(t).toISOString(),
       });
     }
@@ -377,7 +378,7 @@ const ChartsPage: React.FC = () => {
       flex: 1.2,
       minWidth: 170,
       valueFormatter: (value) =>
-        value ? moment.parseZone(value).format("MM/DD/YYYY hh:mm A") : "-",
+        value ? formatDateTime(moment.parseZone(value)) : "-",
       renderEditCell: (params) => (
         <LocalizationProvider dateAdapter={AdapterMoment}>
           <DateTimePicker
@@ -715,9 +716,7 @@ const ChartsPage: React.FC = () => {
                       </Typography>
                       <Typography variant="body1">
                         {selectedEvent?.localDate
-                          ? moment.parseZone(selectedEvent.localDate).format(
-                              "MM/DD/YYYY hh:mm A"
-                            )
+                          ? formatDateTime(moment.parseZone(selectedEvent.localDate))
                           : ""}
                       </Typography>
                     </Grid>
@@ -809,17 +808,7 @@ const ChartsPage: React.FC = () => {
                         tickLabelMinGap: 20,
                         disableTicks: true,
                         valueFormatter: (value: string) => {
-                          const parsed = moment(value, "MM/DD/YYYY hh:mm A");
-                          if (!parsed.isValid()) return value;
-
-                          // For same day (1d): show time in 12-hour format with AM/PM
-                          if (graphTimeRange === "1d") {
-                            return parsed.format("hh:mm A");
-                          }
-                          // For more than one day: show day and month
-                          else {
-                            return parsed.format("MM/DD");
-                          }
+                          return parseChartTime(value, graphTimeRange);
                         },
                       },
                     ]}

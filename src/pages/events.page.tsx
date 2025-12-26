@@ -46,6 +46,7 @@ import { DataGrid } from "@mui/x-data-grid";
 import moment from "moment";
 
 import type { RootState } from "../store";
+import { formatDateTime, parseChartTime } from "../shared/utils/dateTime.util";
 import { getEvents } from "../store/slices/events.slice";
 import { getListingsMeta } from "../store/slices/listingsMeta.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
@@ -336,7 +337,7 @@ export default function EventsPage() {
       if (arr.length === 0) {
         result.push({
           ...lastValue,
-          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
+          time: formatDateTime(moment.utc(t).local()),
           bucketStartUTC: moment.utc(t).toISOString(),
         });
       } else {
@@ -352,7 +353,7 @@ export default function EventsPage() {
 
         result.push({
           ...lastValue,
-          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
+          time: formatDateTime(moment.utc(t).local()),
           bucketStartUTC: moment.utc(t).toISOString(),
         });
       }
@@ -439,7 +440,7 @@ export default function EventsPage() {
           maxPrice: 0,
           averagePrice: 0,
           medianPrice: 0,
-          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
+          time: formatDateTime(moment.utc(t).local()),
           bucketStartUTC: moment.utc(t).toISOString(),
         });
       } else {
@@ -454,7 +455,7 @@ export default function EventsPage() {
           maxPrice: +avg("maxPrice").toFixed(2),
           averagePrice: +avg("averagePrice").toFixed(2),
           medianPrice: +avg("medianPrice").toFixed(2),
-          time: moment.utc(t).local().format("MM/DD/YYYY hh:mm A"),
+          time: formatDateTime(moment.utc(t).local()),
           bucketStartUTC: moment.utc(t).toISOString(),
         });
       }
@@ -599,7 +600,7 @@ export default function EventsPage() {
       minWidth: 170,
       type: "dateTime",
       valueFormatter: (value) =>
-        value ? moment.utc(value).local().format("MM/DD/YYYY hh:mm A") : "-",
+        value ? formatDateTime(value) : "-",
     },
     {
       field: "section",
@@ -693,7 +694,7 @@ export default function EventsPage() {
       flex: 1.2,
       minWidth: 170,
       valueFormatter: (value) =>
-        value ? moment.parseZone(value).format("MM/DD/YYYY hh:mm A") : "-",
+        value ? formatDateTime(moment.parseZone(value)) : "-",
       renderEditCell: (params) => (
         <LocalizationProvider dateAdapter={AdapterMoment}>
           <DateTimePicker
@@ -814,9 +815,7 @@ export default function EventsPage() {
                       </Typography>
                       <Typography variant="body1">
                         {selectedEvent?.localDate
-                          ? moment
-                              .parseZone(selectedEvent.localDate)
-                              .format("MM/DD/YYYY hh:mm A")
+                          ? formatDateTime(moment.parseZone(selectedEvent.localDate))
                           : ""}
                       </Typography>
                     </Grid>
@@ -910,16 +909,7 @@ export default function EventsPage() {
                         tickLabelMinGap: 20,
                         disableTicks: true,
                         valueFormatter: (value: string) => {
-                          const parsed = moment(value, "MM/DD/YYYY hh:mm A");
-                          if (!parsed.isValid()) return value;
-                          // For same day (1d): show time in 12-hour format with AM/PM
-                          if (timeRangeGraphOne === "1d") {
-                            return parsed.format("hh:mm A");
-                          }
-                          // For more than one day: show day and month
-                          else {
-                            return parsed.format("MM/DD");
-                          }
+                          return parseChartTime(value, timeRangeGraphOne);
                         },
                       },
                     ]}
@@ -1046,16 +1036,7 @@ export default function EventsPage() {
                         tickLabelMinGap: 20,
                         disableTicks: true,
                         valueFormatter: (value: string) => {
-                          const parsed = moment(value, "MM/DD/YYYY hh:mm A");
-                          if (!parsed.isValid()) return value;
-                          // For same day (1d): show time in 12-hour format with AM/PM
-                          if (timeRangeGraphTwo === "1d") {
-                            return parsed.format("hh:mm A");
-                          }
-                          // For more than one day: show day and month
-                          else {
-                            return parsed.format("MM/DD");
-                          }
+                          return parseChartTime(value, timeRangeGraphTwo);
                         },
                       },
                     ]}
@@ -1186,16 +1167,7 @@ export default function EventsPage() {
                         tickLabelMinGap: 20,
                         disableTicks: true,
                         valueFormatter: (value: string) => {
-                          const parsed = moment(value, "MM/DD/YYYY hh:mm A");
-                          if (!parsed.isValid()) return value;
-                          // For same day (1d): show time in 12-hour format with AM/PM
-                          if (timeRangeGraphThree === "1d") {
-                            return parsed.format("hh:mm A");
-                          }
-                          // For more than one day: show day and month
-                          else {
-                            return parsed.format("MM/DD");
-                          }
+                          return parseChartTime(value, timeRangeGraphThree);
                         },
                       },
                     ]}
