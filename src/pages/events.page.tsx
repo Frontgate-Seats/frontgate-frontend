@@ -374,6 +374,8 @@ export default function EventsPage() {
       headerName: "Price",
       flex: 1,
       minWidth: 130,
+      min: 0,
+      max: 20000,
       type: "number",
       valueFormatter: (value: any) =>
         typeof value === "number" && value >= 0 ? `$${value.toFixed(2)}` : "-",
@@ -383,6 +385,8 @@ export default function EventsPage() {
       headerName: "Quantity",
       flex: 0.8,
       minWidth: 100,
+      min: 0,
+      max: 100,
       type: "number",
       valueFormatter: (value: any) =>
         typeof value === "number" && value >= 0 ? value.toString() : "-",
@@ -416,7 +420,7 @@ export default function EventsPage() {
       field: "eventId",
       headerName: "Event ID",
       flex: 0.7,
-      minWidth: 110,
+      minWidth: 100,
       type: "number",
       headerAlign: "left",
       align: "left",
@@ -427,7 +431,6 @@ export default function EventsPage() {
           rel="noopener noreferrer"
           underline="hover"
           color="primary"
-          sx={{ fontWeight: 500 }}
         >
           {params.value}
         </Link>
@@ -442,10 +445,10 @@ export default function EventsPage() {
     },
     {
       field: "localDate",
-      headerName: "Date & Time",
+      headerName: "Event Date & Time",
       type: "dateTime",
       flex: 1.2,
-      minWidth: 170,
+      minWidth: 180,
       valueFormatter: (value) =>
         value ? formatDateTime(moment.parseZone(value)) : "-",
       renderEditCell: (params) => (
@@ -464,6 +467,7 @@ export default function EventsPage() {
         </LocalizationProvider>
       ),
     },
+    // TODO AGGIGATE VENUE
     {
       field: "venueDBId",
       headerName: "Venue",
@@ -471,7 +475,7 @@ export default function EventsPage() {
       minWidth: 200,
       valueGetter: (value: any) =>
         value
-          ? `${value.city}, ${value.stateCode} (${value.countryCode})`
+          ? `${value.name}, ${value.city}, ${value.stateCode} (${value.countryCode})`
           : "-",
       filterable: false,
       sortable: false,
@@ -528,7 +532,6 @@ export default function EventsPage() {
           }
           variant="contained"
           size="small"
-          sx={{ borderRadius: 2 }}
         >
           View Listings
         </Button>,
@@ -607,7 +610,7 @@ export default function EventsPage() {
             {/* GRAPH 1 */}
             <Grid size={{ xs: 12, md: 6 }}>
               <DynamicChart
-                title="Listings Trends - Graph 1"
+                title="Listings Trends"
                 dataset={datasetOne}
                 chartConfig={LISTINGS_META_CHART_CONFIG}
                 loading={listingsMetaLoading}
@@ -617,14 +620,14 @@ export default function EventsPage() {
                 onIntervalChange={setIntervalGraphOne}
                 timeRangeOptions={TIME_RANGE_OPTIONS}
                 intervalOptionsMap={INTERVAL_OPTIONS_MAP}
-                height={300}
+                height={400}
               />
             </Grid>
 
             {/* GRAPH 2 */}
             <Grid size={{ xs: 12, md: 6 }}>
               <DynamicChart
-                title="Listings Trends - Graph 2"
+                title="Listings Trends"
                 dataset={datasetTwo}
                 chartConfig={LISTINGS_META_CHART_CONFIG}
                 loading={listingsMetaLoading}
@@ -634,14 +637,14 @@ export default function EventsPage() {
                 onIntervalChange={setIntervalGraphTwo}
                 timeRangeOptions={TIME_RANGE_OPTIONS}
                 intervalOptionsMap={INTERVAL_OPTIONS_MAP}
-                height={300}
+                height={400}
               />
             </Grid>
 
             {/* GRAPH 3 */}
             <Grid size={{ xs: 12, md: 6 }}>
               <DynamicChart
-                title="Sales Trends - Graph 3"
+                title="Sales Trends"
                 dataset={datasetThree}
                 chartConfig={SALES_META_CHART_CONFIG}
                 loading={salesMetaLoading}
@@ -651,38 +654,34 @@ export default function EventsPage() {
                 onIntervalChange={setIntervalGraphThree}
                 timeRangeOptions={TIME_RANGE_OPTIONS}
                 intervalOptionsMap={INTERVAL_OPTIONS_MAP}
-                height={300}
+                height={400}
               />
             </Grid>
 
             {/* SALES DATA GRID */}
             <Grid size={{ xs: 12, md: 6 }}>
-              <Card variant="outlined">
-                <CardContent sx={{ position: "relative", height: 400, p: 2 }}>
-                  <CustomDataGrid
-                    title="Sales Data"
-                    rows={sales || []}
-                    rowCount={salesTotal || 0}
-                    columns={salesColumns}
-                    isLoading={salesLoading}
-                    error={salesErr}
-                    paginationModel={salesPaginationModel}
-                    setPaginationModel={setSalesPaginationModel}
-                    sortingModel={salesSortModel}
-                    setSortingModel={setSalesSortModel}
-                    filterModel={salesFilterModel}
-                    setFilterModel={setSalesFilterModel}
-                    defaultFilterType="header"
-                    onRefresh={handleSalesRefresh}
-                    height={320}
-                    headerComponent={
-                      <Typography variant="h6" fontWeight={600} gutterBottom>
-                        {"Sales Data"}
-                      </Typography>
-                    }
-                  />
-                </CardContent>
-              </Card>
+              <CustomDataGrid
+                title="Sales Data"
+                rows={sales || []}
+                rowCount={salesTotal || 0}
+                columns={salesColumns}
+                isLoading={salesLoading}
+                error={salesErr}
+                paginationModel={salesPaginationModel}
+                setPaginationModel={setSalesPaginationModel}
+                sortingModel={salesSortModel}
+                setSortingModel={setSalesSortModel}
+                filterModel={salesFilterModel}
+                setFilterModel={setSalesFilterModel}
+                defaultFilterType="header"
+                onRefresh={handleSalesRefresh}
+                height={400}
+                headerComponent={
+                  <Typography variant="h6" fontWeight={600} gutterBottom>
+                    {"Sales Data"}
+                  </Typography>
+                }
+              />
             </Grid>
           </>
         )}

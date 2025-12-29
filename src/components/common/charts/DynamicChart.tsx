@@ -36,49 +36,33 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
   onIntervalChange,
   timeRangeOptions,
   intervalOptionsMap,
-  height = 300,
-  onFullscreenChange,
+  height = 400,
 }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
-  const [windowHeight, setWindowHeight] = React.useState(window.innerHeight);
   const { lineSeries, barSeries, leftAxisLabel, rightAxisLabel } = chartConfig;
-
-  // Handle window resize for fullscreen mode
-  React.useEffect(() => {
-    const handleResize = () => setWindowHeight(window.innerHeight);
-    if (isFullscreen) {
-      window.addEventListener("resize", handleResize);
-      return () => window.removeEventListener("resize", handleResize);
-    }
-  }, [isFullscreen]);
 
   const handleFullscreenChange = (fullscreenMode: boolean) => {
     setIsFullscreen(fullscreenMode);
-    onFullscreenChange?.(fullscreenMode);
   };
-
-  // Adjust height based on fullscreen mode
-  // In fullscreen, calculate available height minus header and controls
-  const calculateChartHeight = () => {
-    if (isFullscreen) {
-      // In fullscreen: viewport height minus card padding, header, controls, and top padding
-      const headerHeight = 80; // Title and controls
-      const cardPadding = 48; // CardContent padding
-      const topPadding = 48; // Top padding from ToggleFullscreen
-      return Math.max(
-        400,
-        windowHeight - headerHeight - cardPadding - topPadding
-      );
-    }
-    return height;
-  };
-
-  const chartHeight = calculateChartHeight();
 
   return (
     <ToggleFullscreen onFullscreenChange={handleFullscreenChange}>
-      <Card variant="outlined">
-        <CardContent sx={{ position: "relative" }}>
+      <Card
+        variant="outlined"
+        sx={{
+          height: isFullscreen ? "100%" : `${height}px`,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <CardContent
+          sx={{
+            position: "relative",
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           <Stack
             direction="row"
             justifyContent="space-between"
@@ -124,82 +108,92 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
             </Stack>
           </Stack>
 
-          <ChartContainer
-            dataset={dataset || []}
-            series={[...lineSeries, ...barSeries]}
-            xAxis={[
-              {
-                dataKey: "time",
-                scaleType: "band",
-                label: timeRange === "1d" ? "Time" : "Date",
-                tickLabelMinGap: 20,
-                disableTicks: true,
-                valueFormatter: (value: string) => {
-                  return parseChartTime(value, timeRange);
-                },
-              },
-            ]}
-            yAxis={[
-              {
-                id: "leftAxis",
-                label: leftAxisLabel,
-                min: 0,
-              },
-              {
-                id: "rightAxis",
-                label: rightAxisLabel,
-                position: "right",
-                min: 0,
-              },
-            ]}
-            height={chartHeight}
+          <Box
+            sx={{
+              flex: 1,
+            }}
           >
-            <ChartsGrid horizontal />
-            <BarPlot />
-            <LinePlot />
-            <MarkPlot
-              slots={{
-                mark: ({ x, y, color, isHighlighted }) => (
-                  <circle
-                    cx={x}
-                    cy={y}
-                    r={5}
-                    fill={isHighlighted ? color : "transparent"}
-                  />
-                ),
-              }}
-              slotProps={{
-                mark: {
-                  shape: "circle",
-                  skipAnimation: false,
+            <ChartContainer
+              dataset={dataset || []}
+              series={[...lineSeries, ...barSeries]}
+              xAxis={[
+                {
+                  dataKey: "time",
+                  scaleType: "band",
+                  label: timeRange === "1d" ? "Time" : "Date",
+                  tickLabelMinGap: 20,
+                  disableTicks: true,
+                  valueFormatter: (value: string) => {
+                    return parseChartTime(value, timeRange);
+                  },
                 },
+              ]}
+              width={undefined}
+              height={undefined}
+              style={{
+                width: "100%",
+                height: "100%",
               }}
-            />
-
-            <ChartsXAxis />
-            <ChartsYAxis axisId="leftAxis" />
-            <ChartsYAxis axisId="rightAxis" />
-            <ChartsTooltip />
-          </ChartContainer>
-
-          {loading && (
-            <Box
-              sx={{
-                position: "absolute",
-                inset: 0,
-                bgcolor: "rgba(255,255,255,0.4)",
-                backdropFilter: "blur(4px)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 5,
-              }}
+              yAxis={[
+                {
+                  id: "leftAxis",
+                  label: leftAxisLabel,
+                  min: 0,
+                },
+                {
+                  id: "rightAxis",
+                  label: rightAxisLabel,
+                  position: "right",
+                  min: 0,
+                },
+              ]}
             >
-              <CircularProgress size={32} thickness={4} />
-            </Box>
-          )}
+              <ChartsGrid horizontal />
+              <BarPlot />
+              <LinePlot />
+              <MarkPlot
+                slots={{
+                  mark: ({ x, y, color, isHighlighted }) => (
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r={5}
+                      fill={isHighlighted ? color : "transparent"}
+                    />
+                  ),
+                }}
+                slotProps={{
+                  mark: {
+                    shape: "circle",
+                    skipAnimation: false,
+                  },
+                }}
+              />
+
+              <ChartsXAxis />
+              <ChartsYAxis axisId="leftAxis" />
+              <ChartsYAxis axisId="rightAxis" />
+              <ChartsTooltip />
+            </ChartContainer>
+          </Box>
         </CardContent>
       </Card>
+      {loading && (
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            bgcolor: "rgba(255,255,255,0.4)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 5,
+          }}
+        >
+          <CircularProgress size={32} thickness={4} />
+        </Box>
+      )}
     </ToggleFullscreen>
   );
 };

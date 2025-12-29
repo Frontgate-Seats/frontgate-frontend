@@ -1,3 +1,3 @@
-const spacing = 8; 
+const spacing = 6; 
 
 export default spacing;

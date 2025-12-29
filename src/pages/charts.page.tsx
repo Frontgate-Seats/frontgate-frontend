@@ -561,7 +561,7 @@ const ChartsPage: React.FC = () => {
                 onIntervalChange={setGraphInterval}
                 timeRangeOptions={TIME_RANGE_OPTIONS}
                 intervalOptionsMap={INTERVAL_OPTIONS_MAP}
-                height={300}
+                height={400}
               />
             </Grid>
           </>

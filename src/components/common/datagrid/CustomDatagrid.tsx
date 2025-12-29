@@ -67,47 +67,11 @@ export default function CustomDataGrid({
   ),
 }: CustomDataGridProps) {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
-  const [windowHeight, setWindowHeight] = React.useState(window.innerHeight);
-
-  // Handle window resize for fullscreen mode
-  React.useEffect(() => {
-    const handleResize = () => setWindowHeight(window.innerHeight);
-    if (isFullscreen) {
-      window.addEventListener("resize", handleResize);
-      return () => window.removeEventListener("resize", handleResize);
-    }
-  }, [isFullscreen]);
-
   const handleFullscreenChange = (fullscreenMode: boolean) => {
     setIsFullscreen(fullscreenMode);
   };
 
-  // Adjust height based on fullscreen mode
-  // In fullscreen, calculate available height minus header and controls
-  const calculateDataGridHeight = () => {
-    if (isFullscreen) {
-      // In fullscreen: viewport height minus card padding, header, controls, and top padding
-      const headerHeight = 80; // Title and controls
-      const cardPadding = 48; // CardContent padding
-      const topPadding = 48; // Top padding from ToggleFullscreen
-      return Math.max(
-        400,
-        windowHeight - headerHeight - cardPadding - topPadding
-      );
-    }
-    return height;
-  };
-
-  const calculatedHeight = calculateDataGridHeight();
-
   const [showFilters, setShowFilters] = React.useState(true);
-
-  const initialState = React.useMemo(
-    () => ({
-      pagination: { paginationModel: { pageSize: INITIAL_PAGE_SIZE } },
-    }),
-    []
-  );
 
   const customColumns = React.useMemo(() => {
     return columns.map((col) => {
@@ -139,10 +103,10 @@ export default function CustomDataGrid({
 
       return {
         ...col,
-        filterable: false, // Disable for custom filtering
-        sortable: true, // Enable sorting but hide default icons
+        filterable: false,
+        sortable: true,
         hideSortIcons: true,
-        disableColumnMenu: true, // Hide three dots menu
+        disableColumnMenu: true,
       };
     });
   }, [
@@ -161,9 +125,8 @@ export default function CustomDataGrid({
         sx={{
           display: "flex",
           flexDirection: "column",
-          height: "100%",
           width: "100%",
-          minHeight: 0,
+          ...(isFullscreen ? { height: "100%" } : { height }),
         }}
       >
         {title || onRefresh ? (
@@ -196,7 +159,7 @@ export default function CustomDataGrid({
                 )}
               <Tooltip title="Reload data" placement="right" enterDelay={1000}>
                 <IconButton
-                  size="small"
+                  size="medium"
                   aria-label="refresh"
                   onClick={onRefresh}
                 >
@@ -225,59 +188,64 @@ export default function CustomDataGrid({
             ) : (
               <></>
             )}
-            <Box
-              sx={{
-                width: "100%",
-                ...(isFullscreen ? { height: calculatedHeight } : { height }),
+            <DataGrid
+              rows={rows}
+              getRowId={(row) => row._id || row.id}
+              rowCount={rowCount}
+              columns={customColumns}
+              initialState={{
+                pagination: {
+                  paginationModel: { pageSize: INITIAL_PAGE_SIZE },
+                },
+                density: "compact",
               }}
-            >
-              {/* Wrapper for scroll */}
-              <DataGrid
-                rows={rows}
-                getRowId={(row) => row._id || row.id}
-                rowCount={rowCount}
-                columns={customColumns}
-                initialState={initialState}
-                pagination
-                paginationMode={"server"}
-                paginationModel={paginationModel}
-                onPaginationModelChange={setPaginationModel}
-                sortingMode={"server"}
-                sortModel={sortingModel}
-                onSortModelChange={setSortingModel}
-                disableRowSelectionOnClick
-                onRowClick={onRowClick}
-                loading={isLoading}
-                pageSizeOptions={[5, 10, INITIAL_PAGE_SIZE, 50, 100]}
-                sx={{
-                  "& .MuiDataGrid-cell": {
-                    whiteSpace: "normal !important",
-                    wordWrap: "break-word !important",
-                    lineHeight: "1.4rem",
-                    display: "flex",
-                    alignItems: "center",
-                  },
-                  "& .MuiDataGrid-columnHeaderTitle": {
-                    whiteSpace: "normal !important",
-                    lineHeight: "1.2rem",
-                    display: "flex",
-                    alignItems: "center",
-                  },
-                  // Hide sort icons and menu icons globally
-                  ...(defaultFilterType === "header" &&
-                    showFilters && {
-                      "& .MuiDataGrid-columnHeader": {
-                        padding: 0,
-                        minHeight: 100,
-                        height: 100,
-                      },
-                      "& .MuiDataGrid-columnHeaders": {
-                        minHeight: 100,
-                      },
-                    }),
-                }}
-              />
-            </Box>
+              pagination
+              paginationMode={"server"}
+              paginationModel={paginationModel}
+              onPaginationModelChange={setPaginationModel}
+              sortingMode={"server"}
+              sortModel={sortingModel}
+              onSortModelChange={setSortingModel}
+              disableRowSelectionOnClick
+              onRowClick={onRowClick}
+              loading={isLoading}
+              pageSizeOptions={[5, 10, INITIAL_PAGE_SIZE, 50, 100]}
+              sx={{
+                "& .MuiDataGrid-cell": {
+                  whiteSpace: "nowrap !important",
+                  overflow: "hidden !important",
+                  textOverflow: "ellipsis !important",
+                  lineHeight: "1.4rem",
+                  display: "block !important",
+                  padding: "8px 16px",
+                  minWidth: 0,
+                },
+                "& .MuiDataGrid-cellContent": {
+                  whiteSpace: "nowrap !important",
+                  overflow: "hidden !important",
+                  textOverflow: "ellipsis !important",
+                  width: "100%",
+                },
+                "& .MuiDataGrid-columnHeaderTitle": {
+                  whiteSpace: "normal !important",
+                  lineHeight: "1.2rem",
+                  display: "flex",
+                  alignItems: "center",
+                },
+                // Hide sort icons and menu icons globally
+                ...(defaultFilterType === "header" &&
+                  showFilters && {
+                    "& .MuiDataGrid-columnHeader": {
+                      padding: 0,
+                      minHeight: 100,
+                      height: 100,
+                    },
+                    "& .MuiDataGrid-columnHeaders": {
+                      minHeight: 100,
+                    },
+                  }),
+              }}
+            />
           </>
         )}
       </Box>

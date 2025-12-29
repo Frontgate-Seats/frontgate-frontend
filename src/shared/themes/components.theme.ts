@@ -32,10 +32,70 @@ const components: Components<Theme> = {
     styleOverrides: {
       root: {
         textTransform: "none",
+        padding: "6px 12px",
+      },
+      sizeSmall: {
+        padding: "4px 8px",
+      },
+      sizeLarge: {
+        padding: "8px 16px",
       },
     },
     defaultProps: {
       disableElevation: true,
+    },
+  },
+  MuiCard: {
+    styleOverrides: {
+      root: {
+        padding: "12px",
+      },
+    },
+  },
+  MuiCardContent: {
+    styleOverrides: {
+      root: {
+        padding: "12px",
+        "&:last-child": {
+          paddingBottom: "12px",
+        },
+      },
+    },
+  },
+  MuiChip: {
+    styleOverrides: {
+      root: {
+        height: "28px",
+      },
+      sizeSmall: {
+        height: "24px",
+      },
+    },
+  },
+  MuiTextField: {
+    styleOverrides: {
+      root: {
+        "& .MuiInputBase-root": {
+          fontSize: "14px",
+        },
+      },
+    },
+  },
+  MuiFormControlLabel: {
+    styleOverrides: {
+      root: {
+        marginLeft: "0px",
+        marginRight: "12px",
+      },
+    },
+  },
+  MuiIconButton: {
+    styleOverrides: {
+      sizeSmall: {
+        "& .MuiSvgIcon-root": {
+          fontSize: "1rem",
+        },
+      },
     },
   },
   // Add more component overrides as needed...

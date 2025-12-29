@@ -9,6 +9,7 @@ import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { GridFilterModel } from "@mui/x-data-grid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { formatDateTime } from "../shared/utils/dateTime.util";
+import { Link } from "@mui/material";
 
 export default function SalesPage() {
   const dispatch = useAppDispatch();
@@ -25,8 +26,7 @@ export default function SalesPage() {
     { field: "localDate", sort: "asc" },
   ]);
   const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
-    items: [
-    ],
+    items: [],
   });
 
   React.useEffect(() => {
@@ -50,8 +50,31 @@ export default function SalesPage() {
   };
 
   const allColumns: CustomGridColDef[] = [
-    { field: "eventId", headerName: "Event ID", flex: 1, type: "string" },
+    {
+      field: "eventId",
+      headerName: "Event ID",
+      flex: 1,
+      type: "string",
+      renderCell: (params) => (
+        <Link
+          href={`https://seatgeek.com/philadelphia-eagles-tickets/1-4-2026-philadelphia-pennsylvania-lincoln-financial-field/nfl/${params.value}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          underline="hover"
+          color="primary"
+        >
+          {params.value}
+        </Link>
+      ),
+    },
     { field: "eventName", headerName: "Event Name", flex: 1.5, type: "string" },
+    {
+      field: "EventLocalDate",
+      headerName: "Event Date & Time",
+      flex: 1,
+      type: "dateTime",
+      valueFormatter: (value) => formatDateTime(value),
+    },
     { field: "section", headerName: "Section", flex: 0.8, type: "string" },
     { field: "row", headerName: "Row", flex: 0.5, type: "string" },
     {
@@ -72,41 +95,11 @@ export default function SalesPage() {
       valueFormatter: (value) => (value ? `$${value}` : "-"),
     },
     {
-      field: "stockType",
-      headerName: "Stock Type",
-      flex: 1,
-      type: "string",
-      align: "center",
-      headerAlign: "center",
-    },
-    {
-      field: "deliveryMethod",
-      headerName: "Delivery",
-      flex: 0.8,
-      type: "string",
-    },
-    {
-      field: "isInstantDelivery",
-      headerName: "Instant",
-      flex: 0.5,
-      type: "boolean",
-      valueFormatter: (value) => (value ? "Yes" : "No"),
-    },
-    {
-      field: "inHandDate",
-      headerName: "In Hand Date",
-      flex: 1,
-      type: "dateTime",
-      valueFormatter: (value) =>
-        formatDateTime(value),
-    },
-    {
       field: "purchaseUtc",
       headerName: "Purchase Date",
       flex: 1,
       type: "dateTime",
-      valueFormatter: (value) =>
-        formatDateTime(value),
+      valueFormatter: (value) => formatDateTime(value),
     },
   ];
 

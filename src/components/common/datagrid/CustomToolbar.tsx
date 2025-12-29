@@ -57,15 +57,9 @@ const FilterRow: React.FC<FilterRowProps> = ({
       variant="outlined"
       sx={{
         p: 2,
-        borderRadius: 2,
       }}
     >
-      <Typography
-        variant="subtitle2"
-        sx={{
-          mb: 1,
-        }}
-      >
+      <Typography variant="body2" marginBottom={1}>
         {column.headerName}
       </Typography>
 
@@ -119,15 +113,17 @@ const DynamicFiltersToolbar: React.FC<DynamicFiltersToolbarProps> = ({
           justifyContent: "space-between",
           borderRadius: 1,
           mb: open ? 1 : 0,
+          cursor: "pointer",
         }}
+        onClick={() => setOpen((prev) => !prev)}
       >
         <Stack direction="row" alignItems="center" spacing={1.5}>
           <FilterAltOutlined color="primary" />
-          <Typography variant="h6" >
+          <Typography variant="subtitle1" fontWeight="bold">
             Filters
           </Typography>
         </Stack>
-        <IconButton onClick={() => setOpen((prev) => !prev)} size="small">
+        <IconButton size="small">
           {open ? <ExpandLess /> : <ExpandMore />}
         </IconButton>
       </Box>

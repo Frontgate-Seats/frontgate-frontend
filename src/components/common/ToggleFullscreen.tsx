@@ -4,107 +4,81 @@ import { Fullscreen, Close } from "@mui/icons-material";
 
 interface ToggleFullscreenProps {
   children: React.ReactNode;
-  title?: string;
-  buttonProps?: {
-    size?: "small" | "medium" | "large";
-    sx?: object;
-  };
   onFullscreenChange?: (isFullscreen: boolean) => void;
 }
 
 const ToggleFullscreen: React.FC<ToggleFullscreenProps> = ({
   children,
-  buttonProps = { size: "large", sx: {} },
   onFullscreenChange,
 }) => {
-  const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const [open, setOpen] = React.useState(false);
 
-  const handleFullscreenOpen = () => {
-    setIsFullscreen(true);
-    onFullscreenChange?.(true);
-  };
-
-  const handleFullscreenClose = () => {
-    setIsFullscreen(false);
-    onFullscreenChange?.(false);
+  const handleFullscreenToggle = (isOpen: boolean) => {
+    setOpen(isOpen);
+    onFullscreenChange?.(isOpen);
   };
 
   return (
     <>
+      {/* Normal View */}
       <Box sx={{ position: "relative" }}>
         <IconButton
-          onClick={handleFullscreenOpen}
-          size={buttonProps.size}
+          size="large"
+          onClick={() => handleFullscreenToggle(true)}
           sx={{
             position: "absolute",
-            bottom: 4,
-            left: 8,
-            zIndex: 2,
+            bottom: 0,
+            left: 0,
+            zIndex: 1,
             color: "text.secondary",
             "&:hover": { color: "primary.main" },
-            ...buttonProps.sx,
           }}
         >
           <Fullscreen />
         </IconButton>
+
         {children}
       </Box>
 
+      {/* Fullscreen Modal */}
       <Modal
-        open={isFullscreen}
-        onClose={handleFullscreenClose}
-        closeAfterTransition
+        open={open}
+        onClose={() => handleFullscreenToggle(false)}
         slots={{ backdrop: Backdrop }}
         slotProps={{
-          backdrop: {
-            timeout: 500,
-            sx: { backgroundColor: "rgba(0, 0, 0, 0.8)" },
-          },
+          backdrop: { sx: { backgroundColor: "rgba(0,0,0,0.8)" } },
         }}
       >
         <Box
           sx={{
             position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%, -50%)",
+            width: "95vw",
+            height: "95vh",
             bgcolor: "background.paper",
-            outline: "none",
-            display: "flex",
-            flexDirection: "column",
+            borderRadius: 2,
             p: 2,
+            outline: "none",
           }}
         >
+          {/* Close Button */}
           <IconButton
-            onClick={handleFullscreenClose}
+            onClick={() => handleFullscreenToggle(false)}
             sx={{
               position: "absolute",
-              top: 16,
-              right: 16,
-              zIndex: 3,
+              top: 0,
+              right: 0,
               color: "text.secondary",
+              transform: "translate(40%, -40%)",
               "&:hover": { color: "error.main" },
-              bgcolor: "background.paper",
-              boxShadow: 1,
             }}
           >
             <Close />
           </IconButton>
 
-          <Box
-            sx={{
-              flex: 1,
-              minHeight: 0,
-              pt: 6,
-              display: "flex",
-              flexDirection: "column",
-              "& > *": {
-                flex: 1,
-                minHeight: 0,
-              },
-            }}
-          >
+          <Box sx={{ height: "100%" }}>
             {children}
           </Box>
         </Box>
