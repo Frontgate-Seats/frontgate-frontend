@@ -12,7 +12,8 @@ import {
   MenuItem,
 } from "@mui/material";
 import {
-  ChartContainer,
+  ChartDataProvider,
+  ChartsSurface,
   ChartsGrid,
   ChartsTooltip,
   ChartsXAxis,
@@ -20,6 +21,7 @@ import {
   LinePlot,
   BarPlot,
   MarkPlot,
+  ChartsLegend,
 } from "@mui/x-charts";
 import { parseChartTime } from "../../../shared/utils/dateTime.util";
 import type { DynamicChartProps } from "../../../shared/types/components.types";
@@ -39,11 +41,41 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
   height = 400,
 }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const [hiddenSeries, setHiddenSeries] = React.useState<Set<string>>(
+    new Set()
+  );
   const { lineSeries, barSeries, leftAxisLabel, rightAxisLabel } = chartConfig;
 
   const handleFullscreenChange = (fullscreenMode: boolean) => {
     setIsFullscreen(fullscreenMode);
   };
+
+  const handleLegendClick = (
+    _event: React.MouseEvent<HTMLButtonElement>,
+    legendItem: any,
+    _index: number
+  ) => {
+    const seriesKey = legendItem.id;
+    if (seriesKey) {
+      setHiddenSeries((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(seriesKey)) {
+          newSet.delete(seriesKey);
+        } else {
+          newSet.add(seriesKey);
+        }
+        return newSet;
+      });
+    }
+  };
+
+  // Filter out hidden series
+  const visibleLineSeries = lineSeries.filter(
+    (series) => series.dataKey && !hiddenSeries.has(series.dataKey)
+  );
+  const visibleBarSeries = barSeries.filter(
+    (series) => series.dataKey && !hiddenSeries.has(series.dataKey)
+  );
 
   return (
     <ToggleFullscreen onFullscreenChange={handleFullscreenChange}>
@@ -111,11 +143,16 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
           <Box
             sx={{
               flex: 1,
+              minHeight: 0,
+              position: "relative",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
-            <ChartContainer
+            {/* Legend positioned above the chart */}
+            <ChartDataProvider
               dataset={dataset || []}
-              series={[...lineSeries, ...barSeries]}
+              series={[...visibleLineSeries, ...visibleBarSeries]}
               xAxis={[
                 {
                   dataKey: "time",
@@ -128,12 +165,6 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                   },
                 },
               ]}
-              width={undefined}
-              height={undefined}
-              style={{
-                width: "100%",
-                height: "100%",
-              }}
               yAxis={[
                 {
                   id: "leftAxis",
@@ -148,33 +179,60 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                 },
               ]}
             >
-              <ChartsGrid horizontal />
-              <BarPlot />
-              <LinePlot />
-              <MarkPlot
-                slots={{
-                  mark: ({ x, y, color, isHighlighted }) => (
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r={5}
-                      fill={isHighlighted ? color : "transparent"}
-                    />
-                  ),
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  paddingBottom: 1,
+                  flexShrink: 0,
                 }}
-                slotProps={{
-                  mark: {
-                    shape: "circle",
-                    skipAnimation: false,
-                  },
-                }}
-              />
+              >
+                <ChartsLegend
+                  direction="horizontal"
+                  onItemClick={handleLegendClick}
+                />
+              </Box>
+              
+              <Box sx={{ flex: 1, position: "relative", minHeight: 0 }}>
+                <ChartsSurface
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                  }}
+                >
+                  <ChartsGrid horizontal />
+                  <BarPlot />
+                  <LinePlot />
+                  <MarkPlot
+                    slots={{
+                      mark: ({ x, y, color, isHighlighted }) => (
+                        <circle
+                          cx={x}
+                          cy={y}
+                          r={5}
+                          fill={isHighlighted ? color : "transparent"}
+                        />
+                      ),
+                    }}
+                    slotProps={{
+                      mark: {
+                        shape: "circle",
+                        skipAnimation: false,
+                      },
+                    }}
+                  />
 
-              <ChartsXAxis />
-              <ChartsYAxis axisId="leftAxis" />
-              <ChartsYAxis axisId="rightAxis" />
-              <ChartsTooltip />
-            </ChartContainer>
+                  <ChartsXAxis />
+                  <ChartsYAxis axisId="leftAxis" />
+                  <ChartsYAxis axisId="rightAxis" />
+                  <ChartsTooltip />
+                </ChartsSurface>
+              </Box>
+            </ChartDataProvider>
           </Box>
         </CardContent>
       </Card>

@@ -137,7 +137,7 @@ const ChartsPage: React.FC = () => {
   } = useSelector((state: RootState) => state.listingsMeta);
 
   // local UI state
-  const [chartTimeRange, setChartTimeRange] = useState<string>("20m");
+  const [chartTimeRange, setChartTimeRange] = useState<string>("1h");
   const [chartField, setChartField] = useState<string>("getInPriceMin");
   const [chartFrom, setChartFrom] = useState<string>(computeFromISO("20m"));
 

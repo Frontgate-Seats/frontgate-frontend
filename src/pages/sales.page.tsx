@@ -53,7 +53,6 @@ export default function SalesPage() {
     {
       field: "eventId",
       headerName: "Event ID",
-      flex: 1,
       type: "string",
       renderCell: (params) => (
         <Link
@@ -67,21 +66,21 @@ export default function SalesPage() {
         </Link>
       ),
     },
-    { field: "eventName", headerName: "Event Name", flex: 1.5, type: "string" },
+    { field: "eventName", headerName: "Event Name", flex: 1, type: "string" },
     {
-      field: "EventLocalDate",
+      field: "eventLocalDate",
       headerName: "Event Date & Time",
-      flex: 1,
+      width: 160,
       type: "dateTime",
       valueFormatter: (value) => formatDateTime(value),
     },
-    { field: "section", headerName: "Section", flex: 0.8, type: "string" },
-    { field: "row", headerName: "Row", flex: 0.5, type: "string" },
+    { field: "section", headerName: "Section",  type: "string", width: 200 },
+    { field: "row", headerName: "Row",  type: "string", width: 80 },
     {
       field: "quantity",
       headerName: "Qty",
-      flex: 0.4,
       type: "number",
+      width: 80, 
       min: 0,
       max: 10000,
     },
@@ -89,15 +88,14 @@ export default function SalesPage() {
       field: "broadcastPrice",
       headerName: "Price",
       type: "number",
-      flex: 0.7,
       min: 0,
       max: 10000,
       valueFormatter: (value) => (value ? `$${value}` : "-"),
     },
     {
       field: "purchaseUtc",
-      headerName: "Purchase Date",
-      flex: 1,
+      headerName: "Purchase Date & Time",
+      width: 160,
       type: "dateTime",
       valueFormatter: (value) => formatDateTime(value),
     },

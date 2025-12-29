@@ -104,9 +104,6 @@ export default function CustomDataGrid({
       return {
         ...col,
         filterable: false,
-        sortable: true,
-        hideSortIcons: true,
-        disableColumnMenu: true,
       };
     });
   }, [
@@ -149,7 +146,7 @@ export default function CustomDataGrid({
                     enterDelay={1000}
                   >
                     <IconButton
-                      size="small"
+                      size="medium"
                       aria-label="toggle filters"
                       onClick={() => setShowFilters(!showFilters)}
                     >

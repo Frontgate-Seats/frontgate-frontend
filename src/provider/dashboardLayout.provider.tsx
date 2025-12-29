@@ -8,7 +8,7 @@ const DashboardProvider: React.FC<ReactNodeProps> = ({ children }) => {
   const theme = useTheme();
 
   const [isDesktopNavigationExpanded, setIsDesktopNavigationExpanded] =
-    useState(true);
+    useState(false);
   const [isMobileNavigationExpanded, setIsMobileNavigationExpanded] =
     useState(false);
   const [expandedItemIds, setExpandedItemIds] = useState<string[]>([]);
