@@ -54,6 +54,7 @@ export default function SalesPage() {
       field: "eventId",
       headerName: "Event ID",
       type: "string",
+      width: 200,
       renderCell: (params) => (
         <Link
           href={`https://seatgeek.com/philadelphia-eagles-tickets/1-4-2026-philadelphia-pennsylvania-lincoln-financial-field/nfl/${params.value}`}
@@ -94,7 +95,7 @@ export default function SalesPage() {
     },
     {
       field: "purchaseUtc",
-      headerName: "Purchase Date & Time",
+      headerName: "Sale Date & Time",
       width: 160,
       type: "dateTime",
       valueFormatter: (value) => formatDateTime(value),

@@ -13,6 +13,7 @@ import {
   MenuItem,
   CircularProgress,
   Paper,
+  Link,
 } from "@mui/material";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
@@ -33,7 +34,6 @@ import {
   createQuote,
   resetPurchase,
 } from "../store/slices/purchases.slice";
-import moment from "moment";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { GridFilterModel } from "@mui/x-data-grid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
@@ -45,7 +45,7 @@ export default function ListingsPage() {
   const { eventId } = useParams();
 
   const {
-    rows: { data: listingsData },
+    rows: { data: listingsData, total: listingsDataCount },
     loading: listingLoading,
     error: listingsError,
   } = useSelector((state: RootState) => state.listings);
@@ -85,56 +85,55 @@ export default function ListingsPage() {
     return listingsData?.[0]?.performerDBId || {};
   }, [listingsData]);
 
-  const flattenedRows = React.useMemo(() => {
-    const result: any[] = [];
-    listingsData.forEach((listing) => {
-      (listing.listingsData || []).forEach((ld: any) => {
-        result.push({
-          id: ld.id,
-          listingId: listing.id,
-          listingDBId: listing._id,
-          eventId: listing.eventId,
-          eventDBId: listing.eventDBId,
-          eventName: listing.name,
-          venueId: listing.venueId,
-          performerId: listing.performerId,
-          providerDBId: listing.providerDBId,
-          row: ld.row,
-          section: ld.section,
-          quantity: ld.quantity,
-          allInPrice: ld.allInPrice,
-          price: ld.price,
-          total: ld.total,
-          serviceFee: ld.serviceFee,
-          tags: ld.tags?.join(", "),
-          splits: ld.splits,
-          currency: listing.currency || "USD",
-        });
-      });
-    });
-    return result;
-  }, [listingsData]);
+  const [paginationModel, setPaginationModel] =
+    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+
+  const [sortModel, setSortModel] = React.useState<GridSortModel>([]);
+  const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
+    items: [
+      ...(eventId
+        ? [
+            {
+              id: "default",
+              field: "eventId",
+              operator: "equals",
+              value: eventId,
+            },
+          ]
+        : []),
+    ],
+  });
+
+  // React.useEffect(() => {
+  //   dispatch(
+  //     setFilterModel({
+  //         items: [
+  //           ...(eventId
+  //             ? [
+  //                 {
+  //                   id: "default",
+  //                   field: "eventId",
+  //                   operator: "equals",
+  //                   value: eventId,
+  //                 },
+  //               ]
+  //             : []),
+  //         ],
+  //       },
+  //     })
+  //   );
+  // }, [dispatch, eventId]);
 
   React.useEffect(() => {
     dispatch(
       getListings({
-        filters: {
-          items: [
-            ...(eventId
-              ? [
-                  {
-                    id: "default",
-                    field: "eventId",
-                    operator: "equals",
-                    value: eventId,
-                  },
-                ]
-              : []),
-          ],
-        },
+        page: paginationModel.page,
+        pageSize: paginationModel.pageSize,
+        sortFields: sortModel,
+        filters: filterModel,
       })
     );
-  }, [dispatch, eventId]);
+  }, [dispatch, paginationModel, sortModel, filterModel]);
 
   const handleRefresh = () => {
     dispatch(
@@ -174,12 +173,43 @@ export default function ListingsPage() {
   };
 
   const allColumns: CustomGridColDef[] = [
-    { field: "section", headerName: "Section", flex: 1.2, type: "string" },
-    { field: "row", headerName: "Row", flex: 0.6, type: "string" },
+    {
+      field: "listingId",
+      headerName: "Listing Id",
+      type: "string",
+      width: 160,
+    },
+    {
+      field: "eventId",
+      headerName: "Event Id",
+      type: "string",
+      width: 120,
+      renderCell: (params) => (
+        <Link
+          href={`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${params.value}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          underline="hover"
+          color="primary"
+        >
+          {params.value}
+        </Link>
+      ),
+    },
+    { field: "eventName", headerName: "Event Name", flex: 1, type: "string" },
+    {
+      field: "eventLocalDate",
+      headerName: "Event Date & Time",
+      width: 160,
+      type: "dateTime",
+      valueFormatter: (value) => formatDateTime(value),
+    },
+    { field: "section", headerName: "Section", type: "string", width: 200 },
+    { field: "row", headerName: "Row", type: "string", width: 80 },
     {
       field: "quantity",
       headerName: "Qty",
-      flex: 0.5,
+      width: 80,
       type: "number",
       min: 0,
       max: 10000,
@@ -188,7 +218,6 @@ export default function ListingsPage() {
       field: "price",
       headerName: "Price",
       type: "number",
-      flex: 0.8,
       min: 0,
       max: 10000,
       valueFormatter: (value) => (value ? `$${value}` : "-"),
@@ -200,7 +229,7 @@ export default function ListingsPage() {
       width: 120,
       getActions: (params: any) => [
         <Button
-          key={params.row.id}
+          key={params.row.listingId}
           onClick={() => handleBuyClick(params.row)}
           variant="contained"
           color="primary"
@@ -291,7 +320,7 @@ export default function ListingsPage() {
             await dispatch(
               getSingleListingsDetails({
                 listingDBId: selectedListing?.listingDBId as string,
-                listingId: selectedListing?.id as string,
+                listingId: selectedListing?.listingId as string,
                 quantity,
               })
             );
@@ -441,98 +470,6 @@ export default function ListingsPage() {
     },
   ];
 
-  const [paginationModel, setPaginationModel] =
-    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
-
-  const [sortModel, setSortModel] = React.useState<GridSortModel>([]);
-  const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
-    items: [],
-  });
-
-  const filteredRows = React.useMemo(() => {
-    if (!filterModel?.items?.length) return flattenedRows;
-
-    return flattenedRows.filter((row) =>
-      filterModel.items.every(({ field, operator, value }) => {
-        if (value == null || value === "") return true;
-
-        const col = allColumns.find((c) => c.field === field);
-        const colType = col?.type || "string";
-        const fieldValue = row[field];
-
-        switch (colType) {
-          // -------------------- TEXT --------------------
-          default: {
-            if (operator === "contains") {
-              return String(fieldValue ?? "")
-                .toLowerCase()
-                .includes(String(value).toLowerCase());
-            }
-            if (operator === "equals") {
-              return (
-                String(fieldValue ?? "").toLowerCase() ===
-                String(value).toLowerCase()
-              );
-            }
-            return true;
-          }
-
-          // -------------------- NUMBER --------------------
-          case "number": {
-            const fv = Number(fieldValue);
-            const val = Number(value);
-            if (isNaN(fv) || isNaN(val)) return false;
-
-            if (operator === ">=") return fv >= val;
-            if (operator === "<=") return fv <= val;
-            if (operator === "equals") return fv === val;
-            return true;
-          }
-
-          // -------------------- DATE --------------------
-          case "date":
-          case "dateTime": {
-            const fv = moment(fieldValue);
-            const val = moment(value);
-            if (!fv.isValid() || !val.isValid()) return false;
-
-            if (operator === "onOrAfter")
-              return fv.isSame(val, "day") || fv.isAfter(val, "day");
-            if (operator === "onOrBefore")
-              return fv.isSame(val, "day") || fv.isBefore(val, "day");
-            return true;
-          }
-
-          // -------------------- SINGLE SELECT --------------------
-          case "singleSelect": {
-            return String(fieldValue ?? "") === String(value);
-          }
-        }
-      })
-    );
-  }, [flattenedRows, filterModel, allColumns]);
-
-  const sortedRows = React.useMemo(() => {
-    if (!sortModel?.length) return filteredRows;
-
-    const { field, sort } = sortModel[0];
-    return [...filteredRows].sort((a, b) => {
-      const aValue = a[field];
-      const bValue = b[field];
-      if (aValue == null) return 1;
-      if (bValue == null) return -1;
-      if (aValue < bValue) return sort === "asc" ? -1 : 1;
-      if (aValue > bValue) return sort === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [filteredRows, sortModel]);
-
-  const paginatedRows = React.useMemo(() => {
-    const start = paginationModel.page * paginationModel.pageSize;
-    const end = start + paginationModel.pageSize;
-    return sortedRows.slice(start, end);
-  }, [sortedRows, paginationModel]);
-
   return (
     <Stack
       padding={3}
@@ -594,8 +531,8 @@ export default function ListingsPage() {
             <Grid size={{ xs: 12 }}>
               <CustomDataGrid
                 title="Listings"
-                rows={paginatedRows}
-                rowCount={flattenedRows.length}
+                rows={listingsData}
+                rowCount={listingsDataCount}
                 isLoading={listingLoading}
                 error={listingsError}
                 columns={allColumns}

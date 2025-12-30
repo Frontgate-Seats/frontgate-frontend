@@ -52,8 +52,8 @@ const PurchasesPage: React.FC = () => {
     {
       field: "eventId",
       headerName: "Event ID",
+      width: 160,
       type: "string",
-      flex: 1,
       renderCell: (params) => (
         <Link
           href={`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${params.value}`}
@@ -66,17 +66,17 @@ const PurchasesPage: React.FC = () => {
         </Link>
       ),
     },
-     {
+    {
       field: "listingId",
       headerName: "Listing ID",
       type: "string",
-      flex: 1,
+      width: 160,
     },
     {
       field: "purchaseId",
       headerName: "PO ID",
       type: "string",
-      flex: 1,
+      width: 160,
       renderCell: (params) => (
         <Link
           href={`https://skybox.vividseats.com/purchases/${params.value}`}
@@ -93,7 +93,7 @@ const PurchasesPage: React.FC = () => {
       field: "inventoryId",
       headerName: "Inventory ID",
       type: "string",
-      flex: 1,
+      width: 160,
     },
     {
       field: "sectionName",
@@ -105,25 +105,24 @@ const PurchasesPage: React.FC = () => {
       field: "row",
       headerName: "Row",
       type: "string",
-      flex: 1,
+      width: 100,
       align: "center",
       headerAlign: "center",
     },
     {
       field: "quantity",
       headerName: "Qty",
-      flex: 1,
+      width: 80,
       align: "center",
       headerAlign: "center",
       type: "number",
       min: 0,
-      max: 1000
+      max: 1000,
     },
-   
     {
       field: "totalAmount",
       headerName: "Total",
-      flex: 1,
+      width: 100,
       type: "number",
       min: 0,
       max: 10000,
@@ -140,7 +139,7 @@ const PurchasesPage: React.FC = () => {
       headerName: "Status",
       headerAlign: "center",
       align: "center",
-      flex: 1,
+      width: 160,
       type: "string",
     },
     {
@@ -148,7 +147,7 @@ const PurchasesPage: React.FC = () => {
       headerName: "PO Status",
       headerAlign: "center",
       align: "center",
-      flex: 1,
+      width: 160,
       type: "string",
     },
     {
@@ -156,16 +155,34 @@ const PurchasesPage: React.FC = () => {
       headerName: "Inventory Status",
       headerAlign: "center",
       align: "center",
-      flex: 1,
+      width: 160,
       type: "string",
     },
   ];
 
-
   return (
-    <Stack padding={3} sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
-      <Grid size={{ xs: 12 }} sx={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-        <Grid size={{ xs: 12 }} sx={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+    <Stack
+      padding={3}
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+      }}
+    >
+      <Grid
+        size={{ xs: 12 }}
+        sx={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}
+      >
+        <Grid
+          size={{ xs: 12 }}
+          sx={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
+          }}
+        >
           {purchasesError ? (
             <Alert severity="error">{purchasesError}</Alert>
           ) : (

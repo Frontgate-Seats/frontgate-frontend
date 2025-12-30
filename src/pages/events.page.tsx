@@ -350,30 +350,27 @@ export default function EventsPage() {
     {
       field: "purchaseUtc",
       headerName: "Date & Time",
-      flex: 1.2,
-      minWidth: 170,
+      minWidth: 120,
       type: "dateTime",
       valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
     },
     {
       field: "section",
       headerName: "Section",
-      flex: 0.8,
+      flex: 1,
       minWidth: 100,
       type: "string",
     },
     {
       field: "row",
       headerName: "Row",
-      flex: 0.8,
       minWidth: 100,
       type: "string",
     },
     {
       field: "broadcastPrice",
       headerName: "Price",
-      flex: 1,
-      minWidth: 130,
+      minWidth: 120,
       min: 0,
       max: 20000,
       type: "number",
@@ -383,8 +380,7 @@ export default function EventsPage() {
     {
       field: "quantity",
       headerName: "Quantity",
-      flex: 0.8,
-      minWidth: 100,
+      minWidth: 80,
       min: 0,
       max: 100,
       type: "number",
@@ -419,8 +415,7 @@ export default function EventsPage() {
     {
       field: "eventId",
       headerName: "Event ID",
-      flex: 0.7,
-      minWidth: 100,
+      minWidth: 120,
       type: "number",
       headerAlign: "left",
       align: "left",
@@ -439,16 +434,14 @@ export default function EventsPage() {
     {
       field: "name",
       headerName: "Event Name",
-      flex: 2,
-      minWidth: 200,
+      flex: 1,
       type: "string",
     },
     {
       field: "localDate",
       headerName: "Event Date & Time",
       type: "dateTime",
-      flex: 1.2,
-      minWidth: 180,
+      width: 160,
       valueFormatter: (value) =>
         value ? formatDateTime(moment.parseZone(value)) : "-",
       renderEditCell: (params) => (
@@ -469,21 +462,24 @@ export default function EventsPage() {
     },
     // TODO AGGIGATE VENUE
     {
-      field: "venueDBId",
+      field: "venueName",
       headerName: "Venue",
-      flex: 1.5,
-      minWidth: 200,
-      valueGetter: (value: any) =>
-        value
-          ? `${value.name}, ${value.city}, ${value.stateCode} (${value.countryCode})`
-          : "-",
-      filterable: false,
-      sortable: false,
+      flex: 0.5,
+      minWidth: 120,
+    },
+    {
+      field: "city",
+      headerName: "City",
+      minWidth: 100,
+    },
+    {
+      field: "stateCode",
+      headerName: "State",
+      minWidth: 100,
     },
     {
       field: "category",
       headerName: "Category",
-      flex: 0.7,
       minWidth: 100,
       type: "singleSelect",
       valueOptions: ["Sports", "Concerts"],
@@ -491,8 +487,7 @@ export default function EventsPage() {
     {
       field: "ticketCount",
       headerName: "Tickets",
-      flex: 0.7,
-      minWidth: 90,
+      minWidth: 100,
       type: "number",
       min: 0,
       max: 20000,
@@ -500,8 +495,7 @@ export default function EventsPage() {
     {
       field: "listingCount",
       headerName: "Listings",
-      flex: 0.7,
-      minWidth: 90,
+      minWidth: 100,
       type: "number",
       min: 0,
       max: 20000,
@@ -509,8 +503,7 @@ export default function EventsPage() {
     {
       field: "getInPriceMedian",
       headerName: "Median Price",
-      flex: 0.8,
-      minWidth: 110,
+      minWidth: 10,
       type: "number",
       min: 0,
       max: 20000,
@@ -522,8 +515,7 @@ export default function EventsPage() {
       headerName: "Actions",
       headerAlign: "center",
       align: "center",
-      flex: 1,
-      minWidth: 150,
+      minWidth: 120,
       getActions: (params) => [
         <Button
           key="listings"
