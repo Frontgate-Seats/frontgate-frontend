@@ -117,7 +117,7 @@ export const useFilterLogic = ({
             newItems.push({
               id: `${field}-${Date.now()}`,
               field,
-              operator: "equals" as any,
+              operator: "contains" as any,
               value,
             });
             break;

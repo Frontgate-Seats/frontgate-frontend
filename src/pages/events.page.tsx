@@ -478,6 +478,13 @@ export default function EventsPage() {
       minWidth: 100,
     },
     {
+      field: "matchedProviderNames",
+      headerName: "Match",
+      minWidth: 100,
+      type: "singleSelect",
+      valueOptions: ["seatgeek"],
+    },
+    {
       field: "category",
       headerName: "Category",
       minWidth: 100,
