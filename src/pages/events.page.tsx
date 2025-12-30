@@ -84,7 +84,11 @@ export default function EventsPage() {
   const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
     items: [
       { field: "category", operator: "is", value: "Sports" },
-      { field: "matchedProviderNames", operator: "contains", value: "seatgeek" },
+      {
+        field: "matchedProviderNames",
+        operator: "contains",
+        value: "seatgeek",
+      },
       {
         field: "localDate",
         operator: "onOrAfter",
@@ -352,6 +356,7 @@ export default function EventsPage() {
       field: "purchaseUtc",
       headerName: "Date & Time",
       minWidth: 120,
+      flex: 1,
       type: "dateTime",
       valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
     },
@@ -365,6 +370,7 @@ export default function EventsPage() {
     {
       field: "row",
       headerName: "Row",
+      flex: 1,
       minWidth: 100,
       type: "string",
     },
@@ -373,6 +379,7 @@ export default function EventsPage() {
       headerName: "Price",
       minWidth: 120,
       min: 0,
+      flex: 1,
       max: 20000,
       type: "number",
       valueFormatter: (value: any) =>
@@ -382,8 +389,9 @@ export default function EventsPage() {
       field: "quantity",
       headerName: "Quantity",
       minWidth: 80,
+      flex: 1,
       min: 0,
-      max: 100,
+      max: 1000,
       type: "number",
       valueFormatter: (value: any) =>
         typeof value === "number" && value >= 0 ? value.toString() : "-",

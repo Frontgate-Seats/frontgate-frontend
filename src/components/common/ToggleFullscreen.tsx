@@ -71,16 +71,23 @@ const ToggleFullscreen: React.FC<ToggleFullscreenProps> = ({
               top: 0,
               right: 0,
               color: "text.secondary",
-              transform: "translate(40%, -40%)",
-              "&:hover": { color: "error.main" },
+              backgroundColor: "background.paper",
+              transform: "translate(50%, -50%)",
+              boxShadow: 2,
+              borderColor: "divider",
+              "&:hover": {
+                color: "error.main",
+                backgroundColor: "background.paper",
+                boxShadow: 4,
+                transform: "translate(50%, -50%) scale(1.1)",
+                borderColor: "error.main",
+              },
             }}
           >
             <Close />
           </IconButton>
 
-          <Box sx={{ height: "100%" }}>
-            {children}
-          </Box>
+          <Box sx={{ height: "100%" }}>{children}</Box>
         </Box>
       </Modal>
     </>
