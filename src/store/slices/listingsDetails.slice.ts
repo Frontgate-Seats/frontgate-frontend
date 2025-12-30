@@ -52,7 +52,9 @@ const listingsDetailesSlice = createSlice({
   name: "listings",
   initialState,
   reducers: {
-    resetListingDetails: () => initialState
+    resetListingDetails: (state) => {
+      return initialState;
+    }
   },
   extraReducers: (builder) => {
     builder

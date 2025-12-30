@@ -99,7 +99,9 @@ const purchasesSlice = createSlice({
   name: "purchases",
   initialState,
   reducers: {
-    resetPurchase: () => initialState,
+    resetPurchase: (state) => {
+      return initialState;
+    },
   },
   extraReducers: (builder) => {
     builder

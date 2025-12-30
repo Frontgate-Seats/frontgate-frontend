@@ -319,7 +319,7 @@ export default function ListingsPage() {
           onClick={async () => {
             await dispatch(
               getSingleListingsDetails({
-                listingDBId: selectedListing?.listingDBId as string,
+                listingDBId: selectedListing?._id as string,
                 listingId: selectedListing?.listingId as string,
                 quantity,
               })
@@ -399,8 +399,8 @@ export default function ListingsPage() {
           onClick={async () => {
             await dispatch(
               createQuote({
-                listingDBId: selectedListing?.listingDBId,
-                listingId: selectedListing?.id,
+                listingDBId: selectedListing?._id,
+                listingId: selectedListing?.listingId,
                 quantity,
                 deliveryMethodId: deliveryId,
               })
@@ -450,8 +450,8 @@ export default function ListingsPage() {
           onClick={async () => {
             await dispatch(
               createOrder({
-                listingDBId: selectedListing?.listingDBId,
-                listingId: selectedListing?.id,
+                listingDBId: selectedListing?._id,
+                listingId: selectedListing?.listingId,
                 deliveryMethodId: deliveryId,
                 quoteId: purchasesDataObj?.id,
                 totalAmount: purchasesDataObj?.totalCharge,
