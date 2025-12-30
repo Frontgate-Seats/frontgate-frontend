@@ -27,7 +27,6 @@ interface FilterInputProps {
   variant?: "outlined" | "filled" | "standard";
   fullWidth?: boolean;
   placeholder?: string;
-  showAllOption?: boolean; // For singleSelect to show "All" option
   compact?: boolean; // New prop for header-friendly compact mode
 }
 
@@ -278,7 +277,6 @@ export default function FilterInput({
   variant = "outlined",
   fullWidth = true,
   placeholder,
-  showAllOption = false,
   compact = false,
 }: FilterInputProps) {
   // Prevent event propagation to avoid triggering parent click handlers (like sorting)
@@ -432,7 +430,7 @@ export default function FilterInput({
           variant={variant}
           {...commonProps}
         >
-          {showAllOption && <MenuItem value="">All</MenuItem>}
+          <MenuItem value="">All</MenuItem>
           {opts.map((opt, i) => {
             const { value: optValue, label } = normalizeOption(opt);
             return (

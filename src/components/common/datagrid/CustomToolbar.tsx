@@ -72,7 +72,6 @@ const FilterRow: React.FC<FilterRowProps> = ({
         variant="outlined"
         fullWidth
         placeholder="Type to filter..."
-        showAllOption={false}
       />
     </Paper>
   );

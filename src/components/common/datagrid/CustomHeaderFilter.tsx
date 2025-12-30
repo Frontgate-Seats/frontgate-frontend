@@ -89,7 +89,6 @@ export default function CustomHeaderFilter({
           variant="outlined"
           fullWidth
           placeholder="Filter..."
-          showAllOption={true}
           compact={true}
         />
       </Box>

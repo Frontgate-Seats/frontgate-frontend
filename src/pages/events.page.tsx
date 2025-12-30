@@ -84,6 +84,7 @@ export default function EventsPage() {
   const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
     items: [
       { field: "category", operator: "is", value: "Sports" },
+      { field: "matchedProviderNames", operator: "contains", value: "seatgeek" },
       {
         field: "localDate",
         operator: "onOrAfter",

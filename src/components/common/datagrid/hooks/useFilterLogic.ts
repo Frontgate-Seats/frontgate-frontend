@@ -22,23 +22,41 @@ export const useFilterLogic = ({
   // Sync filterModel to local state
   useEffect(() => {
     const items = filterModel.items || [];
-    
+
     if (columnType === "number") {
       // Handle range filters for numbers
-      const minItem = items.find(item => item.field === field && (item.operator === ">=" || item.operator === "greaterThanOrEqual"));
-      const maxItem = items.find(item => item.field === field && (item.operator === "<=" || item.operator === "lessThanOrEqual"));
-      
+      const minItem = items.find(
+        (item) =>
+          item.field === field &&
+          (item.operator === ">=" || item.operator === "greaterThanOrEqual")
+      );
+      const maxItem = items.find(
+        (item) =>
+          item.field === field &&
+          (item.operator === "<=" || item.operator === "lessThanOrEqual")
+      );
+
       if (minItem || maxItem) {
         setLocalValue([minItem?.value || null, maxItem?.value || null]);
       } else {
-        const equalItem = items.find(item => item.field === field && item.operator === "equals");
+        const equalItem = items.find(
+          (item) => item.field === field && item.operator === "equals"
+        );
         setLocalValue(equalItem?.value || "");
       }
     } else if (columnType === "date" || columnType === "dateTime") {
       // Handle date range filters
-      const fromItem = items.find(item => item.field === field && (item.operator === "onOrAfter" || item.operator === ">="));
-      const toItem = items.find(item => item.field === field && (item.operator === "onOrBefore" || item.operator === "<="));
-      
+      const fromItem = items.find(
+        (item) =>
+          item.field === field &&
+          (item.operator === "onOrAfter" || item.operator === ">=")
+      );
+      const toItem = items.find(
+        (item) =>
+          item.field === field &&
+          (item.operator === "onOrBefore" || item.operator === "<=")
+      );
+
       if (fromItem || toItem) {
         setLocalValue([fromItem?.value || null, toItem?.value || null]);
       } else {
@@ -46,7 +64,7 @@ export const useFilterLogic = ({
       }
     } else {
       // Handle simple filters (string, singleSelect)
-      const item = items.find(item => item.field === field);
+      const item = items.find((item) => item.field === field);
       setLocalValue(item?.value || "");
     }
   }, [filterModel, field, columnType]);
@@ -54,8 +72,10 @@ export const useFilterLogic = ({
   const updateFilter = useCallback(
     (value: any) => {
       setFilterModel((prev) => {
-        const newItems = (prev.items || []).filter((item) => item.field !== field);
-        
+        const newItems = (prev.items || []).filter(
+          (item) => item.field !== field
+        );
+
         if (isEmptyValue(value)) {
           return { ...prev, items: newItems };
         }
@@ -140,7 +160,7 @@ export const useFilterLogic = ({
   const handleChange = useCallback(
     (value: any) => {
       setLocalValue(value);
-      
+
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = window.setTimeout(() => {
         updateFilter(value);
@@ -172,4 +192,4 @@ const isEmptyValue = (v: any): boolean =>
   v == null ||
   (typeof v === "string" && v.trim() === "") ||
   (Array.isArray(v) && v.length === 0) ||
-  (Array.isArray(v) && v.every(item => item == null || item === ""));
+  (Array.isArray(v) && v.every((item) => item == null || item === ""));
