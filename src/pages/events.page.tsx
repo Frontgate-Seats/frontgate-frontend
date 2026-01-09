@@ -79,23 +79,18 @@ export default function EventsPage() {
   const [paginationModel, setPaginationModel] =
     React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
   const [sortModel, setSortModel] = React.useState<GridSortModel>([
-    { field: "localDate", sort: "asc" },
+    { field: "local_date", sort: "asc" },
   ]);
   const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
     items: [
-      { field: "category", operator: "is", value: "Sports" },
+      { field: "category_name", operator: "is", value: "Sports" },
       {
-        field: "matchedProviderNames",
-        operator: "contains",
-        value: "seatgeek",
-      },
-      {
-        field: "localDate",
+        field: "local_date",
         operator: "onOrAfter",
         value: moment().toISOString(),
       },
       {
-        field: "localDate",
+        field: "local_date",
         operator: "onOrBefore",
         value: moment().add(6, "months").toISOString(),
       },
@@ -174,7 +169,7 @@ export default function EventsPage() {
 
     const salesFilters = {
       items: [
-        { field: "eventId", operator: "equals", value: seatgeekMatch?.eventId },
+        { field: "eventId", operator: "equals", value: seatgeekMatch?.id },
         ...salesFilterModel.items,
       ],
     };
@@ -204,7 +199,7 @@ export default function EventsPage() {
 
     const salesFilters = {
       items: [
-        { field: "eventId", operator: "equals", value: seatgeekMatch?.eventId },
+        { field: "eventId", operator: "equals", value: seatgeekMatch?.id },
         ...salesFilterModel.items,
       ],
     };
@@ -226,7 +221,7 @@ export default function EventsPage() {
   ]);
 
   const handleRowClick = (row: any) => {
-    if (row.eventId === selectedEvent?.eventId) return;
+    if (row.id === selectedEvent?.id) return;
     setSelectedEvent(row);
 
     // Smooth scroll to top using ref
@@ -246,7 +241,7 @@ export default function EventsPage() {
 
     const listingsMetaFilters = {
       items: [
-        { field: "eventId", operator: "equals", value: selectedEvent.eventId },
+        { field: "eventId", operator: "equals", value: selectedEvent.id },
       ],
     };
 
@@ -257,13 +252,13 @@ export default function EventsPage() {
 
     const salesMetaFilters = {
       items: [
-        { field: "eventId", operator: "equals", value: seatgeekMatch?.eventId },
+        { field: "eventId", operator: "equals", value: seatgeekMatch?.id },
       ],
     };
 
     const salesFilters = {
       items: [
-        { field: "eventId", operator: "equals", value: seatgeekMatch?.eventId },
+        { field: "eventId", operator: "equals", value: seatgeekMatch?.id },
         ...salesFilterModel.items,
       ],
     };
@@ -314,7 +309,7 @@ export default function EventsPage() {
 
     const salesFilters = {
       items: [
-        { field: "eventId", operator: "equals", value: seatgeekMatch?.eventId },
+        { field: "eventId", operator: "equals", value: seatgeekMatch?.id },
         ...salesFilterModel.items,
       ],
     };
@@ -411,7 +406,7 @@ export default function EventsPage() {
           <IconButton
             onClick={(e) => {
               e.stopPropagation();
-              handleRowClick(params.row);
+              // handleRowClick(params.row);
             }}
             color="primary"
             size="small"
@@ -422,23 +417,34 @@ export default function EventsPage() {
       ),
     },
     {
-      field: "eventId",
+      field: "id",
       headerName: "Event ID",
       minWidth: 120,
       type: "number",
       headerAlign: "left",
       align: "left",
-      renderCell: (params) => (
-        <Link
-          href={`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${params.value}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          underline="hover"
-          color="primary"
-        >
-          {params.value}
-        </Link>
-      ),
+      renderCell: (params) => {
+        const event = events.find((e) => e.id == params.value);
+        let url;
+        switch (event.platform) {
+          case "vividseats":
+            url = `https://www.vividseats.com${event.web_path}`;
+            break;
+          default:
+            break;
+        }
+        return (
+          <Link
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            underline="hover"
+            color="primary"
+          >
+            {params.value}
+          </Link>
+        );
+      },
     },
     {
       field: "name",
@@ -447,7 +453,7 @@ export default function EventsPage() {
       type: "string",
     },
     {
-      field: "localDate",
+      field: "local_date",
       headerName: "Event Date & Time",
       type: "dateTime",
       width: 160,
@@ -471,37 +477,30 @@ export default function EventsPage() {
     },
     // TODO AGGIGATE VENUE
     {
-      field: "venueName",
+      field: "venue_name",
       headerName: "Venue",
       flex: 0.5,
       minWidth: 120,
     },
     {
-      field: "city",
+      field: "venue_city",
       headerName: "City",
       minWidth: 100,
     },
     {
-      field: "stateCode",
+      field: "venue_state",
       headerName: "State",
       minWidth: 100,
     },
     {
-      field: "matchedProviderNames",
-      headerName: "Match",
-      minWidth: 100,
-      type: "singleSelect",
-      valueOptions: ["seatgeek"],
-    },
-    {
-      field: "category",
+      field: "category_name",
       headerName: "Category",
       minWidth: 100,
       type: "singleSelect",
       valueOptions: ["Sports", "Concerts"],
     },
     {
-      field: "ticketCount",
+      field: "ticket_count",
       headerName: "Tickets",
       minWidth: 100,
       type: "number",
@@ -509,7 +508,7 @@ export default function EventsPage() {
       max: 20000,
     },
     {
-      field: "listingCount",
+      field: "listing_count",
       headerName: "Listings",
       minWidth: 100,
       type: "number",
@@ -535,9 +534,7 @@ export default function EventsPage() {
       getActions: (params) => [
         <Button
           key="listings"
-          onClick={() =>
-            window.open(`/listings/${params.row.eventId}`, "_blank")
-          }
+          onClick={() => window.open(`/listings/${params.row.id}`, "_blank")}
           variant="contained"
           size="small"
         >
@@ -578,9 +575,9 @@ export default function EventsPage() {
                         Date & Time
                       </Typography>
                       <Typography variant="body1">
-                        {selectedEvent?.localDate
+                        {selectedEvent?.local_date
                           ? formatDateTime(
-                              moment.parseZone(selectedEvent.localDate)
+                              moment.parseZone(selectedEvent.local_date)
                             )
                           : ""}
                       </Typography>

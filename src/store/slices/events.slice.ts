@@ -23,14 +23,14 @@ const initialState: EventsState = {
 
 // Async thunk to fetch events
 export const getEvents = createAsyncThunk(
-  "events",
+  "events/fetchEvents",
   async (
     data: DataGridQueryOptions,
     { dispatch, rejectWithValue }
   ) => {
     try {
       const response = await eventsApi.fetchEvents(data);
-      return response.data;
+      return response;
     } catch (err: any) {
       const message = err?.message || "Failed to fetch events";
       dispatch(setSnackbar({ message, severity: "error" }));
@@ -51,7 +51,7 @@ const eventsSlice = createSlice({
       })
       .addCase(getEvents.fulfilled, (state, action) => {
         state.loading = false;
-        state.rows = action.payload.data;
+        state.rows = action.payload;
       })
       .addCase(getEvents.rejected, (state, action) => {
         state.loading = false;
