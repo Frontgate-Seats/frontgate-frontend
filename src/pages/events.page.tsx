@@ -43,6 +43,7 @@ import {
   TIME_RANGE_OPTIONS,
 } from "../shared/constants/components.constants";
 import DynamicChart from "../components/common/charts/DynamicChart";
+import { getEventsExternalMappings } from "../store/slices/eventsExternalMappings.slice";
 
 export default function EventsPage() {
   const dispatch = useAppDispatch();
@@ -72,6 +73,10 @@ export default function EventsPage() {
     loading: salesLoading,
     error: salesErr,
   } = useSelector((state: RootState) => state.sales);
+
+  const {
+    rows: { data: eventsExternalMappings },
+  } = useSelector((state: RootState) => state.eventsExternalMappings);
 
   // ------------------------
   // Grid State
@@ -160,21 +165,21 @@ export default function EventsPage() {
     );
   }, [dispatch, paginationModel, sortModel, filterModel]);
 
-  const handleSalesRefresh = React.useCallback(() => {
-    if (!selectedEvent) return;
-
-    const seatgeekMatch = selectedEvent.matches?.find(
-      (m: any) => m.providerName === "seatgeek"
-    );
+  const handlefetchSales = React.useCallback(async () => {
+    if (!selectedEvent || !eventsExternalMappings) return;
 
     const salesFilters = {
       items: [
-        { field: "eventId", operator: "equals", value: seatgeekMatch?.id },
+        {
+          field: "eventId",
+          operator: "equals",
+          value: eventsExternalMappings?.[0]?.external_event_id?.toString(),
+        },
         ...salesFilterModel.items,
       ],
     };
 
-    dispatch(
+    await dispatch(
       getSales({
         filters: salesFilters,
         page: salesPaginationModel.page,
@@ -188,28 +193,27 @@ export default function EventsPage() {
     salesPaginationModel,
     salesSortModel,
     salesFilterModel,
+    eventsExternalMappings,
   ]);
 
-  React.useEffect(() => {
-    if (!selectedEvent) return;
+  const handlefetchSalesMeta = React.useCallback(async () => {
+    if (!selectedEvent || !eventsExternalMappings) return;
 
-    const seatgeekMatch = selectedEvent.matches?.find(
-      (m: any) => m.providerName === "seatgeek"
-    );
-
-    const salesFilters = {
+    const salesMetaFilters = {
       items: [
-        { field: "eventId", operator: "equals", value: seatgeekMatch?.id },
-        ...salesFilterModel.items,
+        {
+          field: "eventId",
+          operator: "equals",
+          value: eventsExternalMappings?.[0]?.external_event_id?.toString(),
+        },
       ],
     };
 
-    dispatch(
-      getSales({
-        filters: salesFilters,
-        page: salesPaginationModel.page,
-        pageSize: salesPaginationModel.pageSize,
-        sortFields: salesSortModel,
+    await dispatch(
+      getSalesMeta({
+        filters: salesMetaFilters,
+        page: -1,
+        pageSize: -1,
       })
     );
   }, [
@@ -218,9 +222,61 @@ export default function EventsPage() {
     salesPaginationModel,
     salesSortModel,
     salesFilterModel,
+    eventsExternalMappings,
   ]);
 
-  const handleRowClick = (row: any) => {
+  const handlefetchListingsMeta = React.useCallback(async () => {
+    if (!selectedEvent) return;
+
+    const listingMetaFilters = {
+      items: [
+        {
+          field: "eventId",
+          operator: "equals",
+          value: selectedEvent?.id?.toString(),
+        },
+      ],
+    };
+
+    await dispatch(
+      getListingsMeta({
+        filters: listingMetaFilters,
+        page: -1,
+        pageSize: -1,
+      })
+    );
+  }, [
+    dispatch,
+    selectedEvent,
+    salesPaginationModel,
+    salesSortModel,
+    salesFilterModel,
+    eventsExternalMappings,
+  ]);
+
+  const handlefetchEventsExternalMappings = React.useCallback(async () => {
+    if (!selectedEvent) return;
+
+    const externalEventMappingsFilters = {
+      items: [
+        {
+          field: "event_id",
+          operator: "equals",
+          value: selectedEvent?.id,
+        },
+      ],
+    };
+
+    await dispatch(
+      getEventsExternalMappings({
+        filters: externalEventMappingsFilters,
+        page: 1,
+        pageSize: 1,
+      })
+    );
+  }, [dispatch, selectedEvent]);
+
+  const handleRowClick = async (row: any) => {
     if (row.id === selectedEvent?.id) return;
     setSelectedEvent(row);
 
@@ -233,65 +289,25 @@ export default function EventsPage() {
     }, 150);
   };
 
+  const fetchGraphData = async () => {
+    await handlefetchEventsExternalMappings(),
+      await Promise.all([
+        handlefetchListingsMeta(),
+        handlefetchSalesMeta(),
+        handlefetchSales(),
+      ]);
+  };
+
   // ------------------------
   // Fetch listingsMeta and salesMeta for selected event (initial load + auto-refresh)
   // ------------------------
   React.useEffect(() => {
     if (!selectedEvent) return;
 
-    const listingsMetaFilters = {
-      items: [
-        { field: "eventId", operator: "equals", value: selectedEvent.id },
-      ],
-    };
-
-    // Find seatgeek match for sales data
-    const seatgeekMatch = selectedEvent.matches?.find(
-      (m: any) => m.providerName === "seatgeek"
-    );
-
-    const salesMetaFilters = {
-      items: [
-        { field: "eventId", operator: "equals", value: seatgeekMatch?.id },
-      ],
-    };
-
-    const salesFilters = {
-      items: [
-        { field: "eventId", operator: "equals", value: seatgeekMatch?.id },
-        ...salesFilterModel.items,
-      ],
-    };
-
-    // ✅ Call immediately once
-    dispatch(
-      getListingsMeta({ filters: listingsMetaFilters, page: -1, pageSize: -1 })
-    );
-    dispatch(
-      getSalesMeta({ filters: salesMetaFilters, page: -1, pageSize: -1 })
-    );
-    dispatch(
-      getSales({
-        filters: salesFilters,
-        page: salesPaginationModel.page,
-        pageSize: salesPaginationModel.pageSize,
-        sortFields: salesSortModel,
-      })
-    );
+    fetchGraphData();
 
     // ✅ Then call every 10 minutes (only listings and sales meta, not sales data)
-    const intervalId = setInterval(() => {
-      dispatch(
-        getListingsMeta({
-          filters: listingsMetaFilters,
-          page: -1,
-          pageSize: -1,
-        })
-      );
-      dispatch(
-        getSalesMeta({ filters: salesMetaFilters, page: -1, pageSize: -1 })
-      );
-    }, 600000); // 600000 ms = 10 minutes
+    const intervalId = setInterval(() => fetchGraphData(), 600000); // 600000 ms = 10 minutes
 
     // ✅ Cleanup on unmount or change in selectedEvent
     return () => clearInterval(intervalId);
@@ -406,7 +422,7 @@ export default function EventsPage() {
           <IconButton
             onClick={(e) => {
               e.stopPropagation();
-              // handleRowClick(params.row);
+              handleRowClick(params.row);
             }}
             color="primary"
             size="small"
@@ -679,7 +695,7 @@ export default function EventsPage() {
                 filterModel={salesFilterModel}
                 setFilterModel={setSalesFilterModel}
                 defaultFilterType="header"
-                onRefresh={handleSalesRefresh}
+                onRefresh={handlefetchSales}
                 height={400}
                 headerComponent={
                   <Typography variant="h6" fontWeight={600} gutterBottom>

@@ -2,6 +2,7 @@ import { combineReducers } from "redux";
 import authReducer from "../slices/auth.slice";
 import snackbarReducer from "../slices/snackbar.slice";
 import eventsReducer from "../slices/events.slice";
+import eventsExternalMappingsReducer from "../slices/eventsExternalMappings.slice";
 import listingsReducer from "../slices/listings.slice";
 import salesReducer from "../slices/sales.slice";
 import listingsMetaReducer from "../slices/listingsMeta.slice";
@@ -17,6 +18,7 @@ const rootReducer = combineReducers({
   auth: authReducer,
   snackbar: snackbarReducer,
   events: eventsReducer,
+  eventsExternalMappings: eventsExternalMappingsReducer,
   listings: listingsReducer,
   sales: salesReducer,
   listingsMeta: listingsMetaReducer,
