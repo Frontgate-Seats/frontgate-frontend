@@ -1,7 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { setSnackbar } from "./snackbar.slice";
 import listingsApi from "../../apis/listings.api";
-import type { DataGridQueryOptions } from "../../shared/types/mui.type";
 
 export interface EventsState {
   loading: boolean;
@@ -28,10 +27,10 @@ const initialState: EventsState = {
 // Async thunk to fetch listings
 export const getListings = createAsyncThunk(
   "listings",
-  async (data: DataGridQueryOptions, { dispatch, rejectWithValue }) => {
+  async (event_id: string, { dispatch, rejectWithValue }) => {
     try {
-      const response = await listingsApi.fetchListings(data);
-      return response.data;
+      const response = await listingsApi.fetchListings(event_id);
+      return response;
     } catch (err: any) {
       const message = err?.message || "Failed to fetch listings";
       dispatch(setSnackbar({ message, severity: "error" }));
@@ -52,7 +51,7 @@ const listingsSlice = createSlice({
       })
       .addCase(getListings.fulfilled, (state, action) => {
         state.loading = false;
-        state.rows = action.payload.data;
+        state.rows = action.payload;
       })
       .addCase(getListings.rejected, (state, action) => {
         state.loading = false;

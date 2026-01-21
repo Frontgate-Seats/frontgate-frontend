@@ -1,11 +1,9 @@
 import supabaseHttpClient from "../clients/supabaseHttp.client";
 
 // Backend is expected to return: { data: Event[], total: number }
-export const fetchSales = async (event_id: string) => {
-  console.log("called");
-
+export const fetchSales = async (external_event_id: string) => {
   const response = await supabaseHttpClient.get(
-    `/functions/v1/events-api/sales/${event_id}`,
+    `/functions/v1/events-api/sales/${external_event_id}`,
   );
 
   return {

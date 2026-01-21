@@ -20,7 +20,6 @@ import type { RootState } from "../store";
 import { getListings } from "../store/slices/listings.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
 import { useNavigate, useParams } from "react-router-dom";
-import type { GridPaginationModel, GridSortModel } from "@mui/x-data-grid";
 import type { StepData } from "../components/common/models/types.model";
 import StepperModal from "../components/common/models/stepper.model";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
@@ -35,9 +34,9 @@ import {
   resetPurchase,
 } from "../store/slices/purchases.slice";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
-import type { GridFilterModel } from "@mui/x-data-grid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { formatDateTime } from "../shared/utils/dateTime.util";
+import { useClientFilters } from "../hooks/useClientFilters";
 
 export default function ListingsPage() {
   const dispatch = useAppDispatch();
@@ -45,7 +44,7 @@ export default function ListingsPage() {
   const { eventId } = useParams();
 
   const {
-    rows: { data: listingsData, total: listingsDataCount },
+    rows: { data: listingsData },
     loading: listingLoading,
     error: listingsError,
   } = useSelector((state: RootState) => state.listings);
@@ -85,75 +84,103 @@ export default function ListingsPage() {
     return listingsData?.[0]?.performerDBId || {};
   }, [listingsData]);
 
-  const [paginationModel, setPaginationModel] =
-    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  // Fetch all listings data once
+  React.useEffect(() => {
+    if (eventId) dispatch(getListings(eventId));
+  }, [dispatch, eventId]);
 
-  const [sortModel, setSortModel] = React.useState<GridSortModel>([]);
-  const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
-    items: [
-      ...(eventId
-        ? [
-            {
-              id: "default",
-              field: "eventId",
-              operator: "equals",
-              value: eventId,
-            },
-          ]
-        : []),
-    ],
+  const allColumns: CustomGridColDef[] = [
+    {
+      field: "id",
+      headerName: "Listing Id",
+      type: "string",
+      width: 140,
+      flex: 0.8,
+      minWidth: 120,
+    },
+    {
+      field: "sectionName",
+      headerName: "Section",
+      type: "string",
+      width: 180,
+      flex: 1.2,
+      minWidth: 150,
+    },
+    {
+      field: "row",
+      headerName: "Row",
+      type: "string",
+      width: 70,
+      flex: 0.4,
+      minWidth: 60,
+    },
+    {
+      field: "quantity",
+      headerName: "Qty",
+      width: 70,
+      flex: 0.4,
+      minWidth: 60,
+      type: "number",
+      min: 0,
+      max: 10000,
+    },
+    {
+      field: "price",
+      headerName: "Price",
+      type: "number",
+      width: 100,
+      flex: 0.6,
+      minWidth: 80,
+      min: 0,
+      max: 10000,
+      valueFormatter: (value) => (value ? `$${value}` : "-"),
+    },
+    {
+      field: "actions",
+      type: "actions",
+      headerName: "Actions",
+      width: 100,
+      flex: 0.5,
+      minWidth: 90,
+      sortable: false,
+      filterable: false,
+      getActions: (params: any) => [
+        <Button
+          key={params.row.id}
+          onClick={() => handleBuyClick(params.row)}
+          variant="contained"
+          color="primary"
+          size="small"
+          sx={{ textTransform: "none", borderRadius: 2 }}
+        >
+          Buy
+        </Button>,
+      ],
+    },
+  ];
+
+  // Use client-side filtering, pagination, and sorting
+  const {
+    paginationModel,
+    sortModel,
+    filterModel,
+    setPaginationModel,
+    setSortModel,
+    setFilterModel,
+    paginatedRows,
+    totalFilteredRows,
+  } = useClientFilters({
+    data: listingsData || [],
+    columns: allColumns,
+    initialPaginationModel: { page: 0, pageSize: 25 },
+    initialSortModel: [],
+    initialFilterModel: {
+      items: [],
+    },
   });
 
-  // React.useEffect(() => {
-  //   dispatch(
-  //     setFilterModel({
-  //         items: [
-  //           ...(eventId
-  //             ? [
-  //                 {
-  //                   id: "default",
-  //                   field: "eventId",
-  //                   operator: "equals",
-  //                   value: eventId,
-  //                 },
-  //               ]
-  //             : []),
-  //         ],
-  //       },
-  //     })
-  //   );
-  // }, [dispatch, eventId]);
-
-  React.useEffect(() => {
-    dispatch(
-      getListings({
-        page: paginationModel.page,
-        pageSize: paginationModel.pageSize,
-        sortFields: sortModel,
-        filters: filterModel,
-      })
-    );
-  }, [dispatch, paginationModel, sortModel, filterModel]);
-
   const handleRefresh = () => {
-    dispatch(
-      getListings({
-        filters: {
-          items: [
-            ...(eventId
-              ? [
-                  {
-                    id: "default",
-                    field: "eventId",
-                    operator: "equals",
-                    value: eventId,
-                  },
-                ]
-              : []),
-          ],
-        },
-      })
-    );
+    if (eventId) dispatch(getListings(eventId));
   };
 
   const handleBuyClick = (listing: any) => {
@@ -172,87 +199,17 @@ export default function ListingsPage() {
     resetListingDetails();
   };
 
-  const allColumns: CustomGridColDef[] = [
-    {
-      field: "listingId",
-      headerName: "Listing Id",
-      type: "string",
-      width: 160,
-    },
-    {
-      field: "eventId",
-      headerName: "Event Id",
-      type: "string",
-      width: 120,
-      renderCell: (params) => (
-        <Link
-          href={`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${params.value}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          underline="hover"
-          color="primary"
-        >
-          {params.value}
-        </Link>
-      ),
-    },
-    { field: "eventName", headerName: "Event Name", flex: 1, type: "string" },
-    {
-      field: "eventLocalDate",
-      headerName: "Event Date & Time",
-      width: 160,
-      type: "dateTime",
-      valueFormatter: (value) => formatDateTime(value),
-    },
-    { field: "section", headerName: "Section", type: "string", width: 200 },
-    { field: "row", headerName: "Row", type: "string", width: 80 },
-    {
-      field: "quantity",
-      headerName: "Qty",
-      width: 80,
-      type: "number",
-      min: 0,
-      max: 10000,
-    },
-    {
-      field: "price",
-      headerName: "Price",
-      type: "number",
-      min: 0,
-      max: 10000,
-      valueFormatter: (value) => (value ? `$${value}` : "-"),
-    },
-    {
-      field: "actions",
-      type: "actions",
-      headerName: "Actions",
-      width: 120,
-      getActions: (params: any) => [
-        <Button
-          key={params.row.listingId}
-          onClick={() => handleBuyClick(params.row)}
-          variant="contained"
-          color="primary"
-          size="small"
-          sx={{ textTransform: "none", borderRadius: 2 }}
-        >
-          Buy
-        </Button>,
-      ],
-    },
-  ];
-
   React.useEffect(() => {
     setQuantity(
       Number(
-        selectedListing?.splits?.[selectedListing?.splits?.length - 1] ?? 0
-      )
+        selectedListing?.splits?.[selectedListing?.splits?.length - 1] ?? 0,
+      ),
     );
   }, [selectedListing?.splits]);
 
   React.useEffect(() => {
     setDeliveryId(
-      String(listingsDetailsDataObj?.deliveryOptions?.[0]?.id ?? "")
+      String(listingsDetailsDataObj?.deliveryOptions?.[0]?.id ?? ""),
     );
   }, [listingsDetailsDataObj?.deliveryOptions]);
 
@@ -322,7 +279,7 @@ export default function ListingsPage() {
                 listingDBId: selectedListing?._id as string,
                 listingId: selectedListing?.listingId as string,
                 quantity,
-              })
+              }),
             );
             setModelActiveStep((prev) => prev + 1);
           }}
@@ -369,7 +326,7 @@ export default function ListingsPage() {
             <Typography>
               <strong>Subtotal:</strong> $
               {(listingsDetailsDataObj?.listing?.pricePer * quantity).toFixed(
-                2
+                2,
               )}
             </Typography>
             <Typography>
@@ -385,7 +342,7 @@ export default function ListingsPage() {
                 ? (
                     listingsDetailsDataObj?.listing?.pricePer * quantity +
                     (listingsDetailsDataObj?.deliveryOptions?.find(
-                      (x: any) => String(x.id) === String(deliveryId)
+                      (x: any) => String(x.id) === String(deliveryId),
                     )?.cost ?? 0)
                   ).toFixed(2)
                 : "-"}
@@ -403,7 +360,7 @@ export default function ListingsPage() {
                 listingId: selectedListing?.listingId,
                 quantity,
                 deliveryMethodId: deliveryId,
-              })
+              }),
             );
             setModelActiveStep((prev) => prev + 1);
           }}
@@ -457,7 +414,7 @@ export default function ListingsPage() {
                 totalAmount: purchasesDataObj?.totalCharge,
                 pricePer: listingsDetailsDataObj?.listing?.pricePer,
                 quantity,
-              })
+              }),
             );
             setMdelCompleted(true);
           }}
@@ -531,8 +488,8 @@ export default function ListingsPage() {
             <Grid size={{ xs: 12 }}>
               <CustomDataGrid
                 title="Listings"
-                rows={listingsData}
-                rowCount={listingsDataCount}
+                rows={paginatedRows}
+                rowCount={totalFilteredRows}
                 isLoading={listingLoading}
                 error={listingsError}
                 columns={allColumns}
@@ -646,7 +603,7 @@ export default function ListingsPage() {
                     "Delivery",
                     `${
                       listingsDetailsDataObj?.deliveryOptions?.find(
-                        (x: any) => String(x.id) === String(deliveryId)
+                        (x: any) => String(x.id) === String(deliveryId),
                       )?.description || "-"
                     } ($${
                       listingsDetailsDataObj?.deliveryOptions

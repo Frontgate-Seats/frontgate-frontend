@@ -110,39 +110,3 @@ export const getDBData = async (
     throw error;
   }
 };
-
-// Supabase function invoker with automatic auth
-export const invokeFunction = async (
-  functionName: string,
-  options: DatabaseOptions = {},
-  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
-): Promise<FunctionResponse> => {
-  try {
-    // Ensure user is authenticated
-    const user = await getCurrentUser();
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
-
-    const { data, error } = await supabaseClient.functions.invoke(
-      functionName,
-      {
-        body: options,
-        method,
-      },
-    );
-
-    if (error) {
-      console.error(`Supabase function error for ${functionName}:`, error);
-      throw new Error(`Supabase function error: ${error.message}`);
-    }
-
-    return {
-      data: data || [],
-      total: data.count || 0,
-    };
-  } catch (error) {
-    console.error(`Failed to invoke function ${functionName}:`, error);
-    throw error;
-  }
-};

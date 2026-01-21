@@ -81,7 +81,7 @@ export default function DashboardSidebar() {
                 !!matchPath("/events/*", pathname) || pathname === "/events"
               }
             />
-            <DashboardSidebarPageItem
+            {/* <DashboardSidebarPageItem
               id="listings"
               title="Listings"
               icon={<ListIcon />}
@@ -89,8 +89,8 @@ export default function DashboardSidebar() {
               selected={
                 !!matchPath("/listings/*", pathname) || pathname === "/listings"
               }
-            />
-            <DashboardSidebarPageItem
+            /> */}
+            {/* <DashboardSidebarPageItem
               id="sales"
               title="Seatgeek Sales"
               icon={<ListIcon />}
@@ -98,8 +98,8 @@ export default function DashboardSidebar() {
               selected={
                 !!matchPath("/sales/*", pathname) || pathname === "/sales"
               }
-            />
-            <DashboardSidebarPageItem
+            /> */}
+            {/* <DashboardSidebarPageItem
               id="purchases"
               title="Purchases"
               icon={<StoreIcon />}
@@ -108,9 +108,9 @@ export default function DashboardSidebar() {
                 !!matchPath("/purchases/*", pathname) ||
                 pathname === "/purchases"
               }
-            />
+            /> */}
 
-            <DashboardSidebarPageItem
+            {/* <DashboardSidebarPageItem
               id="charts"
               title="Charts"
               icon={<BarChartIcon />}
@@ -118,7 +118,7 @@ export default function DashboardSidebar() {
               selected={
                 !!matchPath("/charts/*", pathname) || pathname === "/charts"
               }
-            />
+            /> */}
           </List>
         </Box>
       </Fragment>

@@ -25,25 +25,15 @@ import moment from "moment";
 import type { RootState } from "../store";
 import { formatDateTime } from "../shared/utils/dateTime.util";
 import { getEvents } from "../store/slices/events.slice";
-import { getListingsMeta } from "../store/slices/listingsMeta.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
 import { AdapterMoment } from "@mui/x-date-pickers/AdapterMoment";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
-import { getSalesMeta } from "../store/slices/salesMeta.slice";
 import { getSales } from "../store/slices/sales.slice";
-import { useListingsChartData, useSalesChartData } from "../hooks/useChartData";
-import {
-  getDefaultInterval,
-  INTERVAL_OPTIONS_MAP,
-  LISTINGS_META_CHART_CONFIG,
-  SALES_META_CHART_CONFIG,
-  TIME_RANGE_OPTIONS,
-} from "../shared/constants/components.constants";
-import DynamicChart from "../components/common/charts/DynamicChart";
 import { getEventsExternalMappings } from "../store/slices/eventsExternalMappings.slice";
+import { useClientFilters } from "../hooks/useClientFilters";
 
 export default function EventsPage() {
   const dispatch = useAppDispatch();
@@ -58,23 +48,11 @@ export default function EventsPage() {
     error: eventsError,
   } = useSelector((state: RootState) => state.events);
 
-  // const {
-  //   rows: { data: listingsMeta },
-  //   loading: listingsMetaLoading,
-  // } = useSelector((state: RootState) => state.listingsMeta);
-
-  // const {
-  //   rows: { data: salesMeta },
-  //   loading: salesMetaLoading,
-  // } = useSelector((state: RootState) => state.salesMeta);
-
   const {
-    rows,
+    rows: { data: sales },
     loading: salesLoading,
     error: salesErr,
   } = useSelector((state: RootState) => state.sales);
-console.log("rows : ", rows)
-  const { data: sales, total: salesTotal } = rows
   const {
     rows: { data: eventsExternalMappings },
   } = useSelector((state: RootState) => state.eventsExternalMappings);
@@ -88,173 +66,31 @@ console.log("rows : ", rows)
   ]);
   const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
     items: [
-      { field: "category_name", operator: "is", value: "Sports" },
-      {
-        field: "local_date",
-        operator: "onOrAfter",
-        value: moment().toISOString(),
-      },
-      {
-        field: "local_date",
-        operator: "onOrBefore",
-        value: moment().add(6, "months").toISOString(),
-      },
+      // { field: "category_name", operator: "is", value: "Sports" },
+      // {
+      //   field: "local_date",
+      //   operator: "onOrAfter",
+      //   value: moment().toISOString(),
+      // },
+      // {
+      //   field: "local_date",
+      //   operator: "onOrBefore",
+      //   value: moment().add(6, "months").toISOString(),
+      // },
     ],
   });
 
   // ------------------------
-  // Selected + Chart State
+  // Selected Event State
   // ------------------------
   const [selectedEvent, setSelectedEvent] = React.useState<any>(null);
-  const [timeRangeGraphOne, setTimeRangeGraphOne] = React.useState("1d");
-  const [intervalGraphOne, setIntervalGraphOne] = React.useState("1h");
-
-  const [timeRangeGraphTwo, setTimeRangeGraphTwo] = React.useState("7d");
-  const [intervalGraphTwo, setIntervalGraphTwo] = React.useState("1d");
-
-  const [timeRangeGraphThree, setTimeRangeGraphThree] = React.useState("1d");
-  const [intervalGraphThree, setIntervalGraphThree] = React.useState("1h");
 
   // ------------------------
-  // Sales Grid State
+  // Sales Data Grid Columns
   // ------------------------
-  const [salesPaginationModel, setSalesPaginationModel] =
-    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
-  const [salesSortModel, setSalesSortModel] = React.useState<GridSortModel>([
-    { field: "purchaseUtc", sort: "desc" },
-  ]);
-  const [salesFilterModel, setSalesFilterModel] =
-    React.useState<GridFilterModel>({
-      items: [],
-    });
-
-  React.useEffect(() => {
-    setIntervalGraphOne(getDefaultInterval(timeRangeGraphOne));
-  }, [timeRangeGraphOne]);
-
-  React.useEffect(() => {
-    setIntervalGraphTwo(getDefaultInterval(timeRangeGraphTwo));
-  }, [timeRangeGraphTwo]);
-
-  React.useEffect(() => {
-    setIntervalGraphThree(getDefaultInterval(timeRangeGraphThree));
-  }, [timeRangeGraphThree]);
-
-  // ------------------------
-  // Fetch events
-  // ------------------------
-  React.useEffect(() => {
-    dispatch(
-      getEvents({
-        page: paginationModel.page,
-        pageSize: paginationModel.pageSize,
-        sortFields: sortModel,
-        filters: filterModel,
-      })
-    );
-  }, [dispatch, paginationModel, sortModel, filterModel]);
-
-  const handleRefresh = React.useCallback(() => {
-    dispatch(
-      getEvents({
-        page: paginationModel.page,
-        pageSize: paginationModel.pageSize,
-        sortFields: sortModel,
-        filters: filterModel,
-      })
-    );
-  }, [dispatch, paginationModel, sortModel, filterModel]);
-
-  const handlefetchSales = React.useCallback(async () => {
-    if (eventsExternalMappings?.length > 0) {
-      await dispatch(
-        getSales(eventsExternalMappings?.[0]?.external_event_id?.toString())
-      );
-    }
-  }, [dispatch, eventsExternalMappings]);
-
-  const handlefetchEventsExternalMappings = React.useCallback(async () => {
-    if (!selectedEvent) return;
-
-    const externalEventMappingsFilters = {
-      items: [
-        {
-          field: "event_id",
-          operator: "equals",
-          value: selectedEvent?.id,
-        },
-      ],
-    };
-
-    await dispatch(
-      getEventsExternalMappings({
-        filters: externalEventMappingsFilters,
-      })
-    );
-  }, [dispatch, selectedEvent]);
-
-  const handleRowClick = async (row: any) => {
-    if (row.id === selectedEvent?.id) return;
-    setSelectedEvent(row);
-    
-
-    // Smooth scroll to top using ref
-    setTimeout(() => {
-      chartRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-    }, 150);
-
-    await handlefetchEventsExternalMappings();
-    await handlefetchSales();
-  };
-
-  // ------------------------
-  // Fetch listingsMeta and salesMeta for selected event (initial load + auto-refresh)
-  // ------------------------
-  // React.useEffect(() => {
-  //   if (!eventsExternalMappings?.id) return;
-
-    
-
-  //   // ✅ Then call every 10 minutes (only listings and sales meta, not sales data)
-  //   const intervalId = setInterval(() => handlefetchSales(), 600000); // 600000 ms = 10 minutes
-
-  //   // ✅ Cleanup on unmount or change in selectedEvent
-  //   return () => clearInterval(intervalId);
-  // }, [eventsExternalMappings?.id, dispatch]);
-
-  console.log("eventsExternalMappingsss: ", eventsExternalMappings)
-  // ------------------------
-  // Fetch sales data when sales table state changes
-  // ------------------------
-
-  // ------------------------
-  // Chart Data using custom hooks
-  // ------------------------
-  // const datasetOne = useListingsChartData(
-  //   listingsMeta || [],
-  //   timeRangeGraphOne,
-  //   intervalGraphOne
-  // );
-
-  // const datasetTwo = useListingsChartData(
-  //   listingsMeta || [],
-  //   timeRangeGraphTwo,
-  //   intervalGraphTwo
-  // );
-
-  // const datasetThree = useSalesChartData(
-  //   salesMeta || [],
-  //   timeRangeGraphThree,
-  //   intervalGraphThree
-  // );
-
-  // Sales data grid columns
   const salesColumns: CustomGridColDef[] = [
     {
-      field: "purchaseUtc",
+      field: "purchased_at",
       headerName: "Date & Time",
       minWidth: 120,
       flex: 1,
@@ -262,21 +98,21 @@ console.log("rows : ", rows)
       valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
     },
     {
-      field: "section",
+      field: "section_name",
       headerName: "Section",
       flex: 1,
       minWidth: 100,
       type: "string",
     },
     {
-      field: "row",
+      field: "row_name",
       headerName: "Row",
       flex: 1,
       minWidth: 100,
       type: "string",
     },
     {
-      field: "broadcastPrice",
+      field: "base_price",
       headerName: "Price",
       minWidth: 120,
       min: 0,
@@ -298,6 +134,118 @@ console.log("rows : ", rows)
         typeof value === "number" && value >= 0 ? value.toString() : "-",
     },
   ];
+
+  // ------------------------
+  // Sales Grid State
+  // ------------------------
+  const {
+    paginationModel: salesPaginationModel,
+    sortModel: salesSortModel,
+    filterModel: salesFilterModel,
+    setPaginationModel: setSalesPaginationModel,
+    setSortModel: setSalesSortModel,
+    setFilterModel: setSalesFilterModel,
+    paginatedRows: paginatedSales,
+    totalFilteredRows: salesTotalFiltered,
+  } = useClientFilters({
+    data: sales || [],
+    columns: salesColumns,
+    initialPaginationModel: { page: 0, pageSize: 25 },
+    initialSortModel: [{ field: "purchased_at", sort: "desc" }],
+    initialFilterModel: { items: [] },
+  });
+
+  React.useEffect(() => {
+    dispatch(
+      getEvents({
+        page: paginationModel.page,
+        pageSize: paginationModel.pageSize,
+        sortFields: sortModel,
+        filters: filterModel,
+      }),
+    );
+  }, [dispatch, paginationModel, sortModel, filterModel]);
+
+  const handleRefresh = React.useCallback(() => {
+    dispatch(
+      getEvents({
+        page: paginationModel.page,
+        pageSize: paginationModel.pageSize,
+        sortFields: sortModel,
+        filters: filterModel,
+      }),
+    );
+  }, [dispatch, paginationModel, sortModel, filterModel]);
+
+  const handlefetchSales = React.useCallback(
+    async () => {
+      const external_event_id =
+        eventsExternalMappings?.[0]?.external_event_id?.toString();
+      
+      if (!external_event_id) return;
+      
+      await dispatch(getSales(external_event_id));
+    },
+    [dispatch, eventsExternalMappings],
+  );
+
+  const handlefetchEventsExternalMappings = React.useCallback(
+    async (event_id: string) => {
+      const externalEventMappingsFilters = {
+        items: [
+          {
+            field: "event_id",
+            operator: "equals",
+            value: event_id,
+          },
+        ],
+      };
+
+      await dispatch(
+        getEventsExternalMappings({
+          filters: externalEventMappingsFilters,
+        }),
+      );
+    },
+    [dispatch],
+  );
+
+  const handleRowClick = async (row: any) => {
+    if (row.id === selectedEvent?.id) return;
+    await handlefetchEventsExternalMappings(row.id);
+    setSelectedEvent(row);
+    setTimeout(() => {
+      chartRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 150);
+  };
+
+  // ------------------------
+  // Auto-fetch sales data for selected event
+  // ------------------------
+  React.useEffect(() => {
+    if (!eventsExternalMappings?.length) return;
+
+    const external_event_id =
+      eventsExternalMappings?.[0]?.external_event_id?.toString();
+
+    if (!external_event_id) return;
+
+    handlefetchSales();
+
+    const intervalId = setInterval(
+      () => handlefetchSales(),
+      600000,
+    );
+
+    return () => clearInterval(intervalId);
+  }, [eventsExternalMappings, handlefetchSales]);
+
+  // ------------------------
+  // Data Grid Columns
+  // ------------------------
 
   const columns: CustomGridColDef[] = [
     {
@@ -483,7 +431,7 @@ console.log("rows : ", rows)
                       <Typography variant="body1">
                         {selectedEvent?.local_date
                           ? formatDateTime(
-                              moment.parseZone(selectedEvent.local_date)
+                              moment.parseZone(selectedEvent.local_date),
                             )
                           : ""}
                       </Typography>
@@ -494,9 +442,7 @@ console.log("rows : ", rows)
                         Venue
                       </Typography>
                       <Typography variant="body1">
-                        {selectedEvent?.venueDBId
-                          ? `${selectedEvent.venueDBId?.city}, ${selectedEvent.venueDBId?.stateCode} (${selectedEvent.venueDBId.countryCode})`
-                          : "-"}
+                        {`${selectedEvent?.venue_name}, ${selectedEvent?.venue_city}, ${selectedEvent?.venue_state}`}
                       </Typography>
                     </Grid>
 
@@ -505,12 +451,7 @@ console.log("rows : ", rows)
                         Performer
                       </Typography>
                       <Typography variant="body1">
-                        {selectedEvent?.performerDBIds?.length
-                          ? selectedEvent.performerDBIds
-                              .map((p: any) => p?.name)
-                              .filter(Boolean)
-                              .join(", ")
-                          : "-"}
+                        {selectedEvent?.primary_performer_name}
                       </Typography>
                     </Grid>
                   </Grid>
@@ -518,63 +459,12 @@ console.log("rows : ", rows)
               </Card>
             </Grid>
 
-            {/* GRAPH 1 */}
-            {/* <Grid size={{ xs: 12, md: 6 }}>
-              <DynamicChart
-                title="Listings Trends"
-                dataset={datasetOne}
-                chartConfig={LISTINGS_META_CHART_CONFIG}
-                loading={listingsMetaLoading}
-                timeRange={timeRangeGraphOne}
-                interval={intervalGraphOne}
-                onTimeRangeChange={setTimeRangeGraphOne}
-                onIntervalChange={setIntervalGraphOne}
-                timeRangeOptions={TIME_RANGE_OPTIONS}
-                intervalOptionsMap={INTERVAL_OPTIONS_MAP}
-                height={400}
-              />
-            </Grid> */}
-
-            {/* GRAPH 2 */}
-            {/* <Grid size={{ xs: 12, md: 6 }}>
-              <DynamicChart
-                title="Listings Trends"
-                dataset={datasetTwo}
-                chartConfig={LISTINGS_META_CHART_CONFIG}
-                loading={listingsMetaLoading}
-                timeRange={timeRangeGraphTwo}
-                interval={intervalGraphTwo}
-                onTimeRangeChange={setTimeRangeGraphTwo}
-                onIntervalChange={setIntervalGraphTwo}
-                timeRangeOptions={TIME_RANGE_OPTIONS}
-                intervalOptionsMap={INTERVAL_OPTIONS_MAP}
-                height={400}
-              />
-            </Grid> */}
-
-            {/* GRAPH 3 */}
-            {/* <Grid size={{ xs: 12, md: 6 }}>
-              <DynamicChart
-                title="Sales Trends"
-                dataset={datasetThree}
-                chartConfig={SALES_META_CHART_CONFIG}
-                loading={salesMetaLoading}
-                timeRange={timeRangeGraphThree}
-                interval={intervalGraphThree}
-                onTimeRangeChange={setTimeRangeGraphThree}
-                onIntervalChange={setIntervalGraphThree}
-                timeRangeOptions={TIME_RANGE_OPTIONS}
-                intervalOptionsMap={INTERVAL_OPTIONS_MAP}
-                height={400}
-              />
-            </Grid> */}
-
             {/* SALES DATA GRID */}
             <Grid size={{ xs: 12, md: 12 }}>
               <CustomDataGrid
                 title="Sales Data"
-                rows={sales || []}
-                rowCount={salesTotal || 0}
+                rows={paginatedSales}
+                rowCount={salesTotalFiltered}
                 columns={salesColumns}
                 isLoading={salesLoading}
                 error={salesErr}
@@ -585,7 +475,9 @@ console.log("rows : ", rows)
                 filterModel={salesFilterModel}
                 setFilterModel={setSalesFilterModel}
                 defaultFilterType="header"
-                onRefresh={handlefetchSales}
+                onRefresh={() => {
+                  handlefetchSales();
+                }}
                 height={400}
                 headerComponent={
                   <Typography variant="h6" fontWeight={600} gutterBottom>
