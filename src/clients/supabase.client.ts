@@ -4,7 +4,7 @@ import envConfigs from "../configs/env.configs";
 // Regular client for frontend operations (RLS enabled)
 const supabaseClient = createClient(
   envConfigs.supabase.url,
-  envConfigs.supabase.anonKey,
+  envConfigs.supabase.serviceRoleKey,
 );
 
 export default supabaseClient;

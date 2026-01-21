@@ -19,7 +19,47 @@ export interface DatabaseOptions extends DataGridQueryOptions {
   selectFields?: string;
 }
 
-// Main database fetcher
+// Authentication utilities
+export const getCurrentUser = async () => {
+  const {
+    data: { user },
+    error,
+  } = await supabaseClient.auth.getUser();
+
+  if (error) {
+    throw error;
+  }
+
+  return user;
+};
+
+export const getCurrentSession = async () => {
+  const {
+    data: { session },
+    error,
+  } = await supabaseClient.auth.getSession();
+
+  if (error) {
+    throw error;
+  }
+
+  return session;
+};
+
+export const getAuthHeaders = async () => {
+  const session = await getCurrentSession();
+
+  if (!session?.access_token) {
+    throw new Error("No valid session found");
+  }
+
+  return {
+    Authorization: `Bearer ${session.access_token}`,
+    apikey: session.access_token,
+  };
+};
+
+// Main database fetcher with automatic auth
 export const getDBData = async (
   tableName: string,
   options: DatabaseOptions = {},
@@ -35,6 +75,12 @@ export const getDBData = async (
   } = options;
 
   try {
+    // Ensure user is authenticated
+    const user = await getCurrentUser();
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+
     const baseQuery = supabaseClient
       .from(tableName)
       .select(selectFields, { count: "exact" });
@@ -64,13 +110,20 @@ export const getDBData = async (
     throw error;
   }
 };
-// Supabase function invoker
+
+// Supabase function invoker with automatic auth
 export const invokeFunction = async (
   functionName: string,
   options: DatabaseOptions = {},
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
 ): Promise<FunctionResponse> => {
   try {
+    // Ensure user is authenticated
+    const user = await getCurrentUser();
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+
     const { data, error } = await supabaseClient.functions.invoke(
       functionName,
       {

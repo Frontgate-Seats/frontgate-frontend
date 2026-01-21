@@ -1,13 +1,13 @@
 // AUTH
 
 export type SignInProps = {
-  email?: FormDataEntryValue;
-  password: FormDataEntryValue;
+  email: string;
+  password: string;
 };
 
 export type VerifyTokenProps = {
-    token: string;
-}
+  token: string;
+};
 
 export type UserStateSlice = {
   loading: boolean;
@@ -16,14 +16,13 @@ export type UserStateSlice = {
   error: object | null | string;
 };
 
-
 // THEME
 
 export type ThemeMode = "light" | "dark";
 
 export type ThemeStateSlice = {
-    mode: ThemeMode;
-}
+  mode: ThemeMode;
+};
 
 // SnackBar
 
@@ -33,14 +32,13 @@ export type SnackbarVariant = "filled" | "outlined" | "standard";
 export type SnackbarAnchorOrigin = {
   vertical: "top" | "bottom";
   horizontal: "left" | "center" | "right";
-}
+};
 
-export type SnackbarStateSlice ={
-    open: boolean;
+export type SnackbarStateSlice = {
+  open: boolean;
   duration: number;
   message: string;
   severity: SnackbarSeverity;
   variant: SnackbarVariant;
   anchorOrigin: SnackbarAnchorOrigin;
-
-}
+};

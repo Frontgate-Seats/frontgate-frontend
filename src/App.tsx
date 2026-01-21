@@ -11,6 +11,9 @@ import { createBrowserRouter } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { closeSnackbar } from "./store/slices/snackbar.slice";
 
+// AUTH
+import { AuthProvider } from "./contexts/auth.context";
+
 // UTILS
 import { getTheme } from "./shared/utils/theme.util";
 import { route } from "./router";
@@ -34,21 +37,23 @@ const App: React.FC = () => {
   return (
     <ThemeProvider theme={theme} defaultMode="system">
       <CssBaseline />
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={snackbar.duration}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={snackbar.anchorOrigin}
-      >
-        <Alert
+      <AuthProvider>
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={snackbar.duration}
           onClose={handleCloseSnackbar}
-          severity={snackbar.severity}
-          variant={snackbar.variant}
+          anchorOrigin={snackbar.anchorOrigin}
         >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-      <RouterProvider router={router} />
+          <Alert
+            onClose={handleCloseSnackbar}
+            severity={snackbar.severity}
+            variant={snackbar.variant}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+        <RouterProvider router={router} />
+      </AuthProvider>
     </ThemeProvider>
   );
 };
