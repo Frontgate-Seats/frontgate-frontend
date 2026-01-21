@@ -27,11 +27,11 @@ const initialState: SalesState = {
 
 // Async thunk to fetch listings
 export const getSales = createAsyncThunk(
-  "listings",
-  async (data: DataGridQueryOptions, { dispatch, rejectWithValue }) => {
+  "sales/fetchSales",
+  async (event_id: string, { dispatch, rejectWithValue }) => {
     try {
-      const response = await salesApi.fetchSales(data);
-      return response.data;
+      const response = await salesApi.fetchSales(event_id);
+      return response;
     } catch (err: any) {
       const message = err?.message || "Failed to fetch Sales";
       dispatch(setSnackbar({ message, severity: "error" }));
@@ -52,7 +52,7 @@ const salesSlice = createSlice({
       })
       .addCase(getSales.fulfilled, (state, action) => {
         state.loading = false;
-        state.rows = action.payload.data;
+        state.rows = action.payload;
       })
       .addCase(getSales.rejected, (state, action) => {
         state.loading = false;

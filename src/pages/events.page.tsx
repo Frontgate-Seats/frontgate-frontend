@@ -58,26 +58,26 @@ export default function EventsPage() {
     error: eventsError,
   } = useSelector((state: RootState) => state.events);
 
-  const {
-    rows: { data: listingsMeta },
-    loading: listingsMetaLoading,
-  } = useSelector((state: RootState) => state.listingsMeta);
+  // const {
+  //   rows: { data: listingsMeta },
+  //   loading: listingsMetaLoading,
+  // } = useSelector((state: RootState) => state.listingsMeta);
+
+  // const {
+  //   rows: { data: salesMeta },
+  //   loading: salesMetaLoading,
+  // } = useSelector((state: RootState) => state.salesMeta);
 
   const {
-    rows: { data: salesMeta },
-    loading: salesMetaLoading,
-  } = useSelector((state: RootState) => state.salesMeta);
-
-  const {
-    rows: { data: sales, total: salesTotal },
+    rows,
     loading: salesLoading,
     error: salesErr,
   } = useSelector((state: RootState) => state.sales);
-
+console.log("rows : ", rows)
+  const { data: sales, total: salesTotal } = rows
   const {
     rows: { data: eventsExternalMappings },
   } = useSelector((state: RootState) => state.eventsExternalMappings);
-
   // ------------------------
   // Grid State
   // ------------------------
@@ -166,93 +166,12 @@ export default function EventsPage() {
   }, [dispatch, paginationModel, sortModel, filterModel]);
 
   const handlefetchSales = React.useCallback(async () => {
-    if (!selectedEvent || !eventsExternalMappings) return;
-
-    const salesFilters = {
-      items: [
-        {
-          field: "eventId",
-          operator: "equals",
-          value: eventsExternalMappings?.[0]?.external_event_id?.toString(),
-        },
-        ...salesFilterModel.items,
-      ],
-    };
-
-    await dispatch(
-      getSales({
-        filters: salesFilters,
-        page: salesPaginationModel.page,
-        pageSize: salesPaginationModel.pageSize,
-        sortFields: salesSortModel,
-      })
-    );
-  }, [
-    dispatch,
-    selectedEvent,
-    salesPaginationModel,
-    salesSortModel,
-    salesFilterModel,
-    eventsExternalMappings,
-  ]);
-
-  const handlefetchSalesMeta = React.useCallback(async () => {
-    if (!selectedEvent || !eventsExternalMappings) return;
-
-    const salesMetaFilters = {
-      items: [
-        {
-          field: "eventId",
-          operator: "equals",
-          value: eventsExternalMappings?.[0]?.external_event_id?.toString(),
-        },
-      ],
-    };
-
-    await dispatch(
-      getSalesMeta({
-        filters: salesMetaFilters,
-        page: -1,
-        pageSize: -1,
-      })
-    );
-  }, [
-    dispatch,
-    selectedEvent,
-    salesPaginationModel,
-    salesSortModel,
-    salesFilterModel,
-    eventsExternalMappings,
-  ]);
-
-  const handlefetchListingsMeta = React.useCallback(async () => {
-    if (!selectedEvent) return;
-
-    const listingMetaFilters = {
-      items: [
-        {
-          field: "eventId",
-          operator: "equals",
-          value: selectedEvent?.id?.toString(),
-        },
-      ],
-    };
-
-    await dispatch(
-      getListingsMeta({
-        filters: listingMetaFilters,
-        page: -1,
-        pageSize: -1,
-      })
-    );
-  }, [
-    dispatch,
-    selectedEvent,
-    salesPaginationModel,
-    salesSortModel,
-    salesFilterModel,
-    eventsExternalMappings,
-  ]);
+    if (eventsExternalMappings?.length > 0) {
+      await dispatch(
+        getSales(eventsExternalMappings?.[0]?.external_event_id?.toString())
+      );
+    }
+  }, [dispatch, eventsExternalMappings]);
 
   const handlefetchEventsExternalMappings = React.useCallback(async () => {
     if (!selectedEvent) return;
@@ -270,8 +189,6 @@ export default function EventsPage() {
     await dispatch(
       getEventsExternalMappings({
         filters: externalEventMappingsFilters,
-        page: 1,
-        pageSize: 1,
       })
     );
   }, [dispatch, selectedEvent]);
@@ -279,6 +196,7 @@ export default function EventsPage() {
   const handleRowClick = async (row: any) => {
     if (row.id === selectedEvent?.id) return;
     setSelectedEvent(row);
+    
 
     // Smooth scroll to top using ref
     setTimeout(() => {
@@ -287,79 +205,51 @@ export default function EventsPage() {
         block: "center",
       });
     }, 150);
-  };
 
-  const fetchGraphData = async () => {
-    await handlefetchEventsExternalMappings(),
-      await Promise.all([
-        handlefetchListingsMeta(),
-        handlefetchSalesMeta(),
-        handlefetchSales(),
-      ]);
+    await handlefetchEventsExternalMappings();
+    await handlefetchSales();
   };
 
   // ------------------------
   // Fetch listingsMeta and salesMeta for selected event (initial load + auto-refresh)
   // ------------------------
-  React.useEffect(() => {
-    if (!selectedEvent) return;
+  // React.useEffect(() => {
+  //   if (!eventsExternalMappings?.id) return;
 
-    fetchGraphData();
+    
 
-    // ✅ Then call every 10 minutes (only listings and sales meta, not sales data)
-    const intervalId = setInterval(() => fetchGraphData(), 600000); // 600000 ms = 10 minutes
+  //   // ✅ Then call every 10 minutes (only listings and sales meta, not sales data)
+  //   const intervalId = setInterval(() => handlefetchSales(), 600000); // 600000 ms = 10 minutes
 
-    // ✅ Cleanup on unmount or change in selectedEvent
-    return () => clearInterval(intervalId);
-  }, [selectedEvent, dispatch]);
+  //   // ✅ Cleanup on unmount or change in selectedEvent
+  //   return () => clearInterval(intervalId);
+  // }, [eventsExternalMappings?.id, dispatch]);
 
+  console.log("eventsExternalMappingsss: ", eventsExternalMappings)
   // ------------------------
   // Fetch sales data when sales table state changes
   // ------------------------
-  React.useEffect(() => {
-    if (!selectedEvent) return;
-
-    const seatgeekMatch = selectedEvent.matches?.find(
-      (m: any) => m.providerName === "seatgeek"
-    );
-
-    const salesFilters = {
-      items: [
-        { field: "eventId", operator: "equals", value: seatgeekMatch?.id },
-        ...salesFilterModel.items,
-      ],
-    };
-
-    dispatch(
-      getSales({
-        filters: salesFilters,
-        page: salesPaginationModel.page,
-        pageSize: salesPaginationModel.pageSize,
-        sortFields: salesSortModel,
-      })
-    );
-  }, [selectedEvent, dispatch]);
 
   // ------------------------
   // Chart Data using custom hooks
   // ------------------------
-  const datasetOne = useListingsChartData(
-    listingsMeta || [],
-    timeRangeGraphOne,
-    intervalGraphOne
-  );
+  // const datasetOne = useListingsChartData(
+  //   listingsMeta || [],
+  //   timeRangeGraphOne,
+  //   intervalGraphOne
+  // );
 
-  const datasetTwo = useListingsChartData(
-    listingsMeta || [],
-    timeRangeGraphTwo,
-    intervalGraphTwo
-  );
+  // const datasetTwo = useListingsChartData(
+  //   listingsMeta || [],
+  //   timeRangeGraphTwo,
+  //   intervalGraphTwo
+  // );
 
-  const datasetThree = useSalesChartData(
-    salesMeta || [],
-    timeRangeGraphThree,
-    intervalGraphThree
-  );
+  // const datasetThree = useSalesChartData(
+  //   salesMeta || [],
+  //   timeRangeGraphThree,
+  //   intervalGraphThree
+  // );
 
   // Sales data grid columns
   const salesColumns: CustomGridColDef[] = [
@@ -629,7 +519,7 @@ export default function EventsPage() {
             </Grid>
 
             {/* GRAPH 1 */}
-            <Grid size={{ xs: 12, md: 6 }}>
+            {/* <Grid size={{ xs: 12, md: 6 }}>
               <DynamicChart
                 title="Listings Trends"
                 dataset={datasetOne}
@@ -643,10 +533,10 @@ export default function EventsPage() {
                 intervalOptionsMap={INTERVAL_OPTIONS_MAP}
                 height={400}
               />
-            </Grid>
+            </Grid> */}
 
             {/* GRAPH 2 */}
-            <Grid size={{ xs: 12, md: 6 }}>
+            {/* <Grid size={{ xs: 12, md: 6 }}>
               <DynamicChart
                 title="Listings Trends"
                 dataset={datasetTwo}
@@ -660,10 +550,10 @@ export default function EventsPage() {
                 intervalOptionsMap={INTERVAL_OPTIONS_MAP}
                 height={400}
               />
-            </Grid>
+            </Grid> */}
 
             {/* GRAPH 3 */}
-            <Grid size={{ xs: 12, md: 6 }}>
+            {/* <Grid size={{ xs: 12, md: 6 }}>
               <DynamicChart
                 title="Sales Trends"
                 dataset={datasetThree}
@@ -677,10 +567,10 @@ export default function EventsPage() {
                 intervalOptionsMap={INTERVAL_OPTIONS_MAP}
                 height={400}
               />
-            </Grid>
+            </Grid> */}
 
             {/* SALES DATA GRID */}
-            <Grid size={{ xs: 12, md: 6 }}>
+            <Grid size={{ xs: 12, md: 12 }}>
               <CustomDataGrid
                 title="Sales Data"
                 rows={sales || []}

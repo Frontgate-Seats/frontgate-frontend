@@ -1,23 +1,17 @@
-import httpClient from "../clients/http.client";
-import type { DataGridQueryOptions } from "../shared/types/mui.type";
+import supabaseHttpClient from "../clients/supabaseHttp.client";
 
 // Backend is expected to return: { data: Event[], total: number }
-export const fetchSales = async ({
-  page,
-  pageSize,
-  sortFields,
-  filters,
-  search,
-}: DataGridQueryOptions) => {
-  const params = {
-    page,
-    pageSize,
-    ...(sortFields ? { sortFields: JSON.stringify(sortFields) } : []),
-    ...(filters ? { filters: JSON.stringify(filters) } : []),
-    search,
-  };
+export const fetchSales = async (event_id: string) => {
+  console.log("called");
 
-  return httpClient.get("/sales", { params });
+  const response = await supabaseHttpClient.get(
+    `/functions/v1/events-api/sales/${event_id}`,
+  );
+
+  return {
+    data: response.data.sales || [],
+    total: response.data.sales.length || 0,
+  };
 };
 
 const salesApi = {

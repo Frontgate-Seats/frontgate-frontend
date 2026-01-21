@@ -1,9 +1,14 @@
-import supabase from "../../clients/supabase.client";
+import supabaseClient from "../../clients/supabase.client";
 import type { DataGridQueryOptions } from "../types/mui.type";
 import { buildSupabaseQuery } from "../utils/supabase.util";
 
 // Response type
 export interface DatabaseResponse<T = any> {
+  data: T[];
+  total: number;
+}
+
+export interface FunctionResponse<T = any> {
   data: T[];
   total: number;
 }
@@ -17,7 +22,7 @@ export interface DatabaseOptions extends DataGridQueryOptions {
 // Main database fetcher
 export const getDBData = async (
   tableName: string,
-  options: DatabaseOptions = {}
+  options: DatabaseOptions = {},
 ): Promise<DatabaseResponse> => {
   const {
     page = 0,
@@ -30,7 +35,7 @@ export const getDBData = async (
   } = options;
 
   try {
-    const baseQuery = supabase
+    const baseQuery = supabaseClient
       .from(tableName)
       .select(selectFields, { count: "exact" });
 
@@ -56,6 +61,35 @@ export const getDBData = async (
     };
   } catch (error) {
     console.error(`Failed to fetch data from ${tableName}:`, error);
+    throw error;
+  }
+};
+// Supabase function invoker
+export const invokeFunction = async (
+  functionName: string,
+  options: DatabaseOptions = {},
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+): Promise<FunctionResponse> => {
+  try {
+    const { data, error } = await supabaseClient.functions.invoke(
+      functionName,
+      {
+        body: options,
+        method,
+      },
+    );
+
+    if (error) {
+      console.error(`Supabase function error for ${functionName}:`, error);
+      throw new Error(`Supabase function error: ${error.message}`);
+    }
+
+    return {
+      data: data || [],
+      total: data.count || 0,
+    };
+  } catch (error) {
+    console.error(`Failed to invoke function ${functionName}:`, error);
     throw error;
   }
 };

@@ -2,16 +2,9 @@ import { createClient } from "@supabase/supabase-js";
 import envConfigs from "../configs/env.configs";
 
 // Regular client for frontend operations (RLS enabled)
-const supabase = createClient(
+const supabaseClient = createClient(
   envConfigs.supabase.url,
-  envConfigs.supabase.serviceRoleKey,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
+  envConfigs.supabase.anonKey,
 );
 
-
-export default supabase;
+export default supabaseClient;
