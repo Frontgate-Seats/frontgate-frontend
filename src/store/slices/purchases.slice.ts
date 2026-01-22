@@ -28,7 +28,7 @@ export const getPurchases = createAsyncThunk(
   async (data: DataGridQueryOptions, { dispatch, rejectWithValue }) => {
     try {
       const response = await purchasesApi.fetchPurchases(data);
-      return response.data;
+      return response;
     } catch (err: any) {
       const message = err?.message || "Failed to fetch purchases";
       dispatch(setSnackbar({ message, severity: "error" }));
@@ -112,7 +112,7 @@ const purchasesSlice = createSlice({
       })
       .addCase(getPurchases.fulfilled, (state, action) => {
         state.loading = false;
-        state.rows = action.payload?.data || { data: [], total: 0 };
+        state.rows = action.payload || { data: [], total: 0 };
       })
       .addCase(getPurchases.rejected, (state, action) => {
         state.loading = false;
