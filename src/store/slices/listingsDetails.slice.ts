@@ -29,8 +29,8 @@ export const getSingleListingsDetails = createAsyncThunk(
   "listingsDetais",
   async (
     data: {
-      listingDBId: string;
-      listingId: string;
+      event_id: string;
+      listing_id: string;
       quantity: number;
       shippingCountry?: string;
       exclusiveListings?: boolean;

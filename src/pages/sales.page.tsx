@@ -16,7 +16,7 @@ import { useClientFilters } from "../hooks/useClientFilters";
 
 export default function SalesPage() {
   const dispatch = useAppDispatch();
-  const { eventId } = useParams();
+  const { event_id } = useParams();
 
   const {
     rows: { data: sales },
@@ -27,11 +27,11 @@ export default function SalesPage() {
 
   // Fetch sales data once
   React.useEffect(() => {
-    if (eventId) dispatch(getSales(eventId));
-  }, [dispatch, eventId]);
+    if (event_id) dispatch(getSales(event_id));
+  }, [dispatch, event_id]);
 
   const handleRefresh = () => {
-    if (eventId) dispatch(getSales(eventId));
+    if (event_id) dispatch(getSales(event_id));
   };
 
   const allColumns: CustomGridColDef[] = [

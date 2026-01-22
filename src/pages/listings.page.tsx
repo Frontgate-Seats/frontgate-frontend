@@ -42,7 +42,7 @@ import { getEvents } from "../store/slices/events.slice";
 export default function ListingsPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { eventId } = useParams();
+  const { event_id } = useParams();
 
   const {
     rows: { data: listingsData },
@@ -83,19 +83,19 @@ export default function ListingsPage() {
 
   // Fetch all listings data once
   React.useEffect(() => {
-    if (eventId) {
-      dispatch(getListings(eventId));
+    if (event_id) {
+      dispatch(getListings(event_id));
       dispatch(
         getEvents({
           page: 0,
           pageSize: 1,
           filters: {
-            items: [{ field: "id", operator: "equals", value: eventId }],
+            items: [{ field: "id", operator: "equals", value: event_id }],
           },
         }),
       );
     }
-  }, [dispatch, eventId]);
+  }, [dispatch, event_id]);
 
   const allColumns: CustomGridColDef[] = [
     {
@@ -188,7 +188,7 @@ export default function ListingsPage() {
   });
 
   const handleRefresh = () => {
-    if (eventId) dispatch(getListings(eventId));
+    if (event_id) dispatch(getListings(event_id));
   };
 
   const handleBuyClick = (listing: any) => {
@@ -208,11 +208,7 @@ export default function ListingsPage() {
   };
 
   React.useEffect(() => {
-    setQuantity(
-      Number(
-        selectedListing?.splits?.[selectedListing?.splits?.length - 1] ?? 0,
-      ),
-    );
+    setQuantity(Math.max(...(selectedListing?.splits ?? []), 0));
   }, [selectedListing?.splits]);
 
   React.useEffect(() => {
@@ -221,6 +217,7 @@ export default function ListingsPage() {
     );
   }, [listingsDetailsDataObj?.deliveryOptions]);
 
+  console.log("eventInfo : ", eventInfo)
   const steps: StepData[] = [
     {
       label: "Listing Details",
@@ -284,8 +281,8 @@ export default function ListingsPage() {
           onClick={async () => {
             await dispatch(
               getSingleListingsDetails({
-                listingDBId: selectedListing?._id as string,
-                listingId: selectedListing?.listingId as string,
+                event_id: eventInfo?.id,
+                listing_id: selectedListing?.id,
                 quantity,
               }),
             );
@@ -364,10 +361,10 @@ export default function ListingsPage() {
           onClick={async () => {
             await dispatch(
               createQuote({
-                listingDBId: selectedListing?._id,
-                listingId: selectedListing?.listingId,
+                event_id: eventInfo?.id,
+                listing_id: selectedListing?.id,
                 quantity,
-                deliveryMethodId: deliveryId,
+                delivery_id: deliveryId,
               }),
             );
             setModelActiveStep((prev) => prev + 1);
@@ -415,12 +412,22 @@ export default function ListingsPage() {
           onClick={async () => {
             await dispatch(
               createOrder({
-                listingDBId: selectedListing?._id,
-                listingId: selectedListing?.listingId,
-                deliveryMethodId: deliveryId,
-                quoteId: purchasesDataObj?.id,
-                totalAmount: purchasesDataObj?.totalCharge,
-                pricePer: listingsDetailsDataObj?.listing?.pricePer,
+                event_id: eventInfo?.id,
+                event_name: eventInfo?.name,
+                event_utc_date: eventInfo?.utc_date,
+
+                primary_performer_name: eventInfo?.primary_performer_name,
+
+                venue_id: eventInfo?.venue_id,
+                venue_name: eventInfo?.venue_name,
+
+                listing_id: selectedListing?.listing_id,
+                price_per: listingsDetailsDataObj?.listing?.pricePer,
+                row: selectedListing?.row,
+                section: selectedListing?.section_name,
+                total_amount: purchasesDataObj?.totalCharge,
+                quote_id: purchasesDataObj?.id,
+                delivery_id: deliveryId,
                 quantity,
               }),
             );
@@ -585,8 +592,8 @@ export default function ListingsPage() {
                   ["Event", eventInfo?.name || "—"],
                   [
                     "Date & Time",
-                    eventInfo?.localDate
-                      ? formatDateTime(eventInfo?.localDate)
+                    eventInfo?.local_date
+                      ? formatDateTime(eventInfo?.local_date)
                       : "-",
                   ],
                   [
@@ -755,8 +762,8 @@ export default function ListingsPage() {
                       Date & Time
                     </Typography>
                     <Typography variant="caption">
-                      {eventInfo?.localDate
-                        ? formatDateTime(eventInfo?.localDate)
+                      {eventInfo?.local_date
+                        ? formatDateTime(eventInfo?.local_date)
                         : "-"}
                     </Typography>
                   </Grid>

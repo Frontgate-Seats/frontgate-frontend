@@ -19,13 +19,17 @@ export const fetchListings = async (event_id: string) => {
 };
 
 export const fetchListingsDetails = async (payload: {
-  listingDBId: string;
-  listingId: string;
+  event_id: string;
+  listing_id: string;
   quantity: number;
   shippingCountry?: string;
   exclusiveListings?: boolean;
 }) => {
-  return httpClient.get("/listings/details", { params: payload });
+  const response = await supabaseHttpClient.get(
+    `/functions/v1/events-api/listingsDetails`,
+    { params: payload },
+  );
+  return response;
 };
 
 const listingsApi = {

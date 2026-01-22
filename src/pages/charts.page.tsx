@@ -51,7 +51,7 @@ import { useChartsPageData } from "../hooks/useChartData";
 import DynamicChart from "../components/common/charts/DynamicChart";
 
 type TopEventRow = {
-  eventId: string;
+  event_id: string;
   name?: string;
   startValue?: number | null;
   endValue?: number | null;
@@ -178,7 +178,7 @@ const ChartsPage: React.FC = () => {
 
     const filters = {
       items: [
-        { field: "eventId", operator: "equals", value: selectedEvent.eventId },
+        { field: "event_id", operator: "equals", value: selectedEvent.event_id },
       ],
     };
     dispatch(getListingsMeta({ filters, page: -1, pageSize: -1 }));
@@ -214,7 +214,7 @@ const ChartsPage: React.FC = () => {
       ),
     },
     {
-      field: "eventId",
+      field: "event_id",
       headerName: "Event ID",
       flex: 0.7,
       minWidth: 110,
@@ -315,7 +315,7 @@ const ChartsPage: React.FC = () => {
         <Button
           key="listings"
           onClick={() =>
-            window.open(`/listings/${params.row.eventId}`, "_blank")
+            window.open(`/listings/${params.row.event_id}`, "_blank")
           }
           variant="contained"
           size="small"
@@ -411,7 +411,7 @@ const ChartsPage: React.FC = () => {
 
   const handleRowClick = useCallback(
     (row: any) => {
-      if (row.eventId === selectedEvent?.eventId) return;
+      if (row.event_id === selectedEvent?.event_id) return;
       setSelectedEvent(row);
 
       // Smooth scroll to top

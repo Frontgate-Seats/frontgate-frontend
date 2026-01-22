@@ -8,6 +8,7 @@ const supabaseHttpClient = axios.create({
 supabaseHttpClient.interceptors.request.use((config) => {
   config.headers.authorization = `Bearer ${envConfigs.supabase.anonKey}`;
   config.headers.apikey = envConfigs.supabase.anonKey;
+  config.headers['Content-Type'] = 'application/json';
   return config;
 });
 

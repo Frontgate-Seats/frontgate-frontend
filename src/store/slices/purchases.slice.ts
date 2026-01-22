@@ -34,7 +34,7 @@ export const getPurchases = createAsyncThunk(
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
-  }
+  },
 );
 
 // 🔹 Create Purchase
@@ -42,16 +42,16 @@ export const createQuote = createAsyncThunk(
   "purchases/createQuote",
   async (
     data: {
-      listingDBId: string;
-      listingId: string;
-      deliveryMethodId: string;
+      event_id: string;
+      listing_id: string;
+      delivery_id: string;
 
       quantity: number;
 
       exclusiveListings?: boolean;
       shippingCountry?: string;
     },
-    { dispatch, rejectWithValue }
+    { dispatch, rejectWithValue },
   ) => {
     try {
       const response = await purchasesApi.createQuote(data);
@@ -63,24 +63,40 @@ export const createQuote = createAsyncThunk(
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
-  }
+  },
 );
 
 export const createOrder = createAsyncThunk(
   "purchases/createOrder",
   async (
     data: {
-      listingDBId: string;
-      listingId: string;
-      deliveryMethodId: string;
-      quoteId: string;
-      totalAmount: number;
+      // Event
+      event_id: string;
+      event_name: string;
+      event_utc_date: string;
+
+      // Venue
+      venue_id: string;
+      venue_name: string;
+
+      // Performer
+      primary_performer_name: string;
+
+      // Listing
+      listing_id: string;
+      delivery_id: string;
+      quote_id: string;
+      section: string;
+      row: string;
+
+      // Pricing
+      total_amount: number;
       quantity: number;
-      pricePer: number;
+      price_per: number;
 
       currency?: string;
     },
-    { dispatch, rejectWithValue }
+    { dispatch, rejectWithValue },
   ) => {
     try {
       const response = await purchasesApi.createOrder(data);
@@ -92,7 +108,7 @@ export const createOrder = createAsyncThunk(
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
-  }
+  },
 );
 
 const purchasesSlice = createSlice({

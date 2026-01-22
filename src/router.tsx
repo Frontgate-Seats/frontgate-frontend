@@ -56,7 +56,7 @@ export const route: RouteObject[] = [
         element: <ListingsPage />,
       },
       {
-        path: "/listings/:eventId",
+        path: "/listings/:event_id",
         element: <ListingsPage />,
       },
       {
@@ -64,7 +64,7 @@ export const route: RouteObject[] = [
         element: <SalesPage />,
       },
       {
-        path: "/sales/:eventId",
+        path: "/sales/:event_id",
         element: <SalesPage />,
       },
       {
