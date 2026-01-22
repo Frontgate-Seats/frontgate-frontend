@@ -37,6 +37,7 @@ import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { formatDateTime } from "../shared/utils/dateTime.util";
 import { useClientFilters } from "../hooks/useClientFilters";
+import { getEvents } from "../store/slices/events.slice";
 
 export default function ListingsPage() {
   const dispatch = useAppDispatch();
@@ -48,6 +49,12 @@ export default function ListingsPage() {
     loading: listingLoading,
     error: listingsError,
   } = useSelector((state: RootState) => state.listings);
+
+  const {
+    rows: { data: events },
+    loading: eventsLoading,
+    error: eventsError,
+  } = useSelector((state: RootState) => state.events);
 
   const {
     data: listingsDetailsDataObj,
@@ -70,23 +77,24 @@ export default function ListingsPage() {
   const [modelCompleted, setMdelCompleted] = React.useState(false);
 
   const eventInfo = React.useMemo(() => {
-    if (!listingsData?.length) return {};
-    return listingsData?.[0]?.eventDBId || {};
-  }, [listingsData]);
-
-  const venueInfo = React.useMemo(() => {
-    if (!listingsData?.length) return {};
-    return listingsData?.[0]?.venueDBId || {};
-  }, [listingsData]);
-
-  const performerInfo = React.useMemo(() => {
-    if (!listingsData?.length) return {};
-    return listingsData?.[0]?.performerDBId || {};
-  }, [listingsData]);
+    if (!events?.length) return {};
+    return events?.[0] || {};
+  }, [events]);
 
   // Fetch all listings data once
   React.useEffect(() => {
-    if (eventId) dispatch(getListings(eventId));
+    if (eventId) {
+      dispatch(getListings(eventId));
+      dispatch(
+        getEvents({
+          page: 0,
+          pageSize: 1,
+          filters: {
+            items: [{ field: "id", operator: "equals", value: eventId }],
+          },
+        }),
+      );
+    }
   }, [dispatch, eventId]);
 
   const allColumns: CustomGridColDef[] = [
@@ -99,7 +107,7 @@ export default function ListingsPage() {
       minWidth: 120,
     },
     {
-      field: "sectionName",
+      field: "section_name",
       headerName: "Section",
       type: "string",
       width: 180,
@@ -229,7 +237,7 @@ export default function ListingsPage() {
               <strong>Row:</strong> {selectedListing?.row}
             </Typography>
             <Typography variant="body2">
-              <strong>Subtotal:</strong> {selectedListing?.section}
+              <strong>Section:</strong> {selectedListing?.section_name}
             </Typography>
             <Typography variant="body2">
               <strong>Price:</strong> ${selectedListing?.price} per ticket
@@ -443,7 +451,7 @@ export default function ListingsPage() {
         ) : (
           <>
             <Grid size={{ xs: 12 }}>
-              {eventInfo?.name && (
+              {eventInfo && (
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="h4" fontWeight="bold" gutterBottom>
@@ -456,8 +464,8 @@ export default function ListingsPage() {
                           Date & Time
                         </Typography>
                         <Typography variant="body1">
-                          {eventInfo?.localDate
-                            ? formatDateTime(eventInfo?.localDate)
+                          {eventInfo?.local_date
+                            ? formatDateTime(eventInfo?.local_date)
                             : ""}
                         </Typography>
                       </Grid>
@@ -466,9 +474,7 @@ export default function ListingsPage() {
                           Venue
                         </Typography>
                         <Typography variant="body1">
-                          {venueInfo
-                            ? `${venueInfo?.city}, ${venueInfo?.stateCode} (${venueInfo.countryCode})`
-                            : "-"}
+                          {`${eventInfo.venue_name}, ${eventInfo?.venue_city}, ${eventInfo?.venue_state}`}
                         </Typography>
                       </Grid>
                       <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -476,7 +482,7 @@ export default function ListingsPage() {
                           Performer
                         </Typography>
                         <Typography variant="body1">
-                          {performerInfo ? `${performerInfo?.name}` : "-"}
+                          {eventInfo?.primary_performer_name}
                         </Typography>
                       </Grid>
                     </Grid>
@@ -585,13 +591,11 @@ export default function ListingsPage() {
                   ],
                   [
                     "Venue",
-                    venueInfo
-                      ? `${venueInfo?.city}, ${venueInfo?.stateCode} (${venueInfo.countryCode})`
-                      : "-",
+                    `${eventInfo.venue_name}, ${eventInfo?.venue_city}, ${eventInfo?.venue_state}`,
                   ],
-                  ["Performer", performerInfo?.name || "-"],
+                  ["Performer", eventInfo?.primary_performer_name],
                   ["Row", selectedListing?.row],
-                  ["Section", selectedListing?.section],
+                  ["Section", selectedListing?.section_name],
                   [
                     "Tickets",
                     `${quantity || 0} × $${
@@ -767,9 +771,7 @@ export default function ListingsPage() {
                       Venue
                     </Typography>
                     <Typography variant="caption">
-                      {venueInfo
-                        ? `${venueInfo?.city}, ${venueInfo?.stateCode} (${venueInfo.countryCode})`
-                        : "-"}
+                      {`${eventInfo.venue_name}, ${eventInfo?.venue_city}, ${eventInfo?.venue_state}`}
                     </Typography>
                   </Grid>
 
@@ -783,7 +785,7 @@ export default function ListingsPage() {
                       Performer
                     </Typography>
                     <Typography variant="caption">
-                      {performerInfo?.name || "-"}
+                      {eventInfo?.primary_performer_name}
                     </Typography>
                   </Grid>
                 </Grid>

@@ -12,7 +12,7 @@ export const fetchListings = async (event_id: string) => {
     data:
       response?.data?.listings?.map((d: any) => ({
         ...d,
-        sectionName: d.section.name,
+        section_name: d.section.name,
       })) || [],
     total: response?.data?.listings?.length || 0,
   };
