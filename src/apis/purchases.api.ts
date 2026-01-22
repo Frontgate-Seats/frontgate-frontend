@@ -1,22 +1,9 @@
 import httpClient from "../clients/http.client";
+import { getDBData } from "../shared/helpers/supabase.helper";
 import type { DataGridQueryOptions } from "../shared/types/mui.type";
 
-const fetchPurchases = async ({
-  page,
-  pageSize,
-  sortFields,
-  filters,
-  search,
-}: DataGridQueryOptions) => {
-  const params = {
-    page,
-    pageSize,
-    ...(sortFields ? { sortFields: JSON.stringify(sortFields) } : []),
-    ...(filters ? { filters: JSON.stringify(filters) } : []),
-    search,
-  };
-
-  return httpClient.get("/purchases", { params });
+const fetchPurchases = async (options: DataGridQueryOptions) => {
+  return getDBData("inventory", options);
 };
 
 export const createQuote = async (payload: {
@@ -49,7 +36,7 @@ export const createOrder = async (payload: {
 const purchasesApi = {
   fetchPurchases,
   createQuote,
-  createOrder
+  createOrder,
 };
 
 export default purchasesApi;

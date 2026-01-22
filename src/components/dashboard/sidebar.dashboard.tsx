@@ -99,7 +99,7 @@ export default function DashboardSidebar() {
                 !!matchPath("/sales/*", pathname) || pathname === "/sales"
               }
             /> */}
-            {/* <DashboardSidebarPageItem
+            <DashboardSidebarPageItem
               id="purchases"
               title="Purchases"
               icon={<StoreIcon />}
@@ -108,7 +108,7 @@ export default function DashboardSidebar() {
                 !!matchPath("/purchases/*", pathname) ||
                 pathname === "/purchases"
               }
-            /> */}
+            />
 
             {/* <DashboardSidebarPageItem
               id="charts"

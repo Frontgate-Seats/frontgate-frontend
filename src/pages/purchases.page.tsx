@@ -33,7 +33,7 @@ const PurchasesPage: React.FC = () => {
         pageSize: paginationModel.pageSize,
         sortFields: sortModel,
         filters: filterModel,
-      })
+      }),
     );
   }, [dispatch, paginationModel, sortModel, filterModel]);
 
@@ -44,13 +44,13 @@ const PurchasesPage: React.FC = () => {
         pageSize: paginationModel.pageSize,
         sortFields: sortModel,
         filters: filterModel,
-      })
+      }),
     );
   }, [dispatch, paginationModel, sortModel, filterModel]);
 
   const columns: CustomGridColDef[] = [
     {
-      field: "eventId",
+      field: "event_id",
       headerName: "Event ID",
       width: 160,
       type: "string",
@@ -67,13 +67,13 @@ const PurchasesPage: React.FC = () => {
       ),
     },
     {
-      field: "listingId",
+      field: "listing_id",
       headerName: "Listing ID",
       type: "string",
       width: 160,
     },
     {
-      field: "purchaseId",
+      field: "purchase_id",
       headerName: "PO ID",
       type: "string",
       width: 160,
@@ -90,13 +90,13 @@ const PurchasesPage: React.FC = () => {
       ),
     },
     {
-      field: "inventoryId",
+      field: "inventory_id",
       headerName: "Inventory ID",
       type: "string",
       width: 160,
     },
     {
-      field: "sectionName",
+      field: "section",
       headerName: "Section",
       type: "string",
       flex: 1,
@@ -120,7 +120,7 @@ const PurchasesPage: React.FC = () => {
       max: 1000,
     },
     {
-      field: "totalAmount",
+      field: "total_amount",
       headerName: "Total",
       width: 100,
       type: "number",
@@ -143,7 +143,7 @@ const PurchasesPage: React.FC = () => {
       type: "string",
     },
     {
-      field: "purchaseStatus",
+      field: "purchase_status",
       headerName: "PO Status",
       headerAlign: "center",
       align: "center",
@@ -151,7 +151,7 @@ const PurchasesPage: React.FC = () => {
       type: "string",
     },
     {
-      field: "inventoryStatus",
+      field: "inventory_status",
       headerName: "Inventory Status",
       headerAlign: "center",
       align: "center",

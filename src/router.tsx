@@ -21,7 +21,7 @@ const DashboardLayout = Loadable(
 const EventsPage = Loadable(lazy(() => import("./pages/events.page")));
 const ListingsPage = Loadable(lazy(() => import("./pages/listings.page")));
 const SalesPage = Loadable(lazy(() => import("./pages/sales.page")));
-// const PurchasesPage = Loadable(lazy(() => import("./pages/purchases.page")));
+const PurchasesPage = Loadable(lazy(() => import("./pages/purchases.page")));
 // const ChartsPage = Loadable(lazy(() => import("./pages/charts.page")));
 
 const SignInAuthPage = Loadable(
@@ -67,10 +67,10 @@ export const route: RouteObject[] = [
         path: "/sales/:eventId",
         element: <SalesPage />,
       },
-      // {
-      //   path: "/purchases",
-      //   element: <PurchasesPage />,
-      // },
+      {
+        path: "/purchases",
+        element: <PurchasesPage />,
+      },
       // {
       //   path: "/charts",
       //   element: <ChartsPage />,
