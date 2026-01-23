@@ -12,9 +12,8 @@ import { useDashboardLayoutContext } from "../../contexts/dashboardLayout.contex
 import ThemeSwitcher from "../common/themeSwitcher.common";
 import MenuIcon from "@mui/icons-material/Menu";
 import MenuOpenIcon from "@mui/icons-material/MenuOpen";
-import LogoutIcon from "@mui/icons-material/Logout";
-import { logout } from "../../store/slices/auth.slice";
 import { useAppDispatch } from "../../store/reducers/root.reducer";
+import LogoutButton from "../auth/LogoutButton";
 
 const AppBar = styled(MuiAppBar)(({ theme }) => ({
   borderWidth: 0,
@@ -89,16 +88,7 @@ export default function DashboardHeader({ logo }: DashboardHeaderProps) {
           <Stack direction="row" alignItems="center" spacing={1}>
             <ThemeSwitcher />
 
-            <Tooltip title="Logout">
-              <IconButton
-                onClick={() => {
-                  dispatch(logout()) 
-                  navigate("/auth/signin");
-                }}
-              >
-                <LogoutIcon />
-              </IconButton>
-            </Tooltip>
+            <LogoutButton variant="icon" />
           </Stack>
         </Stack>
       </Toolbar>
