@@ -7,12 +7,11 @@ import IconButton from "@mui/material/IconButton";
 import Toolbar from "@mui/material/Toolbar";
 import Tooltip from "@mui/material/Tooltip";
 import Stack from "@mui/material/Stack";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { useDashboardLayoutContext } from "../../contexts/dashboardLayout.context";
 import ThemeSwitcher from "../common/themeSwitcher.common";
 import MenuIcon from "@mui/icons-material/Menu";
 import MenuOpenIcon from "@mui/icons-material/MenuOpen";
-import { useAppDispatch } from "../../store/reducers/root.reducer";
 import LogoutButton from "../auth/LogoutButton";
 
 const AppBar = styled(MuiAppBar)(({ theme }) => ({
@@ -39,10 +38,8 @@ export interface DashboardHeaderProps {
 }
 
 export default function DashboardHeader({ logo }: DashboardHeaderProps) {
-   const dispatch = useAppDispatch();
   const { isNavigationExpanded, handleToggleHeaderMenu } =
     useDashboardLayoutContext();
-  const navigate = useNavigate();
 
   const handleMenuOpen = React.useCallback(() => {
     handleToggleHeaderMenu(!isNavigationExpanded);
