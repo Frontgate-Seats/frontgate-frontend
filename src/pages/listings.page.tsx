@@ -200,8 +200,8 @@ export default function ListingsPage() {
     setModelActiveStep(0);
     setMdelCompleted(false);
     setOpenModel(false);
-    resetPurchase();
-    resetListingDetails();
+    dispatch(resetPurchase());
+    dispatch(resetListingDetails());
   };
 
   React.useEffect(() => {
