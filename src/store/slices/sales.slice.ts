@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { setSnackbar } from "./snackbar.slice";
-import type { DataGridQueryOptions } from "../../shared/types/mui.type";
 import salesApi from "../../apis/sales.api";
 
 export interface SalesState {

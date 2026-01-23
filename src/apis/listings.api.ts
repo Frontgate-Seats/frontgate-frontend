@@ -1,4 +1,3 @@
-import httpClient from "../clients/http.client";
 import supabaseHttpClient from "../clients/supabaseHttp.client";
 
 // Backend is expected to return: { data: Event[], total: number }

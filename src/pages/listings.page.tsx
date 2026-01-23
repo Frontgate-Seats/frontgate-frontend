@@ -13,7 +13,6 @@ import {
   MenuItem,
   CircularProgress,
   Paper,
-  Link,
 } from "@mui/material";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
@@ -52,8 +51,6 @@ export default function ListingsPage() {
 
   const {
     rows: { data: events },
-    loading: eventsLoading,
-    error: eventsError,
   } = useSelector((state: RootState) => state.events);
 
   const {

@@ -1,4 +1,3 @@
-import httpClient from "../clients/http.client";
 import supabaseHttpClient from "../clients/supabaseHttp.client";
 import { getDBData } from "../shared/helpers/supabase.helper";
 import type { DataGridQueryOptions } from "../shared/types/mui.type";

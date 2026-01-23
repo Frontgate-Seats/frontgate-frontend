@@ -5,8 +5,6 @@ import List from "@mui/material/List";
 import Toolbar from "@mui/material/Toolbar";
 import { matchPath, useLocation } from "react-router";
 import EventIcon from "@mui/icons-material/Event";
-import ListIcon from "@mui/icons-material/List";
-import BarChartIcon from "@mui/icons-material/BarChart";
 
 import {
   getDrawerSxTransitionMixin,

@@ -89,7 +89,7 @@ export const getCurrentUser = createAsyncThunk(
 
 export const initializeAuth = createAsyncThunk(
   `${name}/auth/initialize`,
-  async (_, { dispatch }) => {
+  async (_, { }) => {
     try {
       // Get initial session
       const {
