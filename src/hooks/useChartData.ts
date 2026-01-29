@@ -119,12 +119,13 @@ export const useListingsChartData = (
 
 // Hook for building sales meta dataset
 export const useSalesChartData = (
-  salesMeta: any[],
+  sales: any[],
   timeRange: string,
   interval: string
 ): ChartDataPoint[] => {
+
   return React.useMemo(() => {
-    if (!salesMeta || salesMeta.length === 0) return [];
+    if (!sales || sales.length === 0) return [];
 
     const now = moment.utc();
     const fromDate = now.clone();
@@ -159,19 +160,19 @@ export const useSalesChartData = (
       ? parseInt(interval) * 60 * 60 * 1000
       : parseInt(interval) * 60 * 1000;
 
-    const sorted = [...salesMeta].sort(
+    const sorted = [...sales].sort(
       (a, b) =>
-        moment.utc(a.createdAt).valueOf() - moment.utc(b.createdAt).valueOf()
+        moment.utc(a.purchased_at).valueOf() - moment.utc(b.purchased_at).valueOf()
     );
 
     const rangeData = sorted.filter((item) => {
-      const t = moment.utc(item.createdAt).valueOf();
+      const t = moment.utc(item.purchased_at).valueOf();
       return t >= rangeStart && t <= rangeEnd;
     });
 
     const grouped: Record<number, any[]> = {};
     rangeData.forEach((item) => {
-      const time = moment.utc(item.createdAt).valueOf();
+      const time = moment.utc(item.purchased_at).valueOf();
       const bucket = Math.floor(time / intervalMs) * intervalMs;
       if (!grouped[bucket]) grouped[bucket] = [];
       grouped[bucket].push(item);
@@ -197,17 +198,24 @@ export const useSalesChartData = (
           bucketStartUTC: moment.utc(t).toISOString(),
         });
       } else {
-        const avg = (f: string) =>
-          arr.reduce((s, i) => s + (i[f] ?? 0), 0) / arr.length;
+        const prices = arr.map(item => item.base_price);
+        const quantities = arr.map(item => item.quantity);
+        const totalRevenue = arr.reduce((sum, item) => sum + (item.base_price * item.quantity), 0);
+        const totalQuantity = quantities.reduce((sum, qty) => sum + qty, 0);
+        const sortedPrices = [...prices].sort((a, b) => a - b);
+        
+        const medianPrice = sortedPrices.length % 2 === 0
+          ? (sortedPrices[sortedPrices.length / 2 - 1] + sortedPrices[sortedPrices.length / 2]) / 2
+          : sortedPrices[Math.floor(sortedPrices.length / 2)];
 
         result.push({
-          totalSales: Math.round(avg("totalSales")),
-          totalUnits: Math.round(avg("totalUnits")),
-          totalSalesPrice: +avg("totalSalesPrice").toFixed(2),
-          minPrice: +avg("minPrice").toFixed(2),
-          maxPrice: +avg("maxPrice").toFixed(2),
-          averagePrice: +avg("averagePrice").toFixed(2),
-          medianPrice: +avg("medianPrice").toFixed(2),
+          totalSales: arr.length,
+          totalUnits: totalQuantity,
+          totalSalesPrice: +totalRevenue.toFixed(2),
+          minPrice: +Math.min(...prices).toFixed(2),
+          maxPrice: +Math.max(...prices).toFixed(2),
+          averagePrice: +(prices.reduce((sum, price) => sum + price, 0) / prices.length).toFixed(2),
+          medianPrice: +medianPrice.toFixed(2),
           time: formatDateTime(moment.utc(t).local()),
           bucketStartUTC: moment.utc(t).toISOString(),
         });
@@ -215,7 +223,7 @@ export const useSalesChartData = (
     }
 
     return result;
-  }, [salesMeta, timeRange, interval]);
+  }, [sales, timeRange, interval]);
 };
 
 // Hook for building charts page dataset (similar to listings but with different structure)

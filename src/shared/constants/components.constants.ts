@@ -43,7 +43,7 @@ export const LISTINGS_META_CHART_CONFIG: ChartConfig = {
 };
 
 // Sales Meta Chart Configuration
-export const SALES_META_CHART_CONFIG: ChartConfig = {
+export const SALES_TRENDS_CHART_CONFIG: ChartConfig = {
   lineSeries: [
     {
       type: "line",

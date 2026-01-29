@@ -122,21 +122,21 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                 </Select>
               </FormControl>
 
-              <FormControl size="small">
-                <InputLabel>Interval</InputLabel>
-                <Select
+                <FormControl size="small">
+                  <InputLabel>Interval</InputLabel>
+                  <Select
                   value={interval}
-                  label="Interval"
-                  onChange={(e) => onIntervalChange(e.target.value)}
-                  sx={{ minWidth: 120 }}
-                >
-                  {intervalOptionsMap[timeRange]?.map((intervalOption) => (
-                    <MenuItem key={intervalOption} value={intervalOption}>
-                      {intervalOption}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                    label="Interval"
+                    onChange={(e) => onIntervalChange(e.target.value)}
+                    sx={{ minWidth: 120 }}
+                  >
+                    {intervalOptionsMap[timeRange]?.map((intervalOption) => (
+                      <MenuItem key={intervalOption} value={intervalOption}>
+                        {intervalOption}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
             </Stack>
           </Stack>
 
@@ -193,7 +193,7 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                   onItemClick={handleLegendClick}
                 />
               </Box>
-              
+
               <Box sx={{ flex: 1, position: "relative", minHeight: 0 }}>
                 <ChartsSurface
                   style={{

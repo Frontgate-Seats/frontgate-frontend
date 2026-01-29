@@ -34,6 +34,14 @@ import type { CustomGridColDef } from "../shared/types/mui.type";
 import { getSales } from "../store/slices/sales.slice";
 import { getEventsExternalMappings } from "../store/slices/eventsExternalMappings.slice";
 import { useClientFilters } from "../hooks/useClientFilters";
+import {
+  getDefaultInterval,
+  INTERVAL_OPTIONS_MAP,
+  SALES_TRENDS_CHART_CONFIG,
+  TIME_RANGE_OPTIONS,
+} from "../shared/constants/components.constants";
+import DynamicChart from "../components/common/charts/DynamicChart";
+import { useSalesChartData } from "../hooks/useChartData";
 
 export default function EventsPage() {
   const dispatch = useAppDispatch();
@@ -56,6 +64,7 @@ export default function EventsPage() {
   const {
     rows: { data: eventsExternalMappings },
   } = useSelector((state: RootState) => state.eventsExternalMappings);
+
   // ------------------------
   // Grid State
   // ------------------------
@@ -66,19 +75,34 @@ export default function EventsPage() {
   ]);
   const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
     items: [
-      // { field: "category_name", operator: "is", value: "Sports" },
-      // {
-      //   field: "local_date",
-      //   operator: "onOrAfter",
-      //   value: moment().toISOString(),
-      // },
-      // {
-      //   field: "local_date",
-      //   operator: "onOrBefore",
-      //   value: moment().add(6, "months").toISOString(),
-      // },
+      {
+        field: "local_date",
+        operator: "onOrAfter",
+        value: moment().toISOString(),
+      },
+      {
+        field: "local_date",
+        operator: "onOrBefore",
+        value: moment().add(6, "months").toISOString(),
+      },
     ],
   });
+
+  // ------------------------
+  // Sales Chart State
+  // ------------------------
+  const [timeSalesGraph, setTimeSalesGraph] = React.useState("1d");
+  const [intervalSalesGraph, setIntervalSalesGraph] = React.useState("1h");
+
+  React.useEffect(() => {
+    setIntervalSalesGraph(getDefaultInterval(timeSalesGraph));
+  }, [timeSalesGraph]);
+
+  const datasetSalesGraph = useSalesChartData(
+    sales || [],
+    timeSalesGraph,
+    intervalSalesGraph,
+  );
 
   // ------------------------
   // Selected Event State
@@ -120,7 +144,7 @@ export default function EventsPage() {
       max: 20000,
       type: "number",
       valueFormatter: (value: any) =>
-        typeof value === "number" && value >= 0 ? `$${value.toFixed(2)}` : "-",
+        typeof value === "number" && value >= 0 ? `${value.toFixed(2)}` : "-",
     },
     {
       field: "quantity",
@@ -177,17 +201,14 @@ export default function EventsPage() {
     );
   }, [dispatch, paginationModel, sortModel, filterModel]);
 
-  const handlefetchSales = React.useCallback(
-    async () => {
-      const external_event_id =
-        eventsExternalMappings?.[0]?.external_event_id?.toString();
-      
-      if (!external_event_id) return;
-      
-      await dispatch(getSales(external_event_id));
-    },
-    [dispatch, eventsExternalMappings],
-  );
+  const handlefetchSales = React.useCallback(async () => {
+    const external_event_id =
+      eventsExternalMappings?.[0]?.external_event_id?.toString();
+
+    if (!external_event_id) return;
+
+    await dispatch(getSales(external_event_id));
+  }, [dispatch, eventsExternalMappings]);
 
   const handlefetchEventsExternalMappings = React.useCallback(
     async (event_id: string) => {
@@ -235,10 +256,7 @@ export default function EventsPage() {
 
     handlefetchSales();
 
-    const intervalId = setInterval(
-      () => handlefetchSales(),
-      600000,
-    );
+    const intervalId = setInterval(() => handlefetchSales(), 600000);
 
     return () => clearInterval(intervalId);
   }, [eventsExternalMappings, handlefetchSales]);
@@ -246,7 +264,6 @@ export default function EventsPage() {
   // ------------------------
   // Data Grid Columns
   // ------------------------
-
   const columns: CustomGridColDef[] = [
     {
       field: "view",
@@ -376,7 +393,7 @@ export default function EventsPage() {
       type: "number",
       min: 0,
       max: 20000,
-      valueFormatter: (value) => (value >= 0 ? `$${value}` : "-"),
+      valueFormatter: (value) => (value >= 0 ? `${value}` : "-"),
     },
     {
       field: "actions",
@@ -459,8 +476,25 @@ export default function EventsPage() {
               </Card>
             </Grid>
 
+            {/* Sales Trends */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <DynamicChart
+                title="Sales Trends"
+                dataset={datasetSalesGraph}
+                chartConfig={SALES_TRENDS_CHART_CONFIG}
+                loading={salesLoading}
+                timeRange={timeSalesGraph}
+                interval={intervalSalesGraph}
+                onTimeRangeChange={setTimeSalesGraph}
+                onIntervalChange={setIntervalSalesGraph}
+                timeRangeOptions={TIME_RANGE_OPTIONS}
+                intervalOptionsMap={INTERVAL_OPTIONS_MAP}
+                height={400}
+              />
+            </Grid>
+
             {/* SALES DATA GRID */}
-            <Grid size={{ xs: 12, md: 12 }}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <CustomDataGrid
                 title="Sales Data"
                 rows={paginatedSales}
