@@ -7,7 +7,7 @@ import { ThemeProvider, CssBaseline, Snackbar, Alert } from "@mui/material";
 import { RouterProvider } from "react-router-dom";
 import { createBrowserRouter } from "react-router-dom";
 
-// REDUX
+// REDUXX
 import { useSelector, useDispatch } from "react-redux";
 import { closeSnackbar } from "./store/slices/snackbar.slice";
 
