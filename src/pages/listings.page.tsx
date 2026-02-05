@@ -656,7 +656,7 @@ export default function ListingsPage() {
               onClick={(e) => {
                 close();
                 e.stopPropagation();
-                const url = `/purchases`;
+                const url = `/functions/v1/events-api/ui/purchases`;
                 if (e.ctrlKey || e.metaKey) {
                   window.open(url, "_blank");
                 } else {

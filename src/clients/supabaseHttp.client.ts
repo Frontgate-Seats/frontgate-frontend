@@ -2,7 +2,7 @@ import axios from "axios";
 import envConfigs from "../configs/env.configs";
 
 const supabaseHttpClient = axios.create({
-  baseURL: `${envConfigs.supabase.url}`,
+  baseURL: `${envConfigs.server.url}`,
 });
 
 supabaseHttpClient.interceptors.request.use((config) => {

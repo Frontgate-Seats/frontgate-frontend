@@ -405,7 +405,7 @@ export default function EventsPage() {
       getActions: (params) => [
         <Button
           key="listings"
-          onClick={() => window.open(`/listings/${params.row.id}`, "_blank")}
+          onClick={() => window.open(`/functions/v1/events-api/ui/listings/${params.row.id}`, "_blank")}
           variant="contained"
           size="small"
         >

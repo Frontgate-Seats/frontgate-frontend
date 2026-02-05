@@ -315,7 +315,7 @@ const ChartsPage: React.FC = () => {
         <Button
           key="listings"
           onClick={() =>
-            window.open(`/listings/${params.row.event_id}`, "_blank")
+            window.open(`/functions/v1/events-api/ui/listings/${params.row.event_id}`, "_blank")
           }
           variant="contained"
           size="small"
