@@ -5,6 +5,7 @@ import List from "@mui/material/List";
 import Toolbar from "@mui/material/Toolbar";
 import { matchPath, useLocation } from "react-router";
 import EventIcon from "@mui/icons-material/Event";
+import FeedbackIcon from "@mui/icons-material/Feedback";
 
 import {
   getDrawerSxTransitionMixin,
@@ -105,6 +106,17 @@ export default function DashboardSidebar() {
               selected={
                 !!matchPath("/purchases/*", pathname) ||
                 pathname === "/purchases"
+              }
+            />
+
+            <DashboardSidebarPageItem
+              id="feedbacks"
+              title="Feedbacks"
+              icon={<FeedbackIcon />}
+              href="/feedbacks"
+              selected={
+                !!matchPath("/feedbacks/*", pathname) ||
+                pathname === "/feedbacks"
               }
             />
 

@@ -39,6 +39,50 @@ export const getEvents = createAsyncThunk(
   }
 );
 
+// Async thunk to start monitoring
+export const startEventMonitoring = createAsyncThunk(
+  "events/startMonitoring",
+  async (
+    { eventId, queryOptions }: { eventId: string; queryOptions?: DataGridQueryOptions },
+    { dispatch, rejectWithValue }
+  ) => {
+    try {
+      await eventsApi.startMonitoring(eventId);
+      dispatch(setSnackbar({ message: "Monitoring started successfully", severity: "success" }));
+      // Refetch events to get updated data
+      if (queryOptions) {
+        dispatch(getEvents(queryOptions));
+      }
+    } catch (err: any) {
+      const message = err?.message || "Failed to start monitoring";
+      dispatch(setSnackbar({ message, severity: "error" }));
+      return rejectWithValue(message);
+    }
+  }
+);
+
+// Async thunk to stop monitoring
+export const stopEventMonitoring = createAsyncThunk(
+  "events/stopMonitoring",
+  async (
+    { eventId, queryOptions }: { eventId: string; queryOptions?: DataGridQueryOptions },
+    { dispatch, rejectWithValue }
+  ) => {
+    try {
+      await eventsApi.stopMonitoring(eventId);
+      dispatch(setSnackbar({ message: "Monitoring stopped successfully", severity: "success" }));
+      // Refetch events to get updated data
+      if (queryOptions) {
+        dispatch(getEvents(queryOptions));
+      }
+    } catch (err: any) {
+      const message = err?.message || "Failed to stop monitoring";
+      dispatch(setSnackbar({ message, severity: "error" }));
+      return rejectWithValue(message);
+    }
+  }
+);
+
 const eventsSlice = createSlice({
   name: "events",
   initialState,

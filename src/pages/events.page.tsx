@@ -3,15 +3,18 @@ import { useSelector } from "react-redux";
 import {
   Alert,
   Typography,
-  Button,
   Card,
   CardContent,
   Grid,
   Stack,
   Divider,
   Link,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from "@mui/material";
-import { BarChart } from "@mui/icons-material";
+import { BarChart, MoreVert, Visibility, PlayArrow, Stop } from "@mui/icons-material";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import type {
@@ -24,7 +27,7 @@ import moment from "moment";
 
 import type { RootState } from "../store";
 import { formatDateTime } from "../shared/utils/dateTime.util";
-import { getEvents } from "../store/slices/events.slice";
+import { getEvents, startEventMonitoring, stopEventMonitoring } from "../store/slices/events.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
 import { AdapterMoment } from "@mui/x-date-pickers/AdapterMoment";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -33,15 +36,19 @@ import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { getSales } from "../store/slices/sales.slice";
 import { getEventsExternalMappings } from "../store/slices/eventsExternalMappings.slice";
+import { getListingTrends } from "../store/slices/listingTrends.slice";
 import { useClientFilters } from "../hooks/useClientFilters";
 import {
   getDefaultInterval,
   INTERVAL_OPTIONS_MAP,
   SALES_TRENDS_CHART_CONFIG,
+  LISTING_TRENDS_SHORT_CHART_CONFIG,
+  LISTING_TRENDS_LONG_CHART_CONFIG,
   TIME_RANGE_OPTIONS,
 } from "../shared/constants/components.constants";
 import DynamicChart from "../components/common/charts/DynamicChart";
-import { useSalesChartData } from "../hooks/useChartData";
+import { useSalesChartData, useListingTrendsChartData } from "../hooks/useChartData";
+import { ConfirmDialog } from "../components/common/dialogs";
 
 export default function EventsPage() {
   const dispatch = useAppDispatch();
@@ -64,6 +71,10 @@ export default function EventsPage() {
   const {
     rows: { data: eventsExternalMappings },
   } = useSelector((state: RootState) => state.eventsExternalMappings);
+  const {
+    rows: { data: listingTrends },
+    loading: listingTrendsLoading,
+  } = useSelector((state: RootState) => state.listingTrends);
 
   // ------------------------
   // Grid State
@@ -105,9 +116,54 @@ export default function EventsPage() {
   );
 
   // ------------------------
+  // Listing Trends Chart State (Short-term)
+  // ------------------------
+  const [timeListingShort, setTimeListingShort] = React.useState("1d");
+  const [intervalListingShort, setIntervalListingShort] = React.useState("1h");
+
+  React.useEffect(() => {
+    setIntervalListingShort(getDefaultInterval(timeListingShort));
+  }, [timeListingShort]);
+
+  const datasetListingShort = useListingTrendsChartData(
+    listingTrends || [],
+    timeListingShort,
+    intervalListingShort,
+  );
+
+  // ------------------------
+  // Listing Trends Chart State (Long-term)
+  // ------------------------
+  const [timeListingLong, setTimeListingLong] = React.useState("7d");
+  const [intervalListingLong, setIntervalListingLong] = React.useState("3h");
+
+  React.useEffect(() => {
+    setIntervalListingLong(getDefaultInterval(timeListingLong));
+  }, [timeListingLong]);
+
+  const datasetListingLong = useListingTrendsChartData(
+    listingTrends || [],
+    timeListingLong,
+    intervalListingLong,
+  );
+
+  // ------------------------
   // Selected Event State
   // ------------------------
   const [selectedEvent, setSelectedEvent] = React.useState<any>(null);
+
+  // ------------------------
+  // Confirmation Dialog State
+  // ------------------------
+  const [confirmDialog, setConfirmDialog] = React.useState<{
+    open: boolean;
+    eventId: string | null;
+    eventName: string | null;
+  }>({
+    open: false,
+    eventId: null,
+    eventName: null,
+  });
 
   // ------------------------
   // Sales Data Grid Columns
@@ -201,6 +257,23 @@ export default function EventsPage() {
     );
   }, [dispatch, paginationModel, sortModel, filterModel]);
 
+  const handleConfirmStopMonitoring = () => {
+    if (confirmDialog.eventId) {
+      const queryOptions = {
+        page: paginationModel.page,
+        pageSize: paginationModel.pageSize,
+        sortFields: sortModel,
+        filters: filterModel,
+      };
+      dispatch(stopEventMonitoring({ eventId: confirmDialog.eventId, queryOptions }));
+    }
+    setConfirmDialog({ open: false, eventId: null, eventName: null });
+  };
+
+  const handleCancelStopMonitoring = () => {
+    setConfirmDialog({ open: false, eventId: null, eventName: null });
+  };
+
   const handlefetchSales = React.useCallback(async () => {
     const external_event_id =
       eventsExternalMappings?.[0]?.external_event_id?.toString();
@@ -209,6 +282,11 @@ export default function EventsPage() {
 
     await dispatch(getSales(external_event_id));
   }, [dispatch, eventsExternalMappings]);
+
+  const handlefetchListingTrends = React.useCallback(async () => {
+    if (!selectedEvent?.id) return;
+    await dispatch(getListingTrends(selectedEvent.id.toString()));
+  }, [dispatch, selectedEvent]);
 
   const handlefetchEventsExternalMappings = React.useCallback(
     async (event_id: string) => {
@@ -260,6 +338,19 @@ export default function EventsPage() {
 
     return () => clearInterval(intervalId);
   }, [eventsExternalMappings, handlefetchSales]);
+
+  // ------------------------
+  // Auto-fetch listing trends for selected event
+  // ------------------------
+  React.useEffect(() => {
+    if (!selectedEvent?.id) return;
+
+    handlefetchListingTrends();
+
+    const intervalId = setInterval(() => handlefetchListingTrends(), 600000);
+
+    return () => clearInterval(intervalId);
+  }, [selectedEvent, handlefetchListingTrends]);
 
   // ------------------------
   // Data Grid Columns
@@ -397,21 +488,93 @@ export default function EventsPage() {
     },
     {
       field: "actions",
-      type: "actions",
       headerName: "Actions",
       headerAlign: "center",
       align: "center",
-      minWidth: 120,
-      getActions: (params) => [
-        <Button
-          key="listings"
-          onClick={() => window.open(`/functions/v1/events-api/ui/listings/${params.row.id}`, "_blank")}
-          variant="contained"
-          size="small"
-        >
-          View Listings
-        </Button>,
-      ],
+      width: 80,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => {
+        const eventId = params.row.id.toString();
+        const isMonitoring = params.row.is_monitored || false;
+
+        const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+        const open = Boolean(anchorEl);
+
+        const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+          event.stopPropagation();
+          setAnchorEl(event.currentTarget);
+        };
+
+        const handleClose = () => {
+          setAnchorEl(null);
+        };
+
+        const handleViewListings = () => {
+          window.open(`/functions/v1/events-api/ui/listings/${params.row.id}`, "_blank");
+          handleClose();
+        };
+
+        const handleToggleMonitoring = () => {
+          const queryOptions = {
+            page: paginationModel.page,
+            pageSize: paginationModel.pageSize,
+            sortFields: sortModel,
+            filters: filterModel,
+          };
+
+          if (isMonitoring) {
+            // Show confirmation dialog for stopping monitoring
+            setConfirmDialog({
+              open: true,
+              eventId,
+              eventName: params.row.name,
+            });
+          } else {
+            // Start monitoring immediately
+            dispatch(startEventMonitoring({ eventId, queryOptions }));
+          }
+          handleClose();
+        };
+
+        return (
+          <>
+            <IconButton
+              onClick={handleClick}
+              size="small"
+              aria-controls={open ? 'actions-menu' : undefined}
+              aria-haspopup="true"
+              aria-expanded={open ? 'true' : undefined}
+            >
+              <MoreVert />
+            </IconButton>
+            <Menu
+              id="actions-menu"
+              anchorEl={anchorEl}
+              open={open}
+              onClose={handleClose}
+              MenuListProps={{
+                'aria-labelledby': 'actions-button',
+              }}
+            >
+              <MenuItem onClick={handleViewListings}>
+                <ListItemIcon>
+                  <Visibility fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>View Listings</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={handleToggleMonitoring}>
+                <ListItemIcon>
+                  {isMonitoring ? <Stop fontSize="small" /> : <PlayArrow fontSize="small" />}
+                </ListItemIcon>
+                <ListItemText>
+                  {isMonitoring ? "Stop Monitor" : "Start Monitor"}
+                </ListItemText>
+              </MenuItem>
+            </Menu>
+          </>
+        );
+      },
     },
   ];
 
@@ -474,6 +637,40 @@ export default function EventsPage() {
                   </Grid>
                 </CardContent>
               </Card>
+            </Grid>
+
+            {/* Listing Trends - Short Term */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <DynamicChart
+                title="Listing Trends (Short-term)"
+                dataset={datasetListingShort}
+                chartConfig={LISTING_TRENDS_SHORT_CHART_CONFIG}
+                loading={listingTrendsLoading}
+                timeRange={timeListingShort}
+                interval={intervalListingShort}
+                onTimeRangeChange={setTimeListingShort}
+                onIntervalChange={setIntervalListingShort}
+                timeRangeOptions={TIME_RANGE_OPTIONS}
+                intervalOptionsMap={INTERVAL_OPTIONS_MAP}
+                height={400}
+              />
+            </Grid>
+
+            {/* Listing Trends - Long Term */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <DynamicChart
+                title="Listing Trends (Long-term)"
+                dataset={datasetListingLong}
+                chartConfig={LISTING_TRENDS_LONG_CHART_CONFIG}
+                loading={listingTrendsLoading}
+                timeRange={timeListingLong}
+                interval={intervalListingLong}
+                onTimeRangeChange={setTimeListingLong}
+                onIntervalChange={setIntervalListingLong}
+                timeRangeOptions={TIME_RANGE_OPTIONS}
+                intervalOptionsMap={INTERVAL_OPTIONS_MAP}
+                height={400}
+              />
             </Grid>
 
             {/* Sales Trends */}
@@ -554,6 +751,26 @@ export default function EventsPage() {
           )}
         </Grid>
       </Grid>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onClose={handleCancelStopMonitoring}
+        onConfirm={handleConfirmStopMonitoring}
+        title="Stop Monitoring Event?"
+        message={
+          <>
+            Are you sure you want to stop monitoring "{confirmDialog.eventName}"?
+            <br />
+            <br />
+            This will stop collecting listings and sales data for this event.
+          </>
+        }
+        confirmLabel="Stop Monitoring"
+        cancelLabel="Cancel"
+        confirmColor="error"
+        severity="warning"
+      />
     </Stack>
   );
 }

@@ -1,47 +1,6 @@
 import type { BarSeriesType, LineSeriesType } from "@mui/x-charts";
 import type { ChartConfig } from "../types/components.types";
 
-// Listings Meta Chart Configuration
-export const LISTINGS_META_CHART_CONFIG: ChartConfig = {
-  lineSeries: [
-    {
-      type: "line",
-      label: "Min Price",
-      dataKey: "priceMin",
-      color: "#1976d2",
-      yAxisId: "leftAxis",
-      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-    },
-    {
-      type: "line",
-      label: "Min Price 2+",
-      dataKey: "twoPlusPriceMin",
-      color: "#ff7043",
-      yAxisId: "leftAxis",
-      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-    },
-    {
-      type: "line",
-      label: "GetIn Price Min 2+",
-      dataKey: "getInPriceMin",
-      color: "#26a69a",
-      yAxisId: "leftAxis",
-      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
-    },
-  ] as LineSeriesType[],
-  barSeries: [
-    {
-      type: "bar",
-      label: "Tickets",
-      dataKey: "tickets",
-      color: "rgba(144,164,174,0.45)",
-      yAxisId: "rightAxis",
-    },
-  ] as BarSeriesType[],
-  leftAxisLabel: "Price ($)",
-  rightAxisLabel: "Tickets Qty",
-};
-
 // Sales Meta Chart Configuration
 export const SALES_TRENDS_CHART_CONFIG: ChartConfig = {
   lineSeries: [
@@ -51,7 +10,7 @@ export const SALES_TRENDS_CHART_CONFIG: ChartConfig = {
       dataKey: "minPrice",
       color: "#1976d2",
       yAxisId: "leftAxis",
-      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+      valueFormatter: (v) => (v != null ? `${v}` : "-"),
     },
     {
       type: "line",
@@ -59,7 +18,7 @@ export const SALES_TRENDS_CHART_CONFIG: ChartConfig = {
       dataKey: "averagePrice",
       color: "#ff7043",
       yAxisId: "leftAxis",
-      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+      valueFormatter: (v) => (v != null ? `${v}` : "-"),
     },
     {
       type: "line",
@@ -67,7 +26,7 @@ export const SALES_TRENDS_CHART_CONFIG: ChartConfig = {
       dataKey: "medianPrice",
       color: "#26a69a",
       yAxisId: "leftAxis",
-      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+      valueFormatter: (v) => (v != null ? `${v}` : "-"),
     },
     {
       type: "line",
@@ -75,7 +34,7 @@ export const SALES_TRENDS_CHART_CONFIG: ChartConfig = {
       dataKey: "maxPrice",
       color: "#9c27b0",
       yAxisId: "leftAxis",
-      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+      valueFormatter: (v) => (v != null ? `${v}` : "-"),
     },
   ] as LineSeriesType[],
   barSeries: [
@@ -122,6 +81,7 @@ export const INTERVAL_OPTIONS_MAP: Record<string, string[]> = {
 export const getDefaultInterval = (range: string): string => {
   return INTERVAL_OPTIONS_MAP[range]?.[0] || "1h";
 };
+
 // Charts Page Chart Configuration (similar to listings but with different formatting)
 export const CHARTS_PAGE_CHART_CONFIG: ChartConfig = {
   lineSeries: [
@@ -162,4 +122,86 @@ export const CHARTS_PAGE_CHART_CONFIG: ChartConfig = {
   ] as BarSeriesType[],
   leftAxisLabel: "Price ($)",
   rightAxisLabel: "Tickets Qty",
+};
+
+// Listing Trends Chart Configuration 1 (Short-term view)
+export const LISTING_TRENDS_SHORT_CHART_CONFIG: ChartConfig = {
+  lineSeries: [
+    {
+      type: "line",
+      label: "Min Price (All)",
+      dataKey: "minPriceAll",
+      color: "#1976d2",
+      yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+    },
+    {
+      type: "line",
+      label: "Min Price (Pair)",
+      dataKey: "minPricePair",
+      color: "#ff7043",
+      yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+    },
+    {
+      type: "line",
+      label: "Median Price (Pair)",
+      dataKey: "medianPricePair",
+      color: "#26a69a",
+      yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+    },
+  ] as LineSeriesType[],
+  barSeries: [
+    {
+      type: "bar",
+      label: "Ticket Count",
+      dataKey: "ticketCount",
+      color: "rgba(144,164,174,0.45)",
+      yAxisId: "rightAxis",
+    },
+  ] as BarSeriesType[],
+  leftAxisLabel: "Price ($)",
+  rightAxisLabel: "Ticket Count",
+};
+
+// Listing Trends Chart Configuration 2 (Long-term view)
+export const LISTING_TRENDS_LONG_CHART_CONFIG: ChartConfig = {
+  lineSeries: [
+    {
+      type: "line",
+      label: "Min Price (All)",
+      dataKey: "minPriceAll",
+      color: "#1976d2",
+      yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+    },
+    {
+      type: "line",
+      label: "Min Price (Pair)",
+      dataKey: "minPricePair",
+      color: "#ff7043",
+      yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+    },
+    {
+      type: "line",
+      label: "Median Price (Pair)",
+      dataKey: "medianPricePair",
+      color: "#26a69a",
+      yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+    },
+  ] as LineSeriesType[],
+  barSeries: [
+    {
+      type: "bar",
+      label: "Ticket Count",
+      dataKey: "ticketCount",
+      color: "rgba(144,164,174,0.45)",
+      yAxisId: "rightAxis",
+    },
+  ] as BarSeriesType[],
+  leftAxisLabel: "Price ($)",
+  rightAxisLabel: "Ticket Count",
 };
