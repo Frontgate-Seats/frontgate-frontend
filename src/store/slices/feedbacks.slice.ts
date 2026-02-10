@@ -1,8 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import feedbacksApi, {
-  type CreateFeedbackPayload,
-  type UpdateFeedbackPayload,
-} from "../../apis/feedbacks.api";
+import feedbacksApi, { type UpdateFeedbackPayload } from "../../apis/feedbacks.api";
 import { setSnackbar } from "./snackbar.slice";
 import type { DataGridQueryOptions } from "../../shared/types/mui.type";
 
@@ -24,7 +21,6 @@ const initialState: FeedbacksState = {
   error: null,
 };
 
-// Async thunk to fetch all feedbacks
 export const getFeedbacks = createAsyncThunk(
   "feedbacks/fetchFeedbacks",
   async (data: DataGridQueryOptions, { dispatch, rejectWithValue }) => {
@@ -39,34 +35,6 @@ export const getFeedbacks = createAsyncThunk(
   }
 );
 
-// Async thunk to create a feedback
-export const createFeedback = createAsyncThunk(
-  "feedbacks/createFeedback",
-  async (
-    {
-      payload,
-      queryOptions,
-    }: { payload: CreateFeedbackPayload; queryOptions?: DataGridQueryOptions },
-    { dispatch, rejectWithValue }
-  ) => {
-    try {
-      await feedbacksApi.createFeedback(payload);
-      dispatch(
-        setSnackbar({ message: "Feedback created successfully", severity: "success" })
-      );
-      // Refetch feedbacks to get updated data
-      if (queryOptions) {
-        dispatch(getFeedbacks(queryOptions));
-      }
-    } catch (err: any) {
-      const message = err?.message || "Failed to create feedback";
-      dispatch(setSnackbar({ message, severity: "error" }));
-      return rejectWithValue(message);
-    }
-  }
-);
-
-// Async thunk to update a feedback
 export const updateFeedback = createAsyncThunk(
   "feedbacks/updateFeedback",
   async (
@@ -81,39 +49,11 @@ export const updateFeedback = createAsyncThunk(
       dispatch(
         setSnackbar({ message: "Feedback updated successfully", severity: "success" })
       );
-      // Refetch feedbacks to get updated data
       if (queryOptions) {
         dispatch(getFeedbacks(queryOptions));
       }
     } catch (err: any) {
       const message = err?.message || "Failed to update feedback";
-      dispatch(setSnackbar({ message, severity: "error" }));
-      return rejectWithValue(message);
-    }
-  }
-);
-
-// Async thunk to delete a feedback
-export const deleteFeedback = createAsyncThunk(
-  "feedbacks/deleteFeedback",
-  async (
-    {
-      id,
-      queryOptions,
-    }: { id: string; queryOptions?: DataGridQueryOptions },
-    { dispatch, rejectWithValue }
-  ) => {
-    try {
-      await feedbacksApi.deleteFeedback(id);
-      dispatch(
-        setSnackbar({ message: "Feedback deleted successfully", severity: "success" })
-      );
-      // Refetch feedbacks to get updated data
-      if (queryOptions) {
-        dispatch(getFeedbacks(queryOptions));
-      }
-    } catch (err: any) {
-      const message = err?.message || "Failed to delete feedback";
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
@@ -126,7 +66,6 @@ const feedbacksSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // Fetch all feedbacks
       .addCase(getFeedbacks.pending, (state) => {
         state.loading = true;
         state.error = null;
