@@ -23,7 +23,6 @@ const ListingsPage = Loadable(lazy(() => import("./pages/listings.page")));
 const SalesPage = Loadable(lazy(() => import("./pages/sales.page")));
 const PurchasesPage = Loadable(lazy(() => import("./pages/purchases.page")));
 const FeedbacksPage = Loadable(lazy(() => import("./pages/feedbacks.page")));
-// const ChartsPage = Loadable(lazy(() => import("./pages/charts.page")));
 
 const SignInAuthPage = Loadable(
   lazy(() => import("./pages/auth/signIn.auth.page"))
@@ -44,10 +43,6 @@ export const route: RouteObject[] = [
         index: true,
         element: <Navigate to="/events" replace />,
       },
-      // {
-      //   path: "/dashboard",
-      //   element: <DashboardPage />,
-      // },
       {
         path: "/events",
         element: <EventsPage />,
@@ -76,10 +71,6 @@ export const route: RouteObject[] = [
         path: "/feedbacks",
         element: <FeedbacksPage />,
       },
-      // {
-      //   path: "/charts",
-      //   element: <ChartsPage />,
-      // },
       {
         path: "*",
         element: <Navigate to="/events" replace />,
