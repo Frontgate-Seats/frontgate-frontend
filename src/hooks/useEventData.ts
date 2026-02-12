@@ -6,7 +6,6 @@ import { getEvents } from "../store/slices/events.slice";
 import { getEventsExternalMappings } from "../store/slices/eventsExternalMappings.slice";
 import { getSales } from "../store/slices/sales.slice";
 import { getListingTrends } from "../store/slices/listingTrends.slice";
-import { getSuggests } from "../store/slices/suggests.slice";
 
 export function useEventData(eventId: string | undefined) {
   const dispatch = useAppDispatch();
@@ -17,7 +16,6 @@ export function useEventData(eventId: string | undefined) {
     (state: RootState) => state.eventsExternalMappings
   );
   const listingTrends = useSelector((state: RootState) => state.listingTrends);
-  const suggests = useSelector((state: RootState) => state.suggests);
 
   const selectedEvent = React.useMemo(
     () => events.rows.data.find((e) => e.id.toString() === eventId),
@@ -61,17 +59,6 @@ export function useEventData(eventId: string | undefined) {
     dispatch(getListingTrends(eventId));
   }, [dispatch, eventId]);
 
-  const fetchSuggests = React.useCallback(() => {
-    if (!eventId) return;
-    dispatch(
-      getSuggests({
-        filters: {
-          items: [{ field: "event_id", operator: "equals", value: eventId }],
-        },
-      })
-    );
-  }, [dispatch, eventId]);
-
   // Initial fetch
   React.useEffect(() => {
     if (eventId && !selectedEvent) {
@@ -83,9 +70,8 @@ export function useEventData(eventId: string | undefined) {
     if (eventId) {
       fetchExternalMappings();
       fetchListingTrends();
-      fetchSuggests();
     }
-  }, [eventId, fetchExternalMappings, fetchListingTrends, fetchSuggests]);
+  }, [eventId, fetchExternalMappings, fetchListingTrends]);
 
   React.useEffect(() => {
     if (eventsExternalMappings.rows.data?.length) {
@@ -111,23 +97,19 @@ export function useEventData(eventId: string | undefined) {
     events: events.rows.data,
     sales: sales.rows.data,
     listingTrends: listingTrends.rows.data,
-    suggests: suggests.rows.data,
     loading: {
       events: events.loading,
       sales: sales.loading,
       listingTrends: listingTrends.loading,
-      suggests: suggests.loading,
     },
     error: {
       events: events.error,
       sales: sales.error,
-      suggests: suggests.error,
     },
     refetch: {
       event: fetchEvent,
       sales: fetchSales,
       listingTrends: fetchListingTrends,
-      suggests: fetchSuggests,
     },
   };
 }

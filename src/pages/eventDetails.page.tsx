@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useParams, useNavigate } from "react-router";
+import { useSelector } from "react-redux";
 import {
   Typography,
   Card,
@@ -15,12 +16,18 @@ import {
 } from "@mui/material";
 import { ArrowBack, Edit, PlayArrow, Stop } from "@mui/icons-material";
 import moment from "moment";
+import type {
+  GridPaginationModel,
+  GridSortModel,
+  GridFilterModel,
+} from "@mui/x-data-grid";
 
 import { formatDateTime } from "../shared/utils/dateTime.util";
 import { useAppDispatch } from "../store/reducers/root.reducer";
+import type { RootState } from "../store";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
-import { updateSuggest } from "../store/slices/suggests.slice";
+import { getSuggests, updateSuggest } from "../store/slices/suggests.slice";
 import {
   startEventMonitoring,
   stopEventMonitoring,
@@ -53,12 +60,11 @@ export default function EventDetailsPage() {
   const navigate = useNavigate();
   const { eventId } = useParams<{ eventId: string }>();
 
-  // Fetch all event-related data
+  // Fetch event-related data (excluding suggests - handled separately for server-side rendering)
   const {
     selectedEvent,
     sales,
     listingTrends,
-    suggests,
     loading,
     error,
     refetch,
@@ -87,6 +93,17 @@ export default function EventDetailsPage() {
     listingLongChart.timeRange,
     listingLongChart.interval,
   );
+
+  // Suggests server-side state
+  const suggestsFromRedux = useSelector((state: RootState) => state.suggests);
+  const [suggestsPaginationModel, setSuggestsPaginationModel] =
+    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  const [suggestsSortModel, setSuggestsSortModel] = React.useState<GridSortModel>([
+    { field: "created_at", sort: "desc" },
+  ]);
+  const [suggestsFilterModel, setSuggestsFilterModel] = React.useState<GridFilterModel>({
+    items: [],
+  });
 
   // Edit Dialog State
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);
@@ -125,17 +142,72 @@ export default function EventDetailsPage() {
       updateSuggest({
         payload,
         queryOptions: {
+          page: suggestsPaginationModel.page,
+          pageSize: suggestsPaginationModel.pageSize,
+          sortFields: suggestsSortModel,
           filters: {
-            items: [{ field: "event_id", operator: "equals", value: eventId }],
+            items: [
+              { field: "event_id", operator: "equals", value: eventId },
+              ...suggestsFilterModel.items,
+            ],
           },
         },
       }),
     );
 
-    // Explicitly refetch suggests to ensure UI updates
-    refetch.suggests();
     handleCloseEditDialog();
   };
+
+  // Fetch suggests with server-side pagination/sorting/filtering
+  React.useEffect(() => {
+    if (!eventId) return;
+    
+    dispatch(
+      getSuggests({
+        page: suggestsPaginationModel.page,
+        pageSize: suggestsPaginationModel.pageSize,
+        sortFields: suggestsSortModel,
+        filters: {
+          items: [
+            { field: "event_id", operator: "equals", value: eventId },
+            ...suggestsFilterModel.items,
+          ],
+        },
+      })
+    );
+  }, [
+    dispatch,
+    eventId,
+    suggestsPaginationModel.page,
+    suggestsPaginationModel.pageSize,
+    suggestsSortModel,
+    suggestsFilterModel,
+  ]);
+
+  const handleRefreshSuggests = React.useCallback(() => {
+    if (!eventId) return;
+    
+    dispatch(
+      getSuggests({
+        page: suggestsPaginationModel.page,
+        pageSize: suggestsPaginationModel.pageSize,
+        sortFields: suggestsSortModel,
+        filters: {
+          items: [
+            { field: "event_id", operator: "equals", value: eventId },
+            ...suggestsFilterModel.items,
+          ],
+        },
+      })
+    );
+  }, [
+    dispatch,
+    eventId,
+    suggestsPaginationModel.page,
+    suggestsPaginationModel.pageSize,
+    suggestsSortModel,
+    suggestsFilterModel,
+  ]);
 
   // Monitor Handlers
   const handleStartMonitor = () => {
@@ -247,18 +319,7 @@ export default function EventDetailsPage() {
     initialSortModel: [{ field: "purchased_at", sort: "desc" }],
   });
 
-  // Normalize suggests data - flatten nested llm_result fields
-  const normalizedSuggests = React.useMemo(() => {
-    return (suggests || []).map((suggest) => ({
-      ...suggest,
-      action: suggest?.llm_result?.action ?? "-",
-      section: suggest?.llm_result?.section ?? "-",
-      confidence_level: suggest?.llm_result?.confidence_level ?? "-",
-      reasoning: suggest?.llm_result?.reasoning ?? "-",
-    }));
-  }, [suggests]);
-
-  // Suggests Data Grid Columns
+  // Suggests Data Grid Columns (server-side rendering - no valueGetter for nested fields)
   const suggestsColumns: CustomGridColDef[] = [
     {
       field: "llm_type",
@@ -273,6 +334,9 @@ export default function EventDetailsPage() {
       minWidth: 100,
       flex: 1,
       type: "string",
+      sortable: false,
+      filterable: false,
+      valueGetter: (_value: any, row: any) => row?.llm_result?.action ?? "-",
     },
     {
       field: "section",
@@ -280,6 +344,9 @@ export default function EventDetailsPage() {
       minWidth: 150,
       flex: 1,
       type: "string",
+      sortable: false,
+      filterable: false,
+      valueGetter: (_value: any, row: any) => row?.llm_result?.section ?? "-",
     },
     {
       field: "confidence_level",
@@ -287,6 +354,9 @@ export default function EventDetailsPage() {
       minWidth: 120,
       flex: 1,
       type: "string",
+      sortable: false,
+      filterable: false,
+      valueGetter: (_value: any, row: any) => row?.llm_result?.confidence_level ?? "-",
     },
     {
       field: "reasoning",
@@ -294,6 +364,9 @@ export default function EventDetailsPage() {
       minWidth: 300,
       flex: 2,
       type: "string",
+      sortable: false,
+      filterable: false,
+      valueGetter: (_value: any, row: any) => row?.llm_result?.reasoning ?? "-",
     },
     {
       field: "llm_result_comment",
@@ -332,23 +405,6 @@ export default function EventDetailsPage() {
       },
     },
   ];
-
-  // Suggests Grid State
-  const {
-    paginationModel: suggestsPaginationModel,
-    sortModel: suggestsSortModel,
-    filterModel: suggestsFilterModel,
-    setPaginationModel: setSuggestsPaginationModel,
-    setSortModel: setSuggestsSortModel,
-    setFilterModel: setSuggestsFilterModel,
-    paginatedRows: paginatedSuggests,
-    totalFilteredRows: suggestsTotalFiltered,
-  } = useClientFilters({
-    data: normalizedSuggests,
-    columns: suggestsColumns,
-    initialPaginationModel: { page: 0, pageSize: 25 },
-    initialSortModel: [{ field: "created_at", sort: "desc" }],
-  });
 
   return (
     <Stack
@@ -577,18 +633,18 @@ export default function EventDetailsPage() {
         <Grid size={{ xs: 12 }}>
           <CustomDataGrid
             title="Suggestions"
-            rows={paginatedSuggests}
-            rowCount={suggestsTotalFiltered}
+            rows={suggestsFromRedux.rows.data}
+            rowCount={suggestsFromRedux.rows.total}
             columns={suggestsColumns}
-            isLoading={loading.suggests}
-            error={error.suggests}
+            isLoading={suggestsFromRedux.loading}
+            error={suggestsFromRedux.error}
             paginationModel={suggestsPaginationModel}
             setPaginationModel={setSuggestsPaginationModel}
             sortingModel={suggestsSortModel}
             setSortingModel={setSuggestsSortModel}
             filterModel={suggestsFilterModel}
             setFilterModel={setSuggestsFilterModel}
-            onRefresh={refetch.suggests}
+            onRefresh={handleRefreshSuggests}
             height={400}
             headerComponent={
               <Typography variant="h6" fontWeight={600} gutterBottom>
