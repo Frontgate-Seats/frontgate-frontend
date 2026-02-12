@@ -20,7 +20,6 @@ import type {
   GridSortModel,
   GridFilterModel,
 } from "@mui/x-data-grid";
-import { getGridSingleSelectOperators } from "@mui/x-data-grid";
 
 import moment from "moment";
 
@@ -347,13 +346,6 @@ export default function EventsPage() {
         };
 
         const handleToggleMonitoring = () => {
-          const queryOptions = {
-            page: paginationModel.page,
-            pageSize: paginationModel.pageSize,
-            sortFields: sortModel,
-            filters: filterModel,
-          };
-
           if (isMonitoring) {
             // Show confirmation dialog for stopping monitoring
             setConfirmDialog({
