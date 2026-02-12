@@ -3,7 +3,7 @@ import authReducer from "../slices/auth.slice";
 import snackbarReducer from "../slices/snackbar.slice";
 import eventsReducer from "../slices/events.slice";
 import eventsExternalMappingsReducer from "../slices/eventsExternalMappings.slice";
-import feedbacksReducer from "../slices/feedbacks.slice";
+import suggestsReducer from "../slices/suggests.slice";
 import listingsReducer from "../slices/listings.slice";
 import salesReducer from "../slices/sales.slice";
 import salesMetaReducer from "../slices/salesMeta.slice";
@@ -20,7 +20,7 @@ const rootReducer = combineReducers({
   snackbar: snackbarReducer,
   events: eventsReducer,
   eventsExternalMappings: eventsExternalMappingsReducer,
-  feedbacks: feedbacksReducer,
+  suggests: suggestsReducer,
   listings: listingsReducer,
   sales: salesReducer,
   salesMeta: salesMetaReducer,

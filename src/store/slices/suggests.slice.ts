@@ -1,9 +1,9 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import feedbacksApi, { type UpdateFeedbackPayload } from "../../apis/feedbacks.api";
+import suggestsApi, { type UpdateSuggestPayload } from "../../apis/suggests.api";
 import { setSnackbar } from "./snackbar.slice";
 import type { DataGridQueryOptions } from "../../shared/types/mui.type";
 
-export interface FeedbacksState {
+export interface SuggestsState {
   loading: boolean;
   rows: {
     data: any[];
@@ -12,7 +12,7 @@ export interface FeedbacksState {
   error: any | null;
 }
 
-const initialState: FeedbacksState = {
+const initialState: SuggestsState = {
   loading: false,
   rows: {
     data: [],
@@ -21,64 +21,64 @@ const initialState: FeedbacksState = {
   error: null,
 };
 
-export const getFeedbacks = createAsyncThunk(
-  "feedbacks/fetchFeedbacks",
+export const getSuggests = createAsyncThunk(
+  "suggests/fetchSuggests",
   async (data: DataGridQueryOptions, { dispatch, rejectWithValue }) => {
     try {
-      const response = await feedbacksApi.fetchFeedbacks(data);
+      const response = await suggestsApi.fetchSuggests(data);
       return response;
     } catch (err: any) {
-      const message = err?.message || "Failed to fetch feedbacks";
+      const message = err?.message || "Failed to fetch suggests";
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
   }
 );
 
-export const updateFeedback = createAsyncThunk(
-  "feedbacks/updateFeedback",
+export const updateSuggest = createAsyncThunk(
+  "suggests/updateSuggest",
   async (
     {
       payload,
       queryOptions,
-    }: { payload: UpdateFeedbackPayload; queryOptions?: DataGridQueryOptions },
+    }: { payload: UpdateSuggestPayload; queryOptions?: DataGridQueryOptions },
     { dispatch, rejectWithValue }
   ) => {
     try {
-      await feedbacksApi.updateFeedback(payload);
+      await suggestsApi.updateSuggest(payload);
       dispatch(
-        setSnackbar({ message: "Feedback updated successfully", severity: "success" })
+        setSnackbar({ message: "Suggestion updated successfully", severity: "success" })
       );
       if (queryOptions) {
-        dispatch(getFeedbacks(queryOptions));
+        dispatch(getSuggests(queryOptions));
       }
     } catch (err: any) {
-      const message = err?.message || "Failed to update feedback";
+      const message = err?.message || "Failed to update suggestion";
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
   }
 );
 
-const feedbacksSlice = createSlice({
-  name: "feedbacks",
+const suggestsSlice = createSlice({
+  name: "suggests",
   initialState,
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(getFeedbacks.pending, (state) => {
+      .addCase(getSuggests.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(getFeedbacks.fulfilled, (state, action) => {
+      .addCase(getSuggests.fulfilled, (state, action) => {
         state.loading = false;
         state.rows = action.payload;
       })
-      .addCase(getFeedbacks.rejected, (state, action) => {
+      .addCase(getSuggests.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || "Something went wrong";
       });
   },
 });
 
-export default feedbacksSlice.reducer;
+export default suggestsSlice.reducer;

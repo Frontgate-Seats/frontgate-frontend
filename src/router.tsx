@@ -19,10 +19,11 @@ const DashboardLayout = Loadable(
 
 /* ****Pages**** */
 const EventsPage = Loadable(lazy(() => import("./pages/events.page")));
+const EventDetailsPage = Loadable(lazy(() => import("./pages/eventDetails.page")));
 const ListingsPage = Loadable(lazy(() => import("./pages/listings.page")));
 const SalesPage = Loadable(lazy(() => import("./pages/sales.page")));
 const PurchasesPage = Loadable(lazy(() => import("./pages/purchases.page")));
-const FeedbacksPage = Loadable(lazy(() => import("./pages/feedbacks.page")));
+const SuggestionsPage = Loadable(lazy(() => import("./pages/suggestions.page")));
 
 const SignInAuthPage = Loadable(
   lazy(() => import("./pages/auth/signIn.auth.page"))
@@ -48,6 +49,10 @@ export const route: RouteObject[] = [
         element: <EventsPage />,
       },
       {
+        path: "/events/:eventId",
+        element: <EventDetailsPage />,
+      },
+      {
         path: "/listings",
         element: <ListingsPage />,
       },
@@ -68,8 +73,8 @@ export const route: RouteObject[] = [
         element: <PurchasesPage />,
       },
       {
-        path: "/feedbacks",
-        element: <FeedbacksPage />,
+        path: "/suggestions",
+        element: <SuggestionsPage />,
       },
       {
         path: "*",

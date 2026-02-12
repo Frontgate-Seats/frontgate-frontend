@@ -9,10 +9,10 @@ const eventsApi = {
   },
 
   // Start monitoring for an event
-  startMonitoring: async (eventId: string) => {
+  startMonitoring: async (eventId: string, monitorLevel: string = "medium") => {
     const { data, error } = await supabaseClient
       .from("events")
-      .update({ is_monitored: true })
+      .update({ is_monitored: true, monitor_level: monitorLevel })
       .eq("id", eventId)
       .select()
       .single();
@@ -28,7 +28,7 @@ const eventsApi = {
   stopMonitoring: async (eventId: string) => {
     const { data, error } = await supabaseClient
       .from("events")
-      .update({ is_monitored: false })
+      .update({ is_monitored: false, monitor_level: "none" })
       .eq("id", eventId)
       .select()
       .single();

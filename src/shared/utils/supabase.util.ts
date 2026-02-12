@@ -1,4 +1,8 @@
-import type { GridFilterModel, GridSortModel, GridFilterItem } from '@mui/x-data-grid';
+import type {
+  GridFilterModel,
+  GridSortModel,
+  GridFilterItem,
+} from "@mui/x-data-grid";
 
 // Supabase query interface - covers the methods we use
 interface SupabaseQuery {
@@ -18,7 +22,13 @@ interface SupabaseQuery {
 }
 
 // Types
-export type FilterValue = string | number | boolean | null | undefined | (string | number | boolean | null)[];
+export type FilterValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | (string | number | boolean | null)[];
 
 export interface QueryOptions {
   search?: string;
@@ -40,9 +50,12 @@ export const isEmptyFilterValue = (value: FilterValue): boolean => {
 };
 
 // Apply single filter
-export const applySingleFilter = <T extends SupabaseQuery>(query: T, filter: GridFilterItem): T => {
+export const applySingleFilter = <T extends SupabaseQuery>(
+  query: T,
+  filter: GridFilterItem,
+): T => {
   const { field, operator, value } = filter;
-  
+
   if (isEmptyFilterValue(value) || !field || !operator) {
     return query;
   }
@@ -93,11 +106,15 @@ export const applySingleFilter = <T extends SupabaseQuery>(query: T, filter: Gri
 };
 
 // Apply filters
-export const applyFilters = <T extends SupabaseQuery>(query: T, filters?: GridFilterModel): T => {
+export const applyFilters = <T extends SupabaseQuery>(
+  query: T,
+  filters?: GridFilterModel,
+): T => {
   if (!filters?.items?.length) return query;
 
-  return filters.items.reduce((acc, filter) => 
-    applySingleFilter(acc, filter), query
+  return filters.items.reduce(
+    (acc, filter) => applySingleFilter(acc, filter),
+    query,
   );
 };
 
@@ -105,26 +122,28 @@ export const applyFilters = <T extends SupabaseQuery>(query: T, filters?: GridFi
 export const applySearch = <T extends SupabaseQuery>(
   query: T,
   search: string,
-  searchFields: string[]
+  searchFields: string[],
 ): T => {
   if (!search?.trim()) return query;
-  
+
   const searchConditions = searchFields
-    .map(field => `${field}.ilike.%${search}%`)
-    .join(',');
-  
+    .map((field) => `${field}.ilike.%${search}%`)
+    .join(",");
+
   return query.or(searchConditions) as T;
 };
 
 // Apply sorting
 export const applySorting = <T extends SupabaseQuery>(
   query: T,
-  sortFields?: GridSortModel
+  sortFields?: GridSortModel,
 ): T => {
   if (!sortFields?.length) return query;
 
-  return sortFields.reduce((acc, sort) => 
-    acc.order(sort.field, { ascending: sort.sort === "asc" }) as T, query
+  return sortFields.reduce(
+    (acc, sort) =>
+      acc.order(sort.field, { ascending: sort.sort === "asc" }) as T,
+    query,
   );
 };
 
@@ -132,7 +151,7 @@ export const applySorting = <T extends SupabaseQuery>(
 export const applyPagination = <T extends SupabaseQuery>(
   query: T,
   page: number,
-  pageSize: number
+  pageSize: number,
 ): T => {
   const from = page * pageSize;
   const to = from + pageSize - 1;
@@ -140,21 +159,25 @@ export const applyPagination = <T extends SupabaseQuery>(
 };
 
 // Convert DataGrid filters (no conversion needed now)
-export const convertDataGridFilters = (filterModel: GridFilterModel | undefined): GridFilterModel | undefined => {
+export const convertDataGridFilters = (
+  filterModel: GridFilterModel | undefined,
+): GridFilterModel | undefined => {
   return filterModel?.items?.length ? filterModel : undefined;
 };
 
 // Convert GridSortModel to our format (no conversion needed now)
-const convertSortFields = (sortFields?: GridSortModel): GridSortModel | undefined => {
+const convertSortFields = (
+  sortFields?: GridSortModel,
+): GridSortModel | undefined => {
   if (!sortFields?.length) return undefined;
-  
-  return sortFields.filter(sort => sort.sort);
+
+  return sortFields.filter((sort) => sort.sort);
 };
 
 // Main query builder
 export const buildSupabaseQuery = <T extends SupabaseQuery>(
   baseQuery: T,
-  options: QueryOptions = {}
+  options: QueryOptions = {},
 ): T => {
   let query = baseQuery;
 

@@ -5,7 +5,8 @@ import List from "@mui/material/List";
 import Toolbar from "@mui/material/Toolbar";
 import { matchPath, useLocation } from "react-router";
 import EventIcon from "@mui/icons-material/Event";
-import FeedbackIcon from "@mui/icons-material/Feedback";
+import StoreIcon from "@mui/icons-material/Store";
+import LightbulbIcon from "@mui/icons-material/Lightbulb";
 
 import {
   getDrawerSxTransitionMixin,
@@ -19,7 +20,6 @@ import {
 import DashboardSidebarHeaderItem from "./headerItem.dashboard";
 import DashboardSidebarPageItem from "./pageItem.dashboard";
 import { useDashboardLayoutContext } from "../../contexts/dashboardLayout.context";
-import StoreIcon from "@mui/icons-material/Store";
 
 export default function DashboardSidebar() {
   const { pathname } = useLocation();
@@ -108,15 +108,14 @@ export default function DashboardSidebar() {
                 pathname === "/purchases"
               }
             />
-
             <DashboardSidebarPageItem
-              id="feedbacks"
-              title="Feedbacks"
-              icon={<FeedbackIcon />}
-              href="/feedbacks"
+              id="suggestions"
+              title="Suggestions"
+              icon={<LightbulbIcon />}
+              href="/suggestions"
               selected={
-                !!matchPath("/feedbacks/*", pathname) ||
-                pathname === "/feedbacks"
+                !!matchPath("/suggestions/*", pathname) ||
+                pathname === "/suggestions"
               }
             />
 

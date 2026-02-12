@@ -1,9 +1,12 @@
 import * as React from "react";
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router";
 import {
   Stack,
   Grid,
   IconButton,
+  Typography,
+  Link,
 } from "@mui/material";
 import { Edit } from "@mui/icons-material";
 import type {
@@ -15,30 +18,27 @@ import type {
 import type { RootState } from "../store";
 import { formatDateTime } from "../shared/utils/dateTime.util";
 import {
-  getFeedbacks,
-  updateFeedback,
-} from "../store/slices/feedbacks.slice";
-import type { UpdateFeedbackPayload } from "../apis/feedbacks.api";
+  getSuggests,
+  updateSuggest,
+} from "../store/slices/suggests.slice";
+import type { UpdateSuggestPayload } from "../apis/suggests.api";
 import { useAppDispatch } from "../store/reducers/root.reducer";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
-import { FormDialog } from "../components/common/dialogs";
+import { SuggestionDialog } from "../components/common/dialogs";
 
-export default function FeedbacksPage() {
+export default function SuggestionsPage() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
 
-  // ------------------------
   // Redux Data
-  // ------------------------
   const {
-    rows: { data: feedbacks, total },
-    loading: feedbacksLoading,
-    error: feedbacksError,
-  } = useSelector((state: RootState) => state.feedbacks);
+    rows: { data: suggests, total },
+    loading: suggestsLoading,
+    error: suggestsError,
+  } = useSelector((state: RootState) => state.suggests);
 
-  // ------------------------
   // Grid State
-  // ------------------------
   const [paginationModel, setPaginationModel] =
     React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
   const [sortModel, setSortModel] = React.useState<GridSortModel>([
@@ -48,63 +48,57 @@ export default function FeedbacksPage() {
     items: [],
   });
 
-  // ------------------------
   // Edit Dialog State
-  // ------------------------
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);
-  const [editingFeedback, setEditingFeedback] = React.useState<any>(null);
+  const [editingSuggest, setEditingSuggest] = React.useState<any>(null);
   const [editComment, setEditComment] = React.useState("");
 
-  // ------------------------
   // Fetch Data
-  // ------------------------
   React.useEffect(() => {
     dispatch(
-      getFeedbacks({
+      getSuggests({
         page: paginationModel.page,
         pageSize: paginationModel.pageSize,
         sortFields: sortModel,
         filters: filterModel,
       })
     );
-  }, [dispatch, paginationModel, sortModel, filterModel]);
+  }, [dispatch, paginationModel.page, paginationModel.pageSize, sortModel, filterModel]);
 
   const handleRefresh = React.useCallback(() => {
     dispatch(
-      getFeedbacks({
+      getSuggests({
         page: paginationModel.page,
         pageSize: paginationModel.pageSize,
         sortFields: sortModel,
         filters: filterModel,
       })
     );
-  }, [dispatch, paginationModel, sortModel, filterModel]);
+  }, [dispatch, paginationModel.page, paginationModel.pageSize, sortModel, filterModel]);
 
-  // ------------------------
   // Edit Dialog Handlers
-  // ------------------------
-  const handleOpenEditDialog = (feedback: any) => {
-    setEditingFeedback(feedback);
-    setEditComment(feedback.comment || "");
+  const handleOpenEditDialog = (suggest: any) => {
+    setEditingSuggest(suggest);
+    setEditComment(suggest.llm_result_comment || "");
     setEditDialogOpen(true);
   };
 
   const handleCloseEditDialog = () => {
     setEditDialogOpen(false);
-    setEditingFeedback(null);
+    setEditingSuggest(null);
     setEditComment("");
   };
 
-  const handleSaveEdit = () => {
-    if (!editingFeedback) return;
+  const handleSaveEdit = async () => {
+    if (!editingSuggest) return;
 
-    const payload: UpdateFeedbackPayload = {
-      id: editingFeedback.id,
-      comment: editComment,
+    const payload: UpdateSuggestPayload = {
+      id: editingSuggest.id,
+      llm_result_comment: editComment,
     };
 
-    dispatch(
-      updateFeedback({
+    await dispatch(
+      updateSuggest({
         payload,
         queryOptions: {
           page: paginationModel.page,
@@ -118,22 +112,32 @@ export default function FeedbacksPage() {
     handleCloseEditDialog();
   };
 
-  // ------------------------
-  // Column Definitions
-  // ------------------------
+  // Column Definitions (no valueGetter for nested fields - server-side filtering only)
   const columns: CustomGridColDef[] = [
     {
       field: "event_id",
       headerName: "Event ID",
-      width: 150,
-      type: "string",
-      valueFormatter: (value: any) => value?.toString() || "",
+      width: 120,
+      type: "number",
+      renderCell: (params) => {
+        return (
+          <Link
+            component="button"
+            variant="body2"
+            onClick={() => navigate(`/events/${params.value}`)}
+            underline="hover"
+          >
+            {params.value}
+          </Link>
+        );
+      },
     },
     {
-      field: "comment",
-      headerName: "Comment",
+      field: "event_name",
+      headerName: "Event Name",
       flex: 1,
-      minWidth: 300,
+      minWidth: 200,
+      type: "string",
     },
     {
       field: "created_at",
@@ -141,15 +145,57 @@ export default function FeedbacksPage() {
       width: 180,
       type: "dateTime",
       valueGetter: (value) => (value ? new Date(value) : null),
-      valueFormatter: (value) => formatDateTime(value),
+      valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
     },
     {
-      field: "updated_at",
-      headerName: "Updated At",
-      width: 180,
-      type: "dateTime",
-      valueGetter: (value) => (value ? new Date(value) : null),
-      valueFormatter: (value) => formatDateTime(value),
+      field: "llm_type",
+      headerName: "Type",
+      width: 130,
+      type: "string",
+    },
+    {
+      field: "action",
+      headerName: "Action",
+      width: 100,
+      type: "string",
+      sortable: false,
+      filterable: false,
+      valueGetter: (_value: any, row: any) => row?.llm_result?.action ?? "-",
+    },
+    {
+      field: "section",
+      headerName: "Section",
+      width: 150,
+      type: "string",
+      sortable: false,
+      filterable: false,
+      valueGetter: (_value: any, row: any) => row?.llm_result?.section ?? "-",
+    },
+    {
+      field: "confidence_level",
+      headerName: "Confidence",
+      width: 120,
+      type: "string",
+      sortable: false,
+      filterable: false,
+      valueGetter: (_value: any, row: any) => row?.llm_result?.confidence_level ?? "-",
+    },
+    {
+      field: "reasoning",
+      headerName: "Reasoning",
+      flex: 2,
+      minWidth: 300,
+      type: "string",
+      sortable: false,
+      filterable: false,
+      valueGetter: (_value: any, row: any) => row?.llm_result?.reasoning ?? "-",
+    },
+    {
+      field: "llm_result_comment",
+      headerName: "Comment",
+      flex: 1,
+      minWidth: 200,
+      type: "string",
     },
     {
       field: "actions",
@@ -164,7 +210,7 @@ export default function FeedbacksPage() {
           <IconButton
             onClick={() => handleOpenEditDialog(params.row)}
             size="small"
-            aria-label="Edit feedback"
+            aria-label="Edit suggestion"
           >
             <Edit />
           </IconButton>
@@ -173,9 +219,7 @@ export default function FeedbacksPage() {
     },
   ];
 
-  // ------------------------
   // Render
-  // ------------------------
   return (
     <Stack
       padding={3}
@@ -187,6 +231,12 @@ export default function FeedbacksPage() {
       }}
     >
       <Grid container spacing={3}>
+        <Grid size={{ xs: 12 }}>
+          <Typography variant="h4" fontWeight="bold" gutterBottom>
+            AI Suggestions
+          </Typography>
+        </Grid>
+
         <Grid
           size={{ xs: 12 }}
           sx={{
@@ -197,12 +247,12 @@ export default function FeedbacksPage() {
           }}
         >
           <CustomDataGrid
-            title="Feedbacks"
-            rows={feedbacks}
+            title="All Suggestions"
+            rows={suggests}
             rowCount={total}
             columns={columns}
-            isLoading={feedbacksLoading}
-            error={feedbacksError as any}
+            isLoading={suggestsLoading}
+            error={suggestsError as any}
             paginationModel={paginationModel}
             setPaginationModel={setPaginationModel}
             sortingModel={sortModel}
@@ -210,29 +260,23 @@ export default function FeedbacksPage() {
             filterModel={filterModel}
             setFilterModel={setFilterModel}
             onRefresh={handleRefresh}
+            headerComponent={
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                All Suggestions
+              </Typography>
+            }
           />
         </Grid>
       </Grid>
 
-      {/* Edit Dialog */}
-      <FormDialog
+      {/* Edit Suggestion Dialog */}
+      <SuggestionDialog
         open={editDialogOpen}
         onClose={handleCloseEditDialog}
-        title="Edit Feedback"
-        fields={[
-          {
-            name: "comment",
-            label: "Comment",
-            type: "textarea",
-            value: editComment,
-            onChange: setEditComment,
-            rows: 4,
-            autoFocus: true,
-          },
-        ]}
+        suggestion={editingSuggest}
+        comment={editComment}
+        onCommentChange={setEditComment}
         onSubmit={handleSaveEdit}
-        submitLabel="Save"
-        cancelLabel="Cancel"
       />
     </Stack>
   );

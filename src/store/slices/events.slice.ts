@@ -43,11 +43,11 @@ export const getEvents = createAsyncThunk(
 export const startEventMonitoring = createAsyncThunk(
   "events/startMonitoring",
   async (
-    { eventId, queryOptions }: { eventId: string; queryOptions?: DataGridQueryOptions },
+    { eventId, monitorLevel, queryOptions }: { eventId: string; monitorLevel?: string; queryOptions?: DataGridQueryOptions },
     { dispatch, rejectWithValue }
   ) => {
     try {
-      await eventsApi.startMonitoring(eventId);
+      await eventsApi.startMonitoring(eventId, monitorLevel);
       dispatch(setSnackbar({ message: "Monitoring started successfully", severity: "success" }));
       // Refetch events to get updated data
       if (queryOptions) {

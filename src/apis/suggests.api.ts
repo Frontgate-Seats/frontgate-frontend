@@ -2,31 +2,31 @@ import { getDBData } from "../shared/helpers/supabase.helper";
 import type { DataGridQueryOptions } from "../shared/types/mui.type";
 import supabaseClient from "../clients/supabase.client";
 
-export interface UpdateFeedbackPayload {
+export interface UpdateSuggestPayload {
   id: string;
-  comment?: string;
+  llm_result_comment?: string;
 }
 
-const feedbacksApi = {
-  fetchFeedbacks: async (options: DataGridQueryOptions = {}) => {
-    return getDBData("feedbacks", options);
+const suggestsApi = {
+  fetchSuggests: async (options: DataGridQueryOptions = {}) => {
+    return getDBData("suggests", options);
   },
 
-  updateFeedback: async (payload: UpdateFeedbackPayload) => {
+  updateSuggest: async (payload: UpdateSuggestPayload) => {
     const { id, ...updateData } = payload;
     const { data, error } = await supabaseClient
-      .from("feedbacks")
+      .from("suggests")
       .update(updateData)
       .eq("id", id)
       .select()
       .single();
 
     if (error) {
-      throw new Error(error.message || "Failed to update feedback");
+      throw new Error(error.message || "Failed to update suggest");
     }
 
     return data;
   },
 };
 
-export default feedbacksApi;
+export default suggestsApi;
