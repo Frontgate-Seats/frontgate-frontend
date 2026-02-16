@@ -77,6 +77,8 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
     (series) => series.dataKey && !hiddenSeries.has(series.dataKey)
   );
 
+  console.log("ttt : ", title , timeRange)
+
   return (
     <ToggleFullscreen onFullscreenChange={handleFullscreenChange}>
       <Card
@@ -106,26 +108,29 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
             </Typography>
 
             <Stack direction="row" spacing={3} alignItems="center">
-              <FormControl size="small">
-                <InputLabel>Time Range</InputLabel>
-                <Select
-                  value={timeRange}
-                  label="Time Range"
-                  onChange={(e) => onTimeRangeChange(e.target.value)}
-                  sx={{ minWidth: 150 }}
-                >
-                  {timeRangeOptions.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              {timeRangeOptions.length > 0 && (
+                <FormControl size="small">
+                  <InputLabel>Time Range</InputLabel>
+                  <Select
+                    value={timeRange}
+                    label="Time Range"
+                    onChange={(e) => onTimeRangeChange(e.target.value)}
+                    sx={{ minWidth: 150 }}
+                  >
+                    {timeRangeOptions.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
 
+              {intervalOptionsMap[timeRange]?.length > 0 && (
                 <FormControl size="small">
                   <InputLabel>Interval</InputLabel>
                   <Select
-                  value={interval}
+                    value={interval}
                     label="Interval"
                     onChange={(e) => onIntervalChange(e.target.value)}
                     sx={{ minWidth: 120 }}
@@ -137,6 +142,7 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                     ))}
                   </Select>
                 </FormControl>
+              )}
             </Stack>
           </Stack>
 
@@ -157,7 +163,7 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                 {
                   dataKey: "time",
                   scaleType: "band",
-                  label: timeRange === "1d" ? "Time" : "Date",
+                  label: timeRange?.endsWith("h") ? "Time" : "Date",
                   tickLabelMinGap: 20,
                   disableTicks: true,
                   valueFormatter: (value: string) => {

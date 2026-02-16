@@ -8,13 +8,16 @@ import {
 } from "@mui/material";
 import CustomDialog from "../CustomDialog";
 import { formatDateTime } from "../../../shared/utils/dateTime.util";
+import { useMemo } from "react";
 
 export interface SuggestionDialogProps {
   open: boolean;
   onClose: () => void;
   suggestion: any;
   comment: string;
+  score: number | null;
   onCommentChange: (value: string) => void;
+  onScoreChange: (value: number | null) => void;
   onSubmit: () => void;
   loading?: boolean;
 }
@@ -24,7 +27,9 @@ export default function SuggestionDialog({
   onClose,
   suggestion,
   comment,
+  score,
   onCommentChange,
+  onScoreChange,
   onSubmit,
   loading = false,
 }: SuggestionDialogProps) {
@@ -43,6 +48,14 @@ export default function SuggestionDialog({
     }
   };
 
+  // Memoized validation check for form completeness
+  const isFormValid = useMemo(() => {
+    const hasValidComment = comment && comment.trim() !== "";
+    const hasValidScore = score !== null;
+    
+    return hasValidComment && hasValidScore;
+  }, [comment, score]);
+
   return (
     <CustomDialog
       open={open}
@@ -52,7 +65,7 @@ export default function SuggestionDialog({
       primaryAction={{
         label: "Save",
         onClick: onSubmit,
-        disabled: loading,
+        disabled: loading || !isFormValid,
         loading,
       }}
       secondaryAction={{
@@ -122,7 +135,7 @@ export default function SuggestionDialog({
                   <Chip
                     label={suggestion.llm_result.confidence_level}
                     color={getConfidenceColor(
-                      suggestion.llm_result.confidence_level
+                      suggestion.llm_result.confidence_level,
                     )}
                     size="small"
                   />
@@ -159,19 +172,58 @@ export default function SuggestionDialog({
 
         <Divider />
 
-        {/* Comment Section */}
+        {/* Score and Comment Section */}
         <Box>
-          <TextField
-            label="Your Comment"
-            value={comment}
-            onChange={(e) => onCommentChange(e.target.value)}
-            multiline
-            rows={4}
-            fullWidth
-            placeholder="Add your notes or comments about this suggestion..."
-            disabled={loading}
-            autoFocus
-          />
+          <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+            Your Evaluation
+          </Typography>
+          <Stack spacing={2}>
+            {/* Score Input */}
+            <TextField
+              label="Score"
+              type="number"
+              value={score ?? ""}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "") {
+                  onScoreChange(null);
+                } else {
+                  const numValue = parseInt(value, 10);
+                  if (!isNaN(numValue) && numValue >= 0 && numValue <= 10) {
+                    onScoreChange(numValue);
+                  }
+                }
+              }}
+              fullWidth
+              placeholder="Enter a score (0-10)"
+              disabled={loading}
+              required
+              slotProps={{
+                htmlInput: {
+                  min: 0,
+                  max: 10,
+                  step: 1,
+                },
+              }}
+              helperText="Required: Rate this suggestion out of 10"
+              error={score === null}
+            />
+
+            {/* Comment Input */}
+            <TextField
+              label="Your Comment"
+              value={comment}
+              onChange={(e) => onCommentChange(e.target.value)}
+              multiline
+              rows={4}
+              fullWidth
+              placeholder="Add your notes or comments about this suggestion..."
+              disabled={loading}
+              required
+              helperText="Required: Add your evaluation notes"
+              error={!comment || comment?.trim() === ""}
+            />
+          </Stack>
         </Box>
       </Stack>
     </CustomDialog>

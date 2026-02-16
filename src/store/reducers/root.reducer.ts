@@ -11,6 +11,7 @@ import purchasedReducer from "../slices/purchases.slice";
 import listingsDetailsReducer from "../slices/listingsDetails.slice";
 import chartsReducer from "../slices/charts.slice";
 import listingTrendsReducer from "../slices/listingTrends.slice";
+import availabilityReducer from "../slices/availability.slice";
 
 import type { store } from "..";
 import { useDispatch } from "react-redux";
@@ -28,6 +29,7 @@ const rootReducer = combineReducers({
   listingsDetails:  listingsDetailsReducer,
   charts:  chartsReducer,
   listingTrends: listingTrendsReducer,
+  availability: availabilityReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>; // <--- optional, for selector typing

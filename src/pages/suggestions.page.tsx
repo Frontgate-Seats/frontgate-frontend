@@ -1,13 +1,6 @@
 import * as React from "react";
 import { useSelector } from "react-redux";
-import { useNavigate } from "react-router";
-import {
-  Stack,
-  Grid,
-  IconButton,
-  Typography,
-  Link,
-} from "@mui/material";
+import { Stack, Grid, IconButton, Typography, Link } from "@mui/material";
 import { Edit } from "@mui/icons-material";
 import type {
   GridPaginationModel,
@@ -17,10 +10,7 @@ import type {
 
 import type { RootState } from "../store";
 import { formatDateTime } from "../shared/utils/dateTime.util";
-import {
-  getSuggests,
-  updateSuggest,
-} from "../store/slices/suggests.slice";
+import { getSuggests, updateSuggest } from "../store/slices/suggests.slice";
 import type { UpdateSuggestPayload } from "../apis/suggests.api";
 import { useAppDispatch } from "../store/reducers/root.reducer";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
@@ -29,7 +19,6 @@ import { SuggestionDialog } from "../components/common/dialogs";
 
 export default function SuggestionsPage() {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
 
   // Redux Data
   const {
@@ -45,13 +34,14 @@ export default function SuggestionsPage() {
     { field: "created_at", sort: "desc" },
   ]);
   const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
-    items: [],
+    items: [{ field: "llm_type", operator: "equals", value: "event-signal" }],
   });
 
   // Edit Dialog State
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);
   const [editingSuggest, setEditingSuggest] = React.useState<any>(null);
   const [editComment, setEditComment] = React.useState("");
+  const [editScore, setEditScore] = React.useState<number | null>(null);
 
   // Fetch Data
   React.useEffect(() => {
@@ -61,9 +51,15 @@ export default function SuggestionsPage() {
         pageSize: paginationModel.pageSize,
         sortFields: sortModel,
         filters: filterModel,
-      })
+      }),
     );
-  }, [dispatch, paginationModel.page, paginationModel.pageSize, sortModel, filterModel]);
+  }, [
+    dispatch,
+    paginationModel.page,
+    paginationModel.pageSize,
+    sortModel,
+    filterModel,
+  ]);
 
   const handleRefresh = React.useCallback(() => {
     dispatch(
@@ -72,14 +68,21 @@ export default function SuggestionsPage() {
         pageSize: paginationModel.pageSize,
         sortFields: sortModel,
         filters: filterModel,
-      })
+      }),
     );
-  }, [dispatch, paginationModel.page, paginationModel.pageSize, sortModel, filterModel]);
+  }, [
+    dispatch,
+    paginationModel.page,
+    paginationModel.pageSize,
+    sortModel,
+    filterModel,
+  ]);
 
   // Edit Dialog Handlers
   const handleOpenEditDialog = (suggest: any) => {
     setEditingSuggest(suggest);
     setEditComment(suggest.llm_result_comment || "");
+    setEditScore(suggest.llm_result_score ?? null);
     setEditDialogOpen(true);
   };
 
@@ -87,6 +90,7 @@ export default function SuggestionsPage() {
     setEditDialogOpen(false);
     setEditingSuggest(null);
     setEditComment("");
+    setEditScore(null);
   };
 
   const handleSaveEdit = async () => {
@@ -95,6 +99,7 @@ export default function SuggestionsPage() {
     const payload: UpdateSuggestPayload = {
       id: editingSuggest.id,
       llm_result_comment: editComment,
+      llm_result_score: editScore,
     };
 
     await dispatch(
@@ -106,7 +111,7 @@ export default function SuggestionsPage() {
           sortFields: sortModel,
           filters: filterModel,
         },
-      })
+      }),
     );
 
     handleCloseEditDialog();
@@ -122,10 +127,11 @@ export default function SuggestionsPage() {
       renderCell: (params) => {
         return (
           <Link
-            component="button"
-            variant="body2"
-            onClick={() => navigate(`/events/${params.value}`)}
+            href={`/events/${params.value}`}
+            target="_blank"
+            rel="noopener noreferrer"
             underline="hover"
+            color="primary"
           >
             {params.value}
           </Link>
@@ -146,12 +152,6 @@ export default function SuggestionsPage() {
       type: "dateTime",
       valueGetter: (value) => (value ? new Date(value) : null),
       valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
-    },
-    {
-      field: "llm_type",
-      headerName: "Type",
-      width: 130,
-      type: "string",
     },
     {
       field: "action",
@@ -178,7 +178,8 @@ export default function SuggestionsPage() {
       type: "string",
       sortable: false,
       filterable: false,
-      valueGetter: (_value: any, row: any) => row?.llm_result?.confidence_level ?? "-",
+      valueGetter: (_value: any, row: any) =>
+        row?.llm_result?.confidence_level ?? "-",
     },
     {
       field: "reasoning",
@@ -196,6 +197,14 @@ export default function SuggestionsPage() {
       flex: 1,
       minWidth: 200,
       type: "string",
+    },
+    {
+      field: "llm_result_score",
+      headerName: "Score",
+      width: 100,
+      type: "number",
+      valueFormatter: (value: any) =>
+        typeof value === "number" ? value.toString() : "-",
     },
     {
       field: "actions",
@@ -275,7 +284,9 @@ export default function SuggestionsPage() {
         onClose={handleCloseEditDialog}
         suggestion={editingSuggest}
         comment={editComment}
+        score={editScore}
         onCommentChange={setEditComment}
+        onScoreChange={setEditScore}
         onSubmit={handleSaveEdit}
       />
     </Stack>

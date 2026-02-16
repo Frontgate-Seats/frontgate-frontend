@@ -32,6 +32,7 @@ import {
   startEventMonitoring,
   stopEventMonitoring,
 } from "../store/slices/events.slice";
+import { getAvailability } from "../store/slices/availability.slice";
 import type { UpdateSuggestPayload } from "../apis/suggests.api";
 import { useClientFilters } from "../hooks/useClientFilters";
 import { useChartState } from "../hooks/useChartState";
@@ -41,12 +42,22 @@ import {
   SALES_TRENDS_CHART_CONFIG,
   LISTING_TRENDS_SHORT_CHART_CONFIG,
   LISTING_TRENDS_LONG_CHART_CONFIG,
+  AVAILABILITY_CHART_CONFIG,
+  AVAILABILITY_SECTION_CHART_CONFIG,
+  AVAILABILITY_PRICE_CHART_CONFIG,
   TIME_RANGE_OPTIONS,
 } from "../shared/constants/components.constants";
+import {
+  generateSectionLineSeriesConfig,
+  generatePricePointLineSeriesConfig,
+} from "../shared/utils/chartConfig.util";
 import DynamicChart from "../components/common/charts/DynamicChart";
 import {
   useSalesChartData,
   useListingTrendsChartData,
+  useAvailabilityCapacityChartData,
+  useAvailabilitySectionChartData,
+  useAvailabilityPriceChartData,
 } from "../hooks/useChartData";
 import {
   ConfirmDialog,
@@ -61,19 +72,19 @@ export default function EventDetailsPage() {
   const { eventId } = useParams<{ eventId: string }>();
 
   // Fetch event-related data (excluding suggests - handled separately for server-side rendering)
-  const {
-    selectedEvent,
-    sales,
-    listingTrends,
-    loading,
-    error,
-    refetch,
-  } = useEventData(eventId);
+  const { selectedEvent, sales, listingTrends, loading, error, refetch } =
+    useEventData(eventId);
 
   // Chart states
   const salesChart = useChartState("1d");
   const listingShortChart = useChartState("1d");
   const listingLongChart = useChartState("7d");
+  const availabilityChart = useChartState("6h");
+
+  // Availability state from Redux
+  const availabilityFromRedux = useSelector(
+    (state: RootState) => state.availability,
+  );
 
   // Chart datasets
   const datasetSalesGraph = useSalesChartData(
@@ -94,21 +105,57 @@ export default function EventDetailsPage() {
     listingLongChart.interval,
   );
 
+  const datasetAvailabilityCapacity = useAvailabilityCapacityChartData(
+    availabilityFromRedux.data,
+    availabilityChart.timeRange,
+    availabilityChart.interval,
+  );
+
+  const datasetAvailabilitySection = useAvailabilitySectionChartData(
+    availabilityFromRedux.data,
+    availabilityChart.timeRange,
+    availabilityChart.interval,
+  );
+
+  const datasetAvailabilityPrice = useAvailabilityPriceChartData(
+    availabilityFromRedux.data,
+    availabilityChart.timeRange,
+    availabilityChart.interval,
+  );
+
+  // Generate dynamic chart configs for sections and price points
+  const sectionChartConfig = React.useMemo(
+    () => ({
+      ...AVAILABILITY_SECTION_CHART_CONFIG,
+      lineSeries: generateSectionLineSeriesConfig(datasetAvailabilitySection),
+    }),
+    [datasetAvailabilitySection],
+  );
+
+  const priceChartConfig = React.useMemo(
+    () => ({
+      ...AVAILABILITY_PRICE_CHART_CONFIG,
+      lineSeries: generatePricePointLineSeriesConfig(datasetAvailabilityPrice),
+    }),
+    [datasetAvailabilityPrice],
+  );
+
   // Suggests server-side state
   const suggestsFromRedux = useSelector((state: RootState) => state.suggests);
   const [suggestsPaginationModel, setSuggestsPaginationModel] =
     React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
-  const [suggestsSortModel, setSuggestsSortModel] = React.useState<GridSortModel>([
-    { field: "created_at", sort: "desc" },
-  ]);
-  const [suggestsFilterModel, setSuggestsFilterModel] = React.useState<GridFilterModel>({
-    items: [],
-  });
+  const [suggestsSortModel, setSuggestsSortModel] =
+    React.useState<GridSortModel>([{ field: "created_at", sort: "desc" }]);
+  const [suggestsFilterModel, setSuggestsFilterModel] =
+    React.useState<GridFilterModel>({
+      items: [{ field: "llm_type", operator: "equals", value: "event-signal" }],
+    });
 
   // Edit Dialog State
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);
   const [editingSuggest, setEditingSuggest] = React.useState<any>(null);
   const [editComment, setEditComment] = React.useState("");
+  const [editScore, setEditScore] = React.useState<number | null>(null);
 
   // Monitor Dialog State
   const [confirmStopDialog, setConfirmStopDialog] = React.useState(false);
@@ -120,7 +167,8 @@ export default function EventDetailsPage() {
   // Edit Dialog Handlers
   const handleOpenEditDialog = (suggest: any) => {
     setEditingSuggest(suggest);
-    setEditComment(suggest.llm_result_comment || "");
+    setEditComment(suggest.llm_result_comment);
+    setEditScore(suggest.llm_result_score);
     setEditDialogOpen(true);
   };
 
@@ -128,6 +176,7 @@ export default function EventDetailsPage() {
     setEditDialogOpen(false);
     setEditingSuggest(null);
     setEditComment("");
+    setEditScore(null);
   };
 
   const handleSaveEdit = async () => {
@@ -136,6 +185,7 @@ export default function EventDetailsPage() {
     const payload: UpdateSuggestPayload = {
       id: editingSuggest.id,
       llm_result_comment: editComment,
+      llm_result_score: editScore,
     };
 
     await dispatch(
@@ -161,7 +211,7 @@ export default function EventDetailsPage() {
   // Fetch suggests with server-side pagination/sorting/filtering
   React.useEffect(() => {
     if (!eventId) return;
-    
+
     dispatch(
       getSuggests({
         page: suggestsPaginationModel.page,
@@ -173,7 +223,7 @@ export default function EventDetailsPage() {
             ...suggestsFilterModel.items,
           ],
         },
-      })
+      }),
     );
   }, [
     dispatch,
@@ -184,9 +234,26 @@ export default function EventDetailsPage() {
     suggestsFilterModel,
   ]);
 
+  // Fetch availability data
+  React.useEffect(() => {
+    if (!eventId) return;
+
+    // Map time range to hours
+    const hoursMap: Record<string, number> = {
+      "6h": 6,
+      "12h": 12,
+      "24h": 24,
+      "48h": 48,
+      "7d": 168,
+    };
+
+    const lastHoursCount = hoursMap[availabilityChart.timeRange] || 24;
+    dispatch(getAvailability({ eventId, lastHoursCount }));
+  }, [dispatch, eventId, availabilityChart.timeRange]);
+
   const handleRefreshSuggests = React.useCallback(() => {
     if (!eventId) return;
-    
+
     dispatch(
       getSuggests({
         page: suggestsPaginationModel.page,
@@ -198,7 +265,7 @@ export default function EventDetailsPage() {
             ...suggestsFilterModel.items,
           ],
         },
-      })
+      }),
     );
   }, [
     dispatch,
@@ -322,13 +389,6 @@ export default function EventDetailsPage() {
   // Suggests Data Grid Columns (server-side rendering - no valueGetter for nested fields)
   const suggestsColumns: CustomGridColDef[] = [
     {
-      field: "llm_type",
-      headerName: "Type",
-      minWidth: 120,
-      flex: 1,
-      type: "string",
-    },
-    {
       field: "action",
       headerName: "Action",
       minWidth: 100,
@@ -356,7 +416,8 @@ export default function EventDetailsPage() {
       type: "string",
       sortable: false,
       filterable: false,
-      valueGetter: (_value: any, row: any) => row?.llm_result?.confidence_level ?? "-",
+      valueGetter: (_value: any, row: any) =>
+        row?.llm_result?.confidence_level ?? "-",
     },
     {
       field: "reasoning",
@@ -374,6 +435,15 @@ export default function EventDetailsPage() {
       minWidth: 200,
       flex: 1,
       type: "string",
+    },
+    {
+      field: "llm_result_score",
+      headerName: "Score",
+      minWidth: 100,
+      flex: 1,
+      type: "number",
+      valueFormatter: (value: any) =>
+        typeof value === "number" ? value.toString() : "-",
     },
     {
       field: "created_at",
@@ -552,6 +622,69 @@ export default function EventDetailsPage() {
           </Card>
         </Grid>
 
+        {/* Primary Market Availability - Capacity Over Time */}
+        <Grid size={{ xs: 12 }}>
+          <DynamicChart
+            title="Primary Market Availability - Capacity Trends"
+            dataset={datasetAvailabilityCapacity}
+            chartConfig={AVAILABILITY_CHART_CONFIG}
+            loading={availabilityFromRedux.loading}
+            timeRange={availabilityChart.timeRange}
+            interval={availabilityChart.interval}
+            onTimeRangeChange={availabilityChart.setTimeRange}
+            onIntervalChange={availabilityChart.setInterval}
+            timeRangeOptions={[
+              { value: "1h", label: "Last 1 Hour" },
+              { value: "3h", label: "Last 3 Hours" },
+              { value: "6h", label: "Last 6 Hours" },
+              { value: "12h", label: "Last 12 Hours" },
+              { value: "1d", label: "Last Day" },
+            ]}
+            intervalOptionsMap={{
+              "1h": ["5m", "10m", "15m"],
+              "3h": ["10m", "15m", "30m", "1h"],
+              "6h": ["30m", "1h", "2h"],
+              "12h": ["1h", "2h", "3h"],
+               "1d": ["1h", "3h", "6h"],
+            }}
+            height={400}
+          />
+        </Grid>
+
+        {/* Primary Market Availability - Section Breakdown */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <DynamicChart
+            title="Top 10 Sections - Availability Trends"
+            dataset={datasetAvailabilitySection}
+            chartConfig={sectionChartConfig}
+            loading={availabilityFromRedux.loading}
+            timeRange={availabilityChart.timeRange}
+            interval={availabilityChart.interval}
+            onTimeRangeChange={availabilityChart.setTimeRange}
+            onIntervalChange={availabilityChart.setInterval}
+            timeRangeOptions={[]}
+            intervalOptionsMap={{}}
+            height={400}
+          />
+        </Grid>
+
+        {/* Primary Market Availability - Price Point Distribution */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <DynamicChart
+            title="Top 10 Price Points - Availability Trends"
+            dataset={datasetAvailabilityPrice}
+            chartConfig={priceChartConfig}
+            loading={availabilityFromRedux.loading}
+            timeRange={availabilityChart.timeRange}
+            interval={availabilityChart.interval}
+            onTimeRangeChange={availabilityChart.setTimeRange}
+            onIntervalChange={availabilityChart.setInterval}
+            timeRangeOptions={[]}
+            intervalOptionsMap={{}}
+            height={400}
+          />
+        </Grid>
+
         {/* Listing Trends - Short Term */}
         <Grid size={{ xs: 12, md: 6 }}>
           <DynamicChart
@@ -661,7 +794,9 @@ export default function EventDetailsPage() {
         onClose={handleCloseEditDialog}
         suggestion={editingSuggest}
         comment={editComment}
+        score={editScore}
         onCommentChange={setEditComment}
+        onScoreChange={setEditScore}
         onSubmit={handleSaveEdit}
       />
 

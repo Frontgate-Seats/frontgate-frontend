@@ -5,6 +5,7 @@ import supabaseClient from "../clients/supabase.client";
 export interface UpdateSuggestPayload {
   id: string;
   llm_result_comment?: string;
+  llm_result_score?: number | null;
 }
 
 const suggestsApi = {
