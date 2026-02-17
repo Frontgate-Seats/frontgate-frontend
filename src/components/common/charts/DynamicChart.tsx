@@ -10,6 +10,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Tooltip,
 } from "@mui/material";
 import {
   ChartDataProvider,
@@ -39,10 +40,11 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
   timeRangeOptions,
   intervalOptionsMap,
   height = 400,
+  logo,
 }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const [hiddenSeries, setHiddenSeries] = React.useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const { lineSeries, barSeries, leftAxisLabel, rightAxisLabel } = chartConfig;
 
@@ -53,7 +55,7 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
   const handleLegendClick = (
     _event: React.MouseEvent<HTMLButtonElement>,
     legendItem: any,
-    _index: number
+    _index: number,
   ) => {
     const seriesKey = legendItem.id;
     if (seriesKey) {
@@ -71,13 +73,13 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
 
   // Filter out hidden series
   const visibleLineSeries = lineSeries.filter(
-    (series) => series.dataKey && !hiddenSeries.has(series.dataKey)
+    (series) => series.dataKey && !hiddenSeries.has(series.dataKey),
   );
   const visibleBarSeries = barSeries.filter(
-    (series) => series.dataKey && !hiddenSeries.has(series.dataKey)
+    (series) => series.dataKey && !hiddenSeries.has(series.dataKey),
   );
 
-  console.log("ttt : ", title , timeRange)
+  console.log("ttt : ", title, timeRange);
 
   return (
     <ToggleFullscreen onFullscreenChange={handleFullscreenChange}>
@@ -103,9 +105,35 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
             sx={{ mb: 3 }}
             flexWrap="wrap"
           >
-            <Typography variant="h6" fontWeight={600} gutterBottom>
-              {title}
-            </Typography>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              {logo && (
+                <Tooltip
+                  title={
+                    logo.includes("tj-logo")
+                      ? "Ticket Jokey"
+                      : logo.includes("vivid-logo")
+                        ? "Vivid Seats"
+                        : logo.includes("seatgeek-logo")
+                          ? "SeatGeek"
+                          : ""
+                  }
+                >
+                  <Box
+                    component="img"
+                    src={logo}
+                    alt="Logo"
+                    sx={{
+                      width: 24,
+                      height: 24,
+                      objectFit: "contain",
+                    }}
+                  />
+                </Tooltip>
+              )}
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                {title}
+              </Typography>
+            </Stack>
 
             <Stack direction="row" spacing={3} alignItems="center">
               {timeRangeOptions.length > 0 && (

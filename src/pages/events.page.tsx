@@ -12,7 +12,13 @@ import {
   ListItemText,
   Chip,
 } from "@mui/material";
-import { BarChart, MoreVert, Visibility, PlayArrow, Stop } from "@mui/icons-material";
+import {
+  BarChart,
+  MoreVert,
+  Visibility,
+  PlayArrow,
+  Stop,
+} from "@mui/icons-material";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import type {
@@ -25,14 +31,22 @@ import moment from "moment";
 
 import type { RootState } from "../store";
 import { formatDateTime } from "../shared/utils/dateTime.util";
-import { getEvents, startEventMonitoring, stopEventMonitoring } from "../store/slices/events.slice";
+import {
+  getEvents,
+  startEventMonitoring,
+  stopEventMonitoring,
+} from "../store/slices/events.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
 import { AdapterMoment } from "@mui/x-date-pickers/AdapterMoment";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
-import { ConfirmDialog, StartMonitoringDialog, type MonitorLevel } from "../components/common/dialogs";
+import {
+  ConfirmDialog,
+  StartMonitoringDialog,
+  type MonitorLevel,
+} from "../components/common/dialogs";
 
 export default function EventsPage() {
   const dispatch = useAppDispatch();
@@ -126,7 +140,9 @@ export default function EventsPage() {
         sortFields: sortModel,
         filters: filterModel,
       };
-      dispatch(stopEventMonitoring({ eventId: confirmDialog.eventId, queryOptions }));
+      dispatch(
+        stopEventMonitoring({ eventId: confirmDialog.eventId, queryOptions }),
+      );
     }
     setConfirmDialog({ open: false, eventId: null, eventName: null });
   };
@@ -148,7 +164,7 @@ export default function EventsPage() {
           eventId: startMonitoringDialog.eventId,
           monitorLevel,
           queryOptions,
-        })
+        }),
       );
     }
     setStartMonitoringDialog({ open: false, eventId: null, eventName: null });
@@ -189,7 +205,10 @@ export default function EventsPage() {
           <IconButton
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/events/${params.row.id}`);
+              window.open(
+                `/functions/v1/events-api/ui/events/${params.row.id}`,
+                "_blank",
+              );
             }}
             color="primary"
             size="small"
@@ -328,7 +347,9 @@ export default function EventsPage() {
         const eventId = params.row.id.toString();
         const isMonitoring = params.row.is_monitored || false;
 
-        const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+        const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(
+          null,
+        );
         const open = Boolean(anchorEl);
 
         const handleClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -341,7 +362,10 @@ export default function EventsPage() {
         };
 
         const handleViewListings = () => {
-          window.open(`/functions/v1/events-api/ui/listings/${params.row.id}`, "_blank");
+          window.open(
+            `/functions/v1/events-api/ui/listings/${params.row.id}`,
+            "_blank",
+          );
           handleClose();
         };
 
@@ -369,9 +393,9 @@ export default function EventsPage() {
             <IconButton
               onClick={handleClick}
               size="small"
-              aria-controls={open ? 'actions-menu' : undefined}
+              aria-controls={open ? "actions-menu" : undefined}
               aria-haspopup="true"
-              aria-expanded={open ? 'true' : undefined}
+              aria-expanded={open ? "true" : undefined}
             >
               <MoreVert />
             </IconButton>
@@ -382,7 +406,7 @@ export default function EventsPage() {
               onClose={handleClose}
               slotProps={{
                 paper: {
-                  'aria-labelledby': 'actions-button',
+                  "aria-labelledby": "actions-button",
                 },
               }}
             >
@@ -394,7 +418,11 @@ export default function EventsPage() {
               </MenuItem>
               <MenuItem onClick={handleToggleMonitoring}>
                 <ListItemIcon>
-                  {isMonitoring ? <Stop fontSize="small" /> : <PlayArrow fontSize="small" />}
+                  {isMonitoring ? (
+                    <Stop fontSize="small" />
+                  ) : (
+                    <PlayArrow fontSize="small" />
+                  )}
                 </ListItemIcon>
                 <ListItemText>
                   {isMonitoring ? "Stop Monitor" : "Start Monitor"}
@@ -461,7 +489,8 @@ export default function EventsPage() {
         title="Stop Monitoring Event?"
         message={
           <>
-            Are you sure you want to stop monitoring "{confirmDialog.eventName}"?
+            Are you sure you want to stop monitoring "{confirmDialog.eventName}
+            "?
             <br />
             <br />
             This will stop collecting listings and sales data for this event.

@@ -127,7 +127,7 @@ export default function SuggestionsPage() {
       renderCell: (params) => {
         return (
           <Link
-            href={`/events/${params.value}`}
+            href={`/functions/v1/events-api/ui/events/${params.row.id}${params.value}`}
             target="_blank"
             rel="noopener noreferrer"
             underline="hover"
@@ -240,12 +240,6 @@ export default function SuggestionsPage() {
       }}
     >
       <Grid container spacing={3}>
-        <Grid size={{ xs: 12 }}>
-          <Typography variant="h4" fontWeight="bold" gutterBottom>
-            AI Suggestions
-          </Typography>
-        </Grid>
-
         <Grid
           size={{ xs: 12 }}
           sx={{
@@ -256,7 +250,7 @@ export default function SuggestionsPage() {
           }}
         >
           <CustomDataGrid
-            title="All Suggestions"
+            title="Suggestions"
             rows={suggests}
             rowCount={total}
             columns={columns}
@@ -271,7 +265,7 @@ export default function SuggestionsPage() {
             onRefresh={handleRefresh}
             headerComponent={
               <Typography variant="h6" fontWeight={600} gutterBottom>
-                All Suggestions
+                Suggestions
               </Typography>
             }
           />

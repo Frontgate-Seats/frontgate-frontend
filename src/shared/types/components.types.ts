@@ -20,6 +20,7 @@ export interface DynamicChartProps {
   intervalOptionsMap: Record<string, string[]>;
   height?: number;
   onFullscreenChange?: (isFullscreen: boolean) => void;
+  logo?: string;
 }
 
 export interface ChartDataPoint {

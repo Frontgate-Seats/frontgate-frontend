@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams } from "react-router";
 import { useSelector } from "react-redux";
 import {
   Typography,
@@ -7,14 +7,14 @@ import {
   CardContent,
   Grid,
   Stack,
-  Divider,
   IconButton,
   Tooltip,
   Link,
   Button,
   Chip,
+  Box,
 } from "@mui/material";
-import { ArrowBack, Edit, PlayArrow, Stop } from "@mui/icons-material";
+import { Edit, PlayArrow, Stop } from "@mui/icons-material";
 import moment from "moment";
 import type {
   GridPaginationModel,
@@ -68,12 +68,23 @@ import {
 
 export default function EventDetailsPage() {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
   const { eventId } = useParams<{ eventId: string }>();
 
+  // Logo paths - these are placeholders, replace with actual logo files
+  const TJ_LOGO = "/tj-logo.ico"; // Placeholder - replace with actual TJ logo
+  const VIVID_LOGO = "/vivid-logo.ico"; // Placeholder - replace with actual Vivid logo
+  const SEATGEEK_LOGO = "/seatgeek-logo.ico"; // Placeholder - replace with actual SeatGeek logo
+
   // Fetch event-related data (excluding suggests - handled separately for server-side rendering)
-  const { selectedEvent, sales, listingTrends, loading, error, refetch } =
-    useEventData(eventId);
+  const {
+    selectedEvent,
+    matchedSeatGeekEvent,
+    sales,
+    listingTrends,
+    loading,
+    error,
+    refetch,
+  } = useEventData(eventId);
 
   // Chart states
   const salesChart = useChartState("1d");
@@ -476,6 +487,35 @@ export default function EventDetailsPage() {
     },
   ];
 
+  // Custom header components with logos
+  const salesHeaderComponent = (
+    <Stack direction="row" alignItems="center" spacing={1}>
+      <Tooltip title="SeatGeek">
+        <Box
+          component="img"
+          src={SEATGEEK_LOGO}
+          alt="SeatGeek Logo"
+          sx={{
+            width: 24,
+            height: 24,
+            objectFit: "contain",
+          }}
+        />
+      </Tooltip>
+      <Typography variant="h6" fontWeight={600} gutterBottom>
+        Sales Data
+      </Typography>
+    </Stack>
+  );
+
+  const suggestionsHeaderComponent = (
+    <Stack direction="row" alignItems="center" spacing={1}>
+      <Typography variant="h6" fontWeight={600} gutterBottom>
+        Suggestions
+      </Typography>
+    </Stack>
+  );
+
   return (
     <Stack
       padding={3}
@@ -489,135 +529,262 @@ export default function EventDetailsPage() {
       <Grid container spacing={3}>
         {/* Header with Back Button */}
         <Grid size={{ xs: 12 }}>
-          <Stack direction="row" alignItems="center" spacing={2}>
-            <Tooltip title="Back to Events">
-              <IconButton onClick={() => navigate("/events")} color="primary">
-                <ArrowBack />
-              </IconButton>
-            </Tooltip>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            spacing={2}
+          >
             <Typography variant="h4" fontWeight="bold">
               Event Details
             </Typography>
+            <Stack direction="row" spacing={2} alignItems="center">
+              {monitorLevel !== "none" && (
+                <Chip
+                  label={`Monitor: ${monitorLevel.charAt(0).toUpperCase() + monitorLevel.slice(1)}`}
+                  color={getMonitorLevelColor(monitorLevel)}
+                  size="medium"
+                />
+              )}
+              <Button
+                variant={isMonitoring ? "outlined" : "contained"}
+                color={isMonitoring ? "error" : "primary"}
+                startIcon={isMonitoring ? <Stop /> : <PlayArrow />}
+                onClick={isMonitoring ? handleStopMonitor : handleStartMonitor}
+                size="small"
+              >
+                {isMonitoring ? "Stop" : "Start"}
+              </Button>
+            </Stack>
           </Stack>
         </Grid>
 
-        {/* Event Details Card */}
+        {/* Combined Event Details Card */}
         <Grid size={{ xs: 12 }}>
           <Card variant="outlined">
             <CardContent>
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-                mb={2}
-              >
-                <Typography variant="h5" fontWeight="bold">
-                  {selectedEvent?.name}
-                </Typography>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  {monitorLevel !== "none" && (
-                    <Chip
-                      label={`Monitor: ${monitorLevel.charAt(0).toUpperCase() + monitorLevel.slice(1)}`}
-                      color={getMonitorLevelColor(monitorLevel)}
-                      size="medium"
-                    />
-                  )}
-                  <Button
-                    variant={isMonitoring ? "outlined" : "contained"}
-                    color={isMonitoring ? "error" : "primary"}
-                    startIcon={isMonitoring ? <Stop /> : <PlayArrow />}
-                    onClick={
-                      isMonitoring ? handleStopMonitor : handleStartMonitor
-                    }
-                  >
-                    {isMonitoring ? "Stop Monitor" : "Start Monitor"}
-                  </Button>
+              <Stack spacing={3}>
+                {/* Vivid Seats Row */}
+                <Stack direction="row" spacing={4}>
+                  {/* Logo on left */}
+                  <Box>
+                    <Tooltip title="Vivid Seats">
+                      <Box
+                        component="img"
+                        src={VIVID_LOGO}
+                        alt="Vivid Seats logo"
+                        sx={{
+                          width: 24,
+                          height: 24,
+                          objectFit: "contain",
+                        }}
+                      />
+                    </Tooltip>
+                  </Box>
+
+                  {/* Event details on right */}
+                  <Box flex={1}>
+                    <Stack
+                      direction="row"
+                      spacing={3}
+                      sx={{
+                        flexWrap: "wrap",
+                        gap: 4,
+                      }}
+                    >
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Event ID
+                        </Typography>
+                        <Typography variant="body1">
+                          {selectedEvent?.id ? (
+                            selectedEvent?.web_path ? (
+                              <Link
+                                href={`https://www.vividseats.com${selectedEvent.web_path}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                underline="hover"
+                                color="primary"
+                              >
+                                {selectedEvent.id}
+                              </Link>
+                            ) : (
+                              selectedEvent.id
+                            )
+                          ) : (
+                            "-"
+                          )}
+                        </Typography>
+                      </Box>
+
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Name
+                        </Typography>
+                        <Typography variant="body1">
+                          {selectedEvent?.name || "-"}
+                        </Typography>
+                      </Box>
+
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Date & Time
+                        </Typography>
+                        <Typography variant="body1">
+                          {selectedEvent?.local_date
+                            ? formatDateTime(
+                                moment.parseZone(selectedEvent.local_date),
+                              )
+                            : "-"}
+                        </Typography>
+                      </Box>
+
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Venue
+                        </Typography>
+                        <Typography variant="body1">
+                          {selectedEvent?.venue_name
+                            ? `${selectedEvent.venue_name}, ${selectedEvent.venue_city}, ${selectedEvent.venue_state}`
+                            : "-"}
+                        </Typography>
+                      </Box>
+
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Performer
+                        </Typography>
+                        <Typography variant="body1">
+                          {selectedEvent?.primary_performer_name || "-"}
+                        </Typography>
+                      </Box>
+
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Category
+                        </Typography>
+                        <Typography variant="body1">
+                          {selectedEvent?.category_name || "-"}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Box>
+                </Stack>
+
+                {/* SeatGeek Row */}
+                <Stack direction="row" spacing={4}>
+                  {/* Logo on left */}
+                  <Box>
+                    <Tooltip title="SeatGeek">
+                      <Box
+                        component="img"
+                        src={SEATGEEK_LOGO}
+                        alt="SeatGeek logo"
+                        sx={{
+                          width: 24,
+                          height: 24,
+                          objectFit: "contain",
+                        }}
+                      />
+                    </Tooltip>
+                  </Box>
+
+                  {/* Event details on right */}
+                  <Box flex={1}>
+                    {matchedSeatGeekEvent ? (
+                      <Stack
+                        direction="row"
+                        spacing={3}
+                        sx={{
+                          flexWrap: "wrap",
+                          gap: 4,
+                        }}
+                      >
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Event ID
+                          </Typography>
+                          <Typography variant="body1">
+                            <Link
+                              href={
+                                matchedSeatGeekEvent.web_path.startsWith("http")
+                                  ? matchedSeatGeekEvent.web_path
+                                  : `https://seatgeek.com${matchedSeatGeekEvent.web_path}`
+                              }
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              underline="hover"
+                              color="primary"
+                            >
+                              {matchedSeatGeekEvent.id}
+                            </Link>
+                          </Typography>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Name
+                          </Typography>
+                          <Typography variant="body1">
+                            {matchedSeatGeekEvent?.name || "-"}
+                          </Typography>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Date & Time
+                          </Typography>
+                          <Typography variant="body1">
+                            {matchedSeatGeekEvent?.local_date
+                              ? formatDateTime(
+                                  moment.parseZone(
+                                    matchedSeatGeekEvent.local_date,
+                                  ),
+                                )
+                              : "-"}
+                          </Typography>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Venue
+                          </Typography>
+                          <Typography variant="body1">
+                            {matchedSeatGeekEvent?.venue_name
+                              ? `${matchedSeatGeekEvent.venue_name}, ${matchedSeatGeekEvent.venue_city}, ${matchedSeatGeekEvent.venue_state}`
+                              : "-"}
+                          </Typography>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Performer
+                          </Typography>
+                          <Typography variant="body1">
+                            {matchedSeatGeekEvent?.primary_performer_name ||
+                              "-"}
+                          </Typography>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Category
+                          </Typography>
+                          <Typography variant="body1">
+                            {matchedSeatGeekEvent?.category_name || "-"}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    ) : (
+                      <Box sx={{ textAlign: "center", py: 4 }}>
+                        <Typography variant="body1" color="text.secondary">
+                          No matched SeatGeek event found
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
                 </Stack>
               </Stack>
-              <Divider sx={{ mb: 2 }} />
-
-              <Grid container spacing={3}>
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Event ID
-                  </Typography>
-                  <Typography variant="body1">
-                    {selectedEvent?.platform === "vividseats" ? (
-                      <Link
-                        href={`https://www.vividseats.com${selectedEvent?.web_path}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        underline="hover"
-                        color="primary"
-                      >
-                        {selectedEvent?.id}
-                      </Link>
-                    ) : (
-                      selectedEvent?.id
-                    )}
-                  </Typography>
-                </Grid>
-
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Date & Time
-                  </Typography>
-                  <Typography variant="body1">
-                    {selectedEvent?.local_date
-                      ? formatDateTime(
-                          moment.parseZone(selectedEvent.local_date),
-                        )
-                      : "-"}
-                  </Typography>
-                </Grid>
-
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Venue
-                  </Typography>
-                  <Typography variant="body1">
-                    {selectedEvent?.venue_name
-                      ? `${selectedEvent.venue_name}, ${selectedEvent.venue_city}, ${selectedEvent.venue_state}`
-                      : "-"}
-                  </Typography>
-                </Grid>
-
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Performer
-                  </Typography>
-                  <Typography variant="body1">
-                    {selectedEvent?.primary_performer_name || "-"}
-                  </Typography>
-                </Grid>
-
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Category
-                  </Typography>
-                  <Typography variant="body1">
-                    {selectedEvent?.category_name || "-"}
-                  </Typography>
-                </Grid>
-
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Tickets
-                  </Typography>
-                  <Typography variant="body1">
-                    {selectedEvent?.ticket_count ?? "-"}
-                  </Typography>
-                </Grid>
-
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Listings
-                  </Typography>
-                  <Typography variant="body1">
-                    {selectedEvent?.listing_count ?? "-"}
-                  </Typography>
-                </Grid>
-              </Grid>
             </CardContent>
           </Card>
         </Grid>
@@ -645,9 +812,10 @@ export default function EventDetailsPage() {
               "3h": ["10m", "15m", "30m", "1h"],
               "6h": ["30m", "1h", "2h"],
               "12h": ["1h", "2h", "3h"],
-               "1d": ["1h", "3h", "6h"],
+              "1d": ["1h", "3h", "6h"],
             }}
             height={400}
+            logo={TJ_LOGO}
           />
         </Grid>
 
@@ -665,6 +833,7 @@ export default function EventDetailsPage() {
             timeRangeOptions={[]}
             intervalOptionsMap={{}}
             height={400}
+            logo={TJ_LOGO}
           />
         </Grid>
 
@@ -682,6 +851,7 @@ export default function EventDetailsPage() {
             timeRangeOptions={[]}
             intervalOptionsMap={{}}
             height={400}
+            logo={TJ_LOGO}
           />
         </Grid>
 
@@ -699,6 +869,7 @@ export default function EventDetailsPage() {
             timeRangeOptions={TIME_RANGE_OPTIONS}
             intervalOptionsMap={INTERVAL_OPTIONS_MAP}
             height={400}
+            logo={VIVID_LOGO}
           />
         </Grid>
 
@@ -716,6 +887,7 @@ export default function EventDetailsPage() {
             timeRangeOptions={TIME_RANGE_OPTIONS}
             intervalOptionsMap={INTERVAL_OPTIONS_MAP}
             height={400}
+            logo={VIVID_LOGO}
           />
         </Grid>
 
@@ -733,6 +905,7 @@ export default function EventDetailsPage() {
             timeRangeOptions={TIME_RANGE_OPTIONS}
             intervalOptionsMap={INTERVAL_OPTIONS_MAP}
             height={400}
+            logo={SEATGEEK_LOGO}
           />
         </Grid>
 
@@ -754,11 +927,8 @@ export default function EventDetailsPage() {
             defaultFilterType="header"
             onRefresh={refetch.sales}
             height={400}
-            headerComponent={
-              <Typography variant="h6" fontWeight={600} gutterBottom>
-                Sales Data
-              </Typography>
-            }
+            headerComponent={salesHeaderComponent}
+            logo={SEATGEEK_LOGO}
           />
         </Grid>
 
@@ -779,11 +949,7 @@ export default function EventDetailsPage() {
             setFilterModel={setSuggestsFilterModel}
             onRefresh={handleRefreshSuggests}
             height={400}
-            headerComponent={
-              <Typography variant="h6" fontWeight={600} gutterBottom>
-                Suggestions
-              </Typography>
-            }
+            headerComponent={suggestionsHeaderComponent}
           />
         </Grid>
       </Grid>

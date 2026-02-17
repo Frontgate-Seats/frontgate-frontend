@@ -2,6 +2,7 @@ import { combineReducers } from "redux";
 import authReducer from "../slices/auth.slice";
 import snackbarReducer from "../slices/snackbar.slice";
 import eventsReducer from "../slices/events.slice";
+import sgeventsReducer from "../slices/sgevents.slice";
 import eventsExternalMappingsReducer from "../slices/eventsExternalMappings.slice";
 import suggestsReducer from "../slices/suggests.slice";
 import listingsReducer from "../slices/listings.slice";
@@ -20,6 +21,7 @@ const rootReducer = combineReducers({
   auth: authReducer,
   snackbar: snackbarReducer,
   events: eventsReducer,
+  sgevents: sgeventsReducer,
   eventsExternalMappings: eventsExternalMappingsReducer,
   suggests: suggestsReducer,
   listings: listingsReducer,

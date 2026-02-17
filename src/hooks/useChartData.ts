@@ -206,6 +206,14 @@ export const useListingTrendsChartData = (
     });
 
     const result: ChartDataPoint[] = [];
+    
+    // Find first data point in the range to use as "next data" when needed
+    let firstDataInRange = null;
+    if (rangeData.length > 0) {
+      firstDataInRange = rangeData[0];
+    }
+    
+    // Initialize lastValue with lastBefore data if available, otherwise null
     let lastValue = lastBefore
       ? {
           minPriceAll: lastBefore.min_price_all ?? 0,
@@ -215,14 +223,7 @@ export const useListingTrendsChartData = (
           ticketCount: lastBefore.sec_ticket_count ?? 0,
           listingCount: lastBefore.sec_listing_count ?? 0,
         }
-      : {
-          minPriceAll: 0,
-          minPricePair: 0,
-          secMinPricePair: 0,
-          medianPricePair: 0,
-          ticketCount: 0,
-          listingCount: 0,
-        };
+      : null;
 
     const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
     const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
@@ -231,8 +232,35 @@ export const useListingTrendsChartData = (
       const arr = grouped[t] || [];
 
       if (arr.length === 0) {
+        // If no data in this bucket
+        let values;
+        if (lastValue) {
+          // Use lastValue if available (from historical data or previous bucket)
+          values = lastValue;
+        } else if (firstDataInRange) {
+          // No lastValue, but we have first data in range - use it as "next data"
+          values = {
+            minPriceAll: firstDataInRange.min_price_all ?? 0,
+            minPricePair: firstDataInRange.min_price_pair ?? 0,
+            secMinPricePair: firstDataInRange.sec_min_price_pair ?? 0,
+            medianPricePair: firstDataInRange.median_price_pair ?? 0,
+            ticketCount: firstDataInRange.sec_ticket_count ?? 0,
+            listingCount: firstDataInRange.sec_listing_count ?? 0,
+          };
+        } else {
+          // No data at all
+          values = {
+            minPriceAll: 0,
+            minPricePair: 0,
+            secMinPricePair: 0,
+            medianPricePair: 0,
+            ticketCount: 0,
+            listingCount: 0,
+          };
+        }
+        
         result.push({
-          ...lastValue,
+          ...values,
           time: formatDateTime(moment.utc(t).local()),
           bucketStartUTC: moment.utc(t).toISOString(),
         });
@@ -353,7 +381,17 @@ export const useAvailabilityCapacityChartData = (
     const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
     const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
 
-    // Initialize lastValue with lastBefore data or zeros
+    // Find first snapshot in the range to use as "next data" when needed
+    let firstSnapshotInRange = null;
+    const snapshotsInRange = sortedSnapshots.filter(s => {
+      const t = moment.utc(s.timestamp).valueOf();
+      return t >= rangeStart && t <= rangeEnd;
+    });
+    if (snapshotsInRange.length > 0) {
+      firstSnapshotInRange = snapshotsInRange[0];
+    }
+    
+    // Initialize lastValue with lastBefore data if available, otherwise null
     let lastValue = lastBefore
       ? {
           totalCapacity: lastBefore.capacity?.total ?? 0,
@@ -363,19 +401,39 @@ export const useAvailabilityCapacityChartData = (
             ? (((lastBefore.capacity?.total ?? 0) - (lastBefore.capacity?.available ?? 0)) / (lastBefore.capacity?.total ?? 0)) * 100 
             : 0,
         }
-      : {
-          totalCapacity: 0,
-          available: 0,
-          sold: 0,
-          sellThroughRate: 0,
-        };
+      : null;
 
     for (let t = startBucket; t <= endBucket; t += intervalMs) {
       const bucketSnapshots = grouped[t] || [];
 
       if (bucketSnapshots.length === 0) {
+        // If no data in this bucket
+        let values;
+        if (lastValue) {
+          // Use lastValue if available (from historical data or previous bucket)
+          values = lastValue;
+        } else if (firstSnapshotInRange) {
+          // No lastValue, but we have first snapshot in range - use it as "next data"
+          values = {
+            totalCapacity: firstSnapshotInRange.capacity?.total ?? 0,
+            available: firstSnapshotInRange.capacity?.available ?? 0,
+            sold: (firstSnapshotInRange.capacity?.total ?? 0) - (firstSnapshotInRange.capacity?.available ?? 0),
+            sellThroughRate: firstSnapshotInRange.capacity?.total > 0 
+              ? (((firstSnapshotInRange.capacity?.total ?? 0) - (firstSnapshotInRange.capacity?.available ?? 0)) / (firstSnapshotInRange.capacity?.total ?? 0)) * 100 
+              : 0,
+          };
+        } else {
+          // No data at all
+          values = {
+            totalCapacity: 0,
+            available: 0,
+            sold: 0,
+            sellThroughRate: 0,
+          };
+        }
+        
         result.push({
-          ...lastValue,
+          ...values,
           time: formatDateTime(moment.utc(t).local()),
           bucketStartUTC: moment.utc(t).toISOString(),
         });
@@ -519,22 +577,31 @@ export const useAvailabilitySectionChartData = (
     const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
     const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
 
-    // Initialize lastValue with lastBefore data or zeros for each section
+    // Find first snapshot in the range to use as "next data" when needed
+    let firstSnapshotInRange = null;
+    const snapshotsInRange = sortedSnapshots.filter(s => {
+      const t = moment.utc(s.timestamp).valueOf();
+      return t >= rangeStart && t <= rangeEnd;
+    });
+    if (snapshotsInRange.length > 0) {
+      firstSnapshotInRange = snapshotsInRange[0];
+    }
+    
+    // Initialize lastValue with lastBefore data if available, otherwise create empty object
     let lastValue: ChartDataPoint = {
       time: "",
       bucketStartUTC: "",
     };
     
-    topSections.forEach((sectionName) => {
-      if (lastBefore) {
+    // If we have lastBefore data, populate lastValue with it
+    if (lastBefore) {
+      topSections.forEach((sectionName) => {
         const section = lastBefore.summary?.sections?.find(
           (s: any) => s.name === sectionName
         );
         lastValue[sectionName] = section?.available || 0;
-      } else {
-        lastValue[sectionName] = 0;
-      }
-    });
+      });
+    }
 
     for (let t = startBucket; t <= endBucket; t += intervalMs) {
       const bucketSnapshots = grouped[t] || [];
@@ -564,9 +631,21 @@ export const useAvailabilitySectionChartData = (
           lastValue[sectionName] = Math.round(avgAvailability);
         });
       } else {
-        // No data for this bucket, use last value for each section
+        // No data for this bucket
         topSections.forEach((sectionName) => {
-          dataPoint[sectionName] = lastValue[sectionName] || 0;
+          if (lastValue[sectionName] !== undefined) {
+            // Use lastValue if available
+            dataPoint[sectionName] = lastValue[sectionName];
+          } else if (firstSnapshotInRange) {
+            // No lastValue, but we have first snapshot in range - use it as "next data"
+            const section = firstSnapshotInRange.summary?.sections?.find(
+              (s: any) => s.name === sectionName
+            );
+            dataPoint[sectionName] = section?.available || 0;
+          } else {
+            // No data at all
+            dataPoint[sectionName] = 0;
+          }
         });
       }
 
@@ -691,23 +770,32 @@ export const useAvailabilityPriceChartData = (
     const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
     const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
 
-    // Initialize lastValue with lastBefore data or zeros for each price point
+    // Find first snapshot in the range to use as "next data" when needed
+    let firstSnapshotInRange = null;
+    const snapshotsInRange = sortedSnapshots.filter(s => {
+      const t = moment.utc(s.timestamp).valueOf();
+      return t >= rangeStart && t <= rangeEnd;
+    });
+    if (snapshotsInRange.length > 0) {
+      firstSnapshotInRange = snapshotsInRange[0];
+    }
+    
+    // Initialize lastValue with lastBefore data if available, otherwise create empty object
     let lastValue: ChartDataPoint = {
       time: "",
       bucketStartUTC: "",
     };
     
-    topPrices.forEach((price) => {
-      const priceKey = `${price.toFixed(2)}`;
-      if (lastBefore) {
+    // If we have lastBefore data, populate lastValue with it
+    if (lastBefore) {
+      topPrices.forEach((price) => {
+        const priceKey = `${price.toFixed(2)}`;
         const pricePoint = lastBefore.summary?.pricePoints?.find(
           (pp: any) => pp.price === price
         );
         lastValue[priceKey] = pricePoint?.available || 0;
-      } else {
-        lastValue[priceKey] = 0;
-      }
-    });
+      });
+    }
 
     for (let t = startBucket; t <= endBucket; t += intervalMs) {
       const bucketSnapshots = grouped[t] || [];
@@ -738,10 +826,22 @@ export const useAvailabilityPriceChartData = (
           lastValue[priceKey] = Math.round(avgAvailability);
         });
       } else {
-        // No data for this bucket, use last value for each price point
+        // No data for this bucket
         topPrices.forEach((price) => {
           const priceKey = `${price.toFixed(2)}`;
-          dataPoint[priceKey] = lastValue[priceKey] || 0;
+          if (lastValue[priceKey] !== undefined) {
+            // Use lastValue if available
+            dataPoint[priceKey] = lastValue[priceKey];
+          } else if (firstSnapshotInRange) {
+            // No lastValue, but we have first snapshot in range - use it as "next data"
+            const pricePoint = firstSnapshotInRange.summary?.pricePoints?.find(
+              (pp: any) => pp.price === price
+            );
+            dataPoint[priceKey] = pricePoint?.available || 0;
+          } else {
+            // No data at all
+            dataPoint[priceKey] = 0;
+          }
         });
       }
 

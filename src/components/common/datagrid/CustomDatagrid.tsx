@@ -41,6 +41,7 @@ interface CustomDataGridProps {
   defaultFilterType?: FilterType;
   height?: number;
   headerComponent?: React.ReactNode;
+  logo?: string;
 }
 
 export default function CustomDataGrid({
@@ -60,11 +61,8 @@ export default function CustomDataGrid({
   onRowClick,
   defaultFilterType = "custom",
   height = 800,
-  headerComponent = (
-    <Box component="h2" sx={{ m: 0 }}>
-      {title}
-    </Box>
-  ),
+  headerComponent,
+  logo,
 }: CustomDataGridProps) {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const handleFullscreenChange = (fullscreenMode: boolean) => {
@@ -72,6 +70,41 @@ export default function CustomDataGrid({
   };
 
   const [showFilters, setShowFilters] = React.useState(true);
+
+  // Default header component with logo
+  const defaultHeaderComponent = (
+    <Stack direction="row" alignItems="center" spacing={1}>
+      {logo && (
+        <Tooltip
+          title={
+            logo.includes("tj-logo")
+              ? "Ticket Jokey"
+              : logo.includes("vivid-logo")
+                ? "Vivid Seats"
+                : logo.includes("seatgeek-logo")
+                  ? "SeatGeek"
+                  : ""
+          }
+        >
+          <Box
+            component="img"
+            src={logo}
+            alt="Logo"
+            sx={{
+              width: 24,
+              height: 24,
+              objectFit: "contain",
+            }}
+          />
+        </Tooltip>
+      )}
+      <Box component="h2" sx={{ m: 0 }}>
+        {title}
+      </Box>
+    </Stack>
+  );
+
+  const finalHeaderComponent = headerComponent || defaultHeaderComponent;
 
   const customColumns = React.useMemo(() => {
     return columns.map((col) => {
@@ -134,7 +167,7 @@ export default function CustomDataGrid({
             spacing={1}
             sx={{ mb: 2, flexShrink: 0 }}
           >
-            {headerComponent}
+            {finalHeaderComponent}
 
             <Stack direction="row" spacing={1}>
               {defaultFilterType === "header" &&
