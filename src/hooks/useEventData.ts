@@ -15,45 +15,48 @@ export function useEventData(eventId: string | undefined) {
   const sgevents = useSelector((state: RootState) => state.sgevents);
   const sales = useSelector((state: RootState) => state.sales);
   const eventsExternalMappings = useSelector(
-    (state: RootState) => state.eventsExternalMappings
+    (state: RootState) => state.eventsExternalMappings,
   );
   const listingTrends = useSelector((state: RootState) => state.listingTrends);
 
   // Try to find event in both events and sgevents tables
   const selectedEvent = React.useMemo(() => {
     if (!eventId) return null;
-    
+
     // First try to find in events table (Vivid events)
-    const vividEvent = events.rows.data.find((e) => e.id.toString() === eventId);
+    const vividEvent = events.rows.data.find(
+      (e) => e.id.toString() === eventId,
+    );
     if (vividEvent) {
       return vividEvent;
     }
-    
+
     // Then try to find in sgevents table (SeatGeek events)
     const sgEvent = sgevents.rows.data.find((e) => e.id.toString() === eventId);
     if (sgEvent) {
       // Add platform field for SeatGeek events
-      return { ...sgEvent, platform: 'seatgeek' };
+      return { ...sgEvent, platform: "seatgeek" };
     }
-    
+
     return null;
   }, [events.rows.data, sgevents.rows.data, eventId]);
 
   // Find matched SeatGeek event from external mappings
   const matchedSeatGeekEvent = React.useMemo(() => {
-    if (!selectedEvent || selectedEvent.platform === 'seatgeek') return null;
-    
+    if (!selectedEvent || selectedEvent.platform === "seatgeek") return null;
+
     // Get external event ID from mappings
-    const externalEventId = eventsExternalMappings.rows.data?.[0]?.external_event_id?.toString();
+    const externalEventId =
+      eventsExternalMappings.rows.data?.[0]?.external_event_id?.toString();
     if (!externalEventId) return null;
-    
+
     // Find the SeatGeek event
     return sgevents.rows.data.find((e) => e.id.toString() === externalEventId);
   }, [selectedEvent, eventsExternalMappings.rows.data, sgevents.rows.data]);
 
   const fetchEvent = React.useCallback(() => {
     if (!eventId) return;
-    
+
     // Try to fetch from events table (Vivid events)
     dispatch(
       getEvents({
@@ -63,14 +66,8 @@ export function useEventData(eventId: string | undefined) {
         filters: {
           items: [{ field: "id", operator: "equals", value: eventId }],
         },
-      })
+      }),
     );
-    
-    // Also try to fetch from sgevents table (SeatGeek events)
-    // Check if eventId looks like a number (SeatGeek IDs are numeric)
-    if (!isNaN(Number(eventId))) {
-      dispatch(getSGEvent(eventId));
-    }
   }, [dispatch, eventId]);
 
   const fetchExternalMappings = React.useCallback(() => {
@@ -80,7 +77,7 @@ export function useEventData(eventId: string | undefined) {
         filters: {
           items: [{ field: "event_id", operator: "equals", value: eventId }],
         },
-      })
+      }),
     );
   }, [dispatch, eventId]);
 
@@ -98,15 +95,12 @@ export function useEventData(eventId: string | undefined) {
 
   // Fetch matched SeatGeek event when we have external mapping
   React.useEffect(() => {
-    const externalEventId = eventsExternalMappings.rows.data?.[0]?.external_event_id?.toString();
+    const externalEventId =
+      eventsExternalMappings.rows.data?.[0]?.external_event_id?.toString();
     if (externalEventId && !isNaN(Number(externalEventId))) {
-      // Check if we already have this SeatGeek event
-      const alreadyHasEvent = sgevents.rows.data.some(e => e.id.toString() === externalEventId);
-      if (!alreadyHasEvent) {
-        dispatch(getSGEvent(externalEventId));
-      }
+      dispatch(getSGEvent(externalEventId));
     }
-  }, [dispatch, eventsExternalMappings.rows.data, sgevents.rows.data]);
+  }, [dispatch, eventsExternalMappings.rows.data]);
 
   // Initial fetch
   React.useEffect(() => {
