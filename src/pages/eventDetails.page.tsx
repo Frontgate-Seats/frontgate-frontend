@@ -71,9 +71,12 @@ export default function EventDetailsPage() {
   const { eventId } = useParams<{ eventId: string }>();
 
   // Logo paths
-  const TJ_LOGO = "https://aibuying.frontgateseats.com/storage/v1/object/public/frontgate-frontend/tj-logo.ico";
-  const VIVID_LOGO = "https://aibuying.frontgateseats.com/storage/v1/object/public/frontgate-frontend/vivid-logo.ico";
-  const SEATGEEK_LOGO = "https://aibuying.frontgateseats.com/storage/v1/object/public/frontgate-frontend/seatgeek-logo.ico";
+  const TJ_LOGO =
+    "https://aibuying.frontgateseats.com/storage/v1/object/public/frontgate-frontend/tj-logo.ico";
+  const VIVID_LOGO =
+    "https://aibuying.frontgateseats.com/storage/v1/object/public/frontgate-frontend/vivid-logo.ico";
+  const SEATGEEK_LOGO =
+    "https://aibuying.frontgateseats.com/storage/v1/object/public/frontgate-frontend/seatgeek-logo.ico";
 
   // Fetch event-related data (excluding suggests - handled separately for server-side rendering)
   const {
@@ -690,8 +693,8 @@ export default function EventDetailsPage() {
                   </Box>
 
                   {/* Event details on right */}
-                  <Box flex={1}>
-                    {matchedSeatGeekEvent ? (
+                  {matchedSeatGeekEvent ? (
+                    <Box flex={1}>
                       <Stack
                         direction="row"
                         spacing={3}
@@ -775,14 +778,10 @@ export default function EventDetailsPage() {
                           </Typography>
                         </Box>
                       </Stack>
-                    ) : (
-                      <Box sx={{ textAlign: "center", py: 4 }}>
-                        <Typography variant="body1" color="text.secondary">
-                          No matched SeatGeek event found
-                        </Typography>
-                      </Box>
-                    )}
-                  </Box>
+                    </Box>
+                  ) : (
+                    <></>
+                  )}
                 </Stack>
               </Stack>
             </CardContent>
