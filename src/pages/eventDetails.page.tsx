@@ -70,10 +70,10 @@ export default function EventDetailsPage() {
   const dispatch = useAppDispatch();
   const { eventId } = useParams<{ eventId: string }>();
 
-  // Logo paths - these are placeholders, replace with actual logo files
-  const TJ_LOGO = "/tj-logo.ico"; // Placeholder - replace with actual TJ logo
-  const VIVID_LOGO = "/vivid-logo.ico"; // Placeholder - replace with actual Vivid logo
-  const SEATGEEK_LOGO = "/seatgeek-logo.ico"; // Placeholder - replace with actual SeatGeek logo
+  // Logo paths
+  const TJ_LOGO = "https://aibuying.frontgateseats.com/storage/v1/object/public/frontgate-frontend/tj-logo.ico";
+  const VIVID_LOGO = "https://aibuying.frontgateseats.com/storage/v1/object/public/frontgate-frontend/vivid-logo.ico";
+  const SEATGEEK_LOGO = "https://aibuying.frontgateseats.com/storage/v1/object/public/frontgate-frontend/seatgeek-logo.ico";
 
   // Fetch event-related data (excluding suggests - handled separately for server-side rendering)
   const {
