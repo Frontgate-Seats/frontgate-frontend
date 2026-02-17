@@ -1,6 +1,5 @@
 import * as React from "react";
 import { useSelector } from "react-redux";
-import { useNavigate } from "react-router";
 import {
   Alert,
   Grid,
@@ -50,7 +49,6 @@ import {
 
 export default function EventsPage() {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
 
   // ------------------------
   // Redux Data
