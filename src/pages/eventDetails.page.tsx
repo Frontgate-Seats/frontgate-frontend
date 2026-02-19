@@ -42,7 +42,6 @@ import {
   SALES_TRENDS_CHART_CONFIG,
   LISTING_TRENDS_SHORT_CHART_CONFIG,
   LISTING_TRENDS_LONG_CHART_CONFIG,
-  AVAILABILITY_CHART_CONFIG,
   AVAILABILITY_SECTION_CHART_CONFIG,
   AVAILABILITY_PRICE_CHART_CONFIG,
   TIME_RANGE_OPTIONS,
@@ -55,9 +54,7 @@ import DynamicChart from "../components/common/charts/DynamicChart";
 import {
   useSalesChartData,
   useListingTrendsChartData,
-  useAvailabilityCapacityChartData,
-  useAvailabilitySectionChartData,
-  useAvailabilityPriceChartData,
+  useAvailabilityData,
 } from "../hooks/useChartData";
 import {
   ConfirmDialog,
@@ -93,7 +90,7 @@ export default function EventDetailsPage() {
   const salesChart = useChartState("1d");
   const listingShortChart = useChartState("1d");
   const listingLongChart = useChartState("7d");
-  const availabilityChart = useChartState("6h");
+  const pricePointsChart = useChartState("1d"); // Single chart state for all availability data
 
   // Availability state from Redux
   const availabilityFromRedux = useSelector(
@@ -119,39 +116,32 @@ export default function EventDetailsPage() {
     listingLongChart.interval,
   );
 
-  const datasetAvailabilityCapacity = useAvailabilityCapacityChartData(
+  // Combined availability data (single processing)
+  const availabilityData = useAvailabilityData(
     availabilityFromRedux.data,
-    availabilityChart.timeRange,
-    availabilityChart.interval,
-  );
-
-  const datasetAvailabilitySection = useAvailabilitySectionChartData(
-    availabilityFromRedux.data,
-    availabilityChart.timeRange,
-    availabilityChart.interval,
-  );
-
-  const datasetAvailabilityPrice = useAvailabilityPriceChartData(
-    availabilityFromRedux.data,
-    availabilityChart.timeRange,
-    availabilityChart.interval,
+    pricePointsChart.timeRange,
+    pricePointsChart.interval,
   );
 
   // Generate dynamic chart configs for sections and price points
   const sectionChartConfig = React.useMemo(
     () => ({
       ...AVAILABILITY_SECTION_CHART_CONFIG,
-      lineSeries: generateSectionLineSeriesConfig(datasetAvailabilitySection),
+      lineSeries: generateSectionLineSeriesConfig(
+        availabilityData.sectionChart,
+      ),
     }),
-    [datasetAvailabilitySection],
+    [availabilityData.sectionChart],
   );
 
   const priceChartConfig = React.useMemo(
     () => ({
       ...AVAILABILITY_PRICE_CHART_CONFIG,
-      lineSeries: generatePricePointLineSeriesConfig(datasetAvailabilityPrice),
+      lineSeries: generatePricePointLineSeriesConfig(
+        availabilityData.priceChart,
+      ),
     }),
-    [datasetAvailabilityPrice],
+    [availabilityData.priceChart],
   );
 
   // Suggests server-side state
@@ -261,9 +251,9 @@ export default function EventDetailsPage() {
       "7d": 168,
     };
 
-    const lastHoursCount = hoursMap[availabilityChart.timeRange] || 24;
+    const lastHoursCount = hoursMap[pricePointsChart.timeRange] || 24;
     dispatch(getAvailability({ eventId, lastHoursCount }));
-  }, [dispatch, eventId, availabilityChart.timeRange]);
+  }, [dispatch, eventId, pricePointsChart.timeRange]);
 
   const handleRefreshSuggests = React.useCallback(() => {
     if (!eventId) return;
@@ -383,6 +373,41 @@ export default function EventDetailsPage() {
     },
   ];
 
+  // Capacity Table Columns
+  const capacityColumns: CustomGridColDef[] = [
+    {
+      field: "time",
+      headerName: "Date & Time",
+      minWidth: 180,
+      flex: 1,
+      type: "dateTime",
+      valueGetter: (value) => (value ? new Date(value) : null),
+      valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
+    },
+    {
+      field: "totalCapacity",
+      headerName: "Total",
+      minWidth: 150,
+      flex: 1,
+      min: 0,
+      max: 20000,
+      type: "number",
+      valueFormatter: (value: any) =>
+        typeof value === "number" ? value.toLocaleString() : "-",
+    },
+    {
+      field: "available",
+      headerName: "Available",
+      minWidth: 150,
+      flex: 1,
+      min: 0,
+      max: 20000,
+      type: "number",
+      valueFormatter: (value: any) =>
+        typeof value === "number" ? value.toLocaleString() : "-",
+    },
+  ];
+
   // Sales Grid State
   const {
     paginationModel: salesPaginationModel,
@@ -398,6 +423,23 @@ export default function EventDetailsPage() {
     columns: salesColumns,
     initialPaginationModel: { page: 0, pageSize: 25 },
     initialSortModel: [{ field: "purchased_at", sort: "desc" }],
+  });
+
+  // Capacity Table Grid State
+  const {
+    paginationModel: capacityPaginationModel,
+    sortModel: capacitySortModel,
+    filterModel: capacityFilterModel,
+    setPaginationModel: setCapacityPaginationModel,
+    setSortModel: setCapacitySortModel,
+    setFilterModel: setCapacityFilterModel,
+    paginatedRows: paginatedCapacity,
+    totalFilteredRows: capacityTotalFiltered,
+  } = useClientFilters({
+    data: availabilityData.capacityTable || [],
+    columns: capacityColumns,
+    initialPaginationModel: { page: 0, pageSize: 25 },
+    initialSortModel: [{ field: "time", sort: "desc" }],
   });
 
   // Suggests Data Grid Columns (server-side rendering - no valueGetter for nested fields)
@@ -507,6 +549,26 @@ export default function EventDetailsPage() {
       </Tooltip>
       <Typography variant="h6" fontWeight={600} gutterBottom>
         Sales Data
+      </Typography>
+    </Stack>
+  );
+
+  const capacityHeaderComponent = (
+    <Stack direction="row" alignItems="center" spacing={1}>
+      <Tooltip title="Ticketmaster">
+        <Box
+          component="img"
+          src={TJ_LOGO}
+          alt="Ticketmaster Logo"
+          sx={{
+            width: 24,
+            height: 24,
+            objectFit: "contain",
+          }}
+        />
+      </Tooltip>
+      <Typography variant="h6" fontWeight={600} gutterBottom>
+        Primary Market Availability - Capacity Trends
       </Typography>
     </Stack>
   );
@@ -675,25 +737,26 @@ export default function EventDetailsPage() {
                 </Stack>
 
                 {/* SeatGeek Row */}
-                <Stack direction="row" spacing={4}>
-                  {/* Logo on left */}
-                  <Box>
-                    <Tooltip title="SeatGeek">
-                      <Box
-                        component="img"
-                        src={SEATGEEK_LOGO}
-                        alt="SeatGeek logo"
-                        sx={{
-                          width: 24,
-                          height: 24,
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Tooltip>
-                  </Box>
+                {matchedSeatGeekEvent ? (
+                  <Stack direction="row" spacing={4}>
+                    {/* Logo on left */}
+                    <Box>
+                      <Tooltip title="SeatGeek">
+                        <Box
+                          component="img"
+                          src={SEATGEEK_LOGO}
+                          alt="SeatGeek logo"
+                          sx={{
+                            width: 24,
+                            height: 24,
+                            objectFit: "contain",
+                          }}
+                        />
+                      </Tooltip>
+                    </Box>
 
-                  {/* Event details on right */}
-                  {matchedSeatGeekEvent ? (
+                    {/* Event details on right */}
+
                     <Box flex={1}>
                       <Stack
                         direction="row"
@@ -779,41 +842,65 @@ export default function EventDetailsPage() {
                         </Box>
                       </Stack>
                     </Box>
-                  ) : (
-                    <></>
-                  )}
-                </Stack>
+                  </Stack>
+                ) : (
+                  <></>
+                )}
               </Stack>
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Primary Market Availability - Capacity Over Time */}
+        {/* Primary Market Availability - Price Point Distribution */}
         <Grid size={{ xs: 12 }}>
           <DynamicChart
-            title="Primary Market Availability - Capacity Trends"
-            dataset={datasetAvailabilityCapacity}
-            chartConfig={AVAILABILITY_CHART_CONFIG}
+            title="Price Points - Availability Trends"
+            dataset={availabilityData.priceChart}
+            chartConfig={priceChartConfig}
             loading={availabilityFromRedux.loading}
-            timeRange={availabilityChart.timeRange}
-            interval={availabilityChart.interval}
-            onTimeRangeChange={availabilityChart.setTimeRange}
-            onIntervalChange={availabilityChart.setInterval}
-            timeRangeOptions={[
-              { value: "1h", label: "Last 1 Hour" },
-              { value: "3h", label: "Last 3 Hours" },
-              { value: "6h", label: "Last 6 Hours" },
-              { value: "12h", label: "Last 12 Hours" },
-              { value: "1d", label: "Last Day" },
-            ]}
-            intervalOptionsMap={{
-              "1h": ["5m", "10m", "15m"],
-              "3h": ["10m", "15m", "30m", "1h"],
-              "6h": ["30m", "1h", "2h"],
-              "12h": ["1h", "2h", "3h"],
-              "1d": ["1h", "3h", "6h"],
+            timeRange={pricePointsChart.timeRange}
+            interval={pricePointsChart.interval}
+            onTimeRangeChange={pricePointsChart.setTimeRange}
+            onIntervalChange={pricePointsChart.setInterval}
+            timeRangeOptions={TIME_RANGE_OPTIONS}
+            intervalOptionsMap={INTERVAL_OPTIONS_MAP}
+            height={400}
+            logo={TJ_LOGO}
+          />
+        </Grid>
+
+        {/* Primary Market Availability - Capacity Table */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <CustomDataGrid
+            title="Primary Market Availability - Capacity Trends"
+            rows={paginatedCapacity}
+            rowCount={capacityTotalFiltered}
+            columns={capacityColumns}
+            isLoading={availabilityFromRedux.loading}
+            error={availabilityFromRedux.error}
+            paginationModel={capacityPaginationModel}
+            setPaginationModel={setCapacityPaginationModel}
+            sortingModel={capacitySortModel}
+            setSortingModel={setCapacitySortModel}
+            filterModel={capacityFilterModel}
+            setFilterModel={setCapacityFilterModel}
+            defaultFilterType="header"
+            onRefresh={() => {
+              if (eventId) {
+                const hoursMap: Record<string, number> = {
+                  "6h": 6,
+                  "12h": 12,
+                  "24h": 24,
+                  "48h": 48,
+                  "7d": 168,
+                };
+                const lastHoursCount =
+                  hoursMap[pricePointsChart.timeRange] || 24;
+                dispatch(getAvailability({ eventId, lastHoursCount }));
+              }
             }}
             height={400}
+            headerComponent={capacityHeaderComponent}
             logo={TJ_LOGO}
           />
         </Grid>
@@ -821,34 +908,16 @@ export default function EventDetailsPage() {
         {/* Primary Market Availability - Section Breakdown */}
         <Grid size={{ xs: 12, md: 6 }}>
           <DynamicChart
-            title="Top 10 Sections - Availability Trends"
-            dataset={datasetAvailabilitySection}
+            title="Sections - Availability Trends"
+            dataset={availabilityData.sectionChart}
             chartConfig={sectionChartConfig}
             loading={availabilityFromRedux.loading}
-            timeRange={availabilityChart.timeRange}
-            interval={availabilityChart.interval}
-            onTimeRangeChange={availabilityChart.setTimeRange}
-            onIntervalChange={availabilityChart.setInterval}
-            timeRangeOptions={[]}
-            intervalOptionsMap={{}}
-            height={400}
-            logo={TJ_LOGO}
-          />
-        </Grid>
-
-        {/* Primary Market Availability - Price Point Distribution */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <DynamicChart
-            title="Top 10 Price Points - Availability Trends"
-            dataset={datasetAvailabilityPrice}
-            chartConfig={priceChartConfig}
-            loading={availabilityFromRedux.loading}
-            timeRange={availabilityChart.timeRange}
-            interval={availabilityChart.interval}
-            onTimeRangeChange={availabilityChart.setTimeRange}
-            onIntervalChange={availabilityChart.setInterval}
-            timeRangeOptions={[]}
-            intervalOptionsMap={{}}
+            timeRange={pricePointsChart.timeRange}
+            interval={pricePointsChart.interval}
+            onTimeRangeChange={pricePointsChart.setTimeRange}
+            onIntervalChange={pricePointsChart.setInterval}
+            timeRangeOptions={TIME_RANGE_OPTIONS}
+            intervalOptionsMap={INTERVAL_OPTIONS_MAP}
             height={400}
             logo={TJ_LOGO}
           />

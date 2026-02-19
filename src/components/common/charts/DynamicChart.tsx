@@ -11,6 +11,9 @@ import {
   Select,
   MenuItem,
   Tooltip,
+  Checkbox,
+  ListItemText,
+  OutlinedInput,
 } from "@mui/material";
 import {
   ChartDataProvider,
@@ -52,31 +55,43 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
     setIsFullscreen(fullscreenMode);
   };
 
-  const handleLegendClick = (
-    _event: React.MouseEvent<HTMLButtonElement>,
-    legendItem: any,
-    _index: number,
-  ) => {
-    const seriesKey = legendItem.id;
-    if (seriesKey) {
-      setHiddenSeries((prev) => {
-        const newSet = new Set(prev);
-        if (newSet.has(seriesKey)) {
-          newSet.delete(seriesKey);
-        } else {
-          newSet.add(seriesKey);
-        }
-        return newSet;
-      });
-    }
+  // Apply hidden state to all series
+  const processedLineSeries = lineSeries.map((series, index) => ({
+    ...series,
+    id: series.dataKey || series.id || `line-${index}`,
+  }));
+
+  const processedBarSeries = barSeries.map((series, index) => ({
+    ...series,
+    id: series.dataKey || series.id || `bar-${index}`,
+  }));
+
+  // All series for legend
+  const allSeries = [...processedLineSeries, ...processedBarSeries];
+
+  // Get visible series IDs for multi-select
+  const visibleSeriesIds = allSeries
+    .filter((series) => !hiddenSeries.has(String(series.id)))
+    .map((series) => String(series.id));
+
+  const handleSeriesToggle = (event: any) => {
+    const selectedIds = event.target.value as string[];
+    const allIds = allSeries.map((s) => String(s.id));
+    
+    // Calculate which series should be hidden
+    const newHiddenSeries = new Set(
+      allIds.filter((id) => !selectedIds.includes(id))
+    );
+    
+    setHiddenSeries(newHiddenSeries);
   };
 
-  // Filter out hidden series
-  const visibleLineSeries = lineSeries.filter(
-    (series) => series.dataKey && !hiddenSeries.has(series.dataKey),
+  // Filter out hidden series completely
+  const visibleLineSeries = processedLineSeries.filter(
+    (series) => series.id && !hiddenSeries.has(series.id as string),
   );
-  const visibleBarSeries = barSeries.filter(
-    (series) => series.dataKey && !hiddenSeries.has(series.dataKey),
+  const visibleBarSeries = processedBarSeries.filter(
+    (series) => series.id && !hiddenSeries.has(series.id as string),
   );
 
   console.log("ttt : ", title, timeRange);
@@ -102,7 +117,7 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
           <Stack
             direction="row"
             justifyContent="space-between"
-            sx={{ mb: 3 }}
+            sx={{ mb: 3, gap: 2 }}
             flexWrap="wrap"
           >
             <Stack direction="row" alignItems="center" spacing={1}>
@@ -135,7 +150,52 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
               </Typography>
             </Stack>
 
-            <Stack direction="row" spacing={3} alignItems="center">
+            <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+              {/* Series Selector */}
+              {allSeries.length > 0 && (
+                <FormControl size="small">
+                  <InputLabel>Series</InputLabel>
+                  <Select
+                    multiple
+                    value={visibleSeriesIds}
+                    onChange={handleSeriesToggle}
+                    input={<OutlinedInput label="Series" />}
+                    renderValue={(selected) => `${selected.length} selected`}
+                    sx={{ minWidth: 140 }}
+                  >
+                    {allSeries.map((series) => {
+                      const seriesId = String(series.id || "");
+                      const label =
+                        typeof series.label === "function"
+                          ? series.label("legend")
+                          : series.label || seriesId;
+
+                      return (
+                        <MenuItem key={seriesId} value={seriesId}>
+                          <Checkbox
+                            checked={visibleSeriesIds.includes(seriesId)}
+                            sx={{
+                              color: series.color,
+                              "&.Mui-checked": {
+                                color: series.color,
+                              },
+                            }}
+                          />
+                          <ListItemText
+                            primary={label}
+                            sx={{
+                              "& .MuiListItemText-primary": {
+                                fontSize: "0.875rem",
+                              },
+                            }}
+                          />
+                        </MenuItem>
+                      );
+                    })}
+                  </Select>
+                </FormControl>
+              )}
+
               {timeRangeOptions.length > 0 && (
                 <FormControl size="small">
                   <InputLabel>Time Range</InputLabel>
@@ -217,15 +277,23 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                 sx={{
                   display: "flex",
                   justifyContent: "center",
-                  alignItems: "center",
-                  paddingBottom: 1,
+                  alignItems: "flex-start",
+                  paddingBottom: 2,
                   flexShrink: 0,
+                  width: "100%",
+                  "& .MuiChartsLegend-root": {
+                    display: "flex",
+                    flexWrap: "wrap",
+                    justifyContent: "center",
+                    maxWidth: "100%",
+                    gap: "8px",
+                  },
+                  "& .MuiChartsLegend-series": {
+                    flexShrink: 0,
+                  },
                 }}
               >
-                <ChartsLegend
-                  direction="horizontal"
-                  onItemClick={handleLegendClick}
-                />
+                <ChartsLegend direction="horizontal" />
               </Box>
 
               <Box sx={{ flex: 1, position: "relative", minHeight: 0 }}>

@@ -133,6 +133,62 @@ export const useListingTrendsChartData = (
   return React.useMemo(() => {
     if (!listingTrends || listingTrends.length === 0) return [];
 
+    // First, group by created_at and calculate aggregates for each timestamp
+    const groupedByTimestamp: Record<string, any> = {};
+    
+    listingTrends.forEach((item) => {
+      const timestamp = item.created_at;
+      if (!groupedByTimestamp[timestamp]) {
+        groupedByTimestamp[timestamp] = {
+          created_at: timestamp,
+          items: [],
+        };
+      }
+      groupedByTimestamp[timestamp].items.push(item);
+    });
+
+    // Calculate aggregates for each timestamp
+    const aggregatedData = Object.values(groupedByTimestamp).map((group: any) => {
+      const items = group.items;
+      
+      // Find overall minimum prices across all sections
+      const minPriceAll = Math.min(...items.map((i: any) => i.min_price_all ?? Infinity));
+      const minPricePair = Math.min(...items.map((i: any) => i.min_price_pair ?? Infinity));
+      
+      // Calculate totals for ticket and listing counts
+      const totalTicketCount = items.reduce((sum: number, i: any) => sum + (i.sec_ticket_count ?? 0), 0);
+      const totalListingCount = items.reduce((sum: number, i: any) => sum + (i.sec_listing_count ?? 0), 0);
+      
+      // Calculate weighted median price (using ticket counts as weights)
+      const validPairs = items.filter((i: any) => i.median_price_pair != null && i.sec_ticket_count > 0);
+      let medianPricePair = 0;
+      if (validPairs.length > 0) {
+        const totalWeight = validPairs.reduce((sum: number, i: any) => sum + i.sec_ticket_count, 0);
+        medianPricePair = validPairs.reduce((sum: number, i: any) => 
+          sum + (i.median_price_pair * i.sec_ticket_count), 0) / totalWeight;
+      }
+      
+      // Calculate weighted sec_min_price_pair
+      const validSecMin = items.filter((i: any) => i.sec_min_price_pair != null && i.sec_ticket_count > 0);
+      let secMinPricePair = 0;
+      if (validSecMin.length > 0) {
+        const totalWeight = validSecMin.reduce((sum: number, i: any) => sum + i.sec_ticket_count, 0);
+        secMinPricePair = validSecMin.reduce((sum: number, i: any) => 
+          sum + (i.sec_min_price_pair * i.sec_ticket_count), 0) / totalWeight;
+      }
+
+      return {
+        created_at: group.created_at,
+        min_price_all: minPriceAll === Infinity ? 0 : minPriceAll,
+        min_price_pair: minPricePair === Infinity ? 0 : minPricePair,
+        sec_min_price_pair: secMinPricePair,
+        median_price_pair: medianPricePair,
+        sec_ticket_count: totalTicketCount,
+        sec_listing_count: totalListingCount,
+      };
+    });
+
+    // Now apply time range filtering and bucketing
     const now = moment.utc();
     const fromDate = now.clone();
 
@@ -178,7 +234,7 @@ export const useListingTrendsChartData = (
       ? parseInt(interval) * 60 * 60 * 1000
       : parseInt(interval) * 60 * 1000;
 
-    const sorted = [...listingTrends].sort(
+    const sorted = [...aggregatedData].sort(
       (a, b) =>
         moment.utc(a.created_at).valueOf() - moment.utc(b.created_at).valueOf()
     );
@@ -460,6 +516,276 @@ export const useAvailabilityCapacityChartData = (
     }
 
     return result;
+  }, [availabilityData, timeRange, interval]);
+};
+
+// Combined hook for all availability data (capacity table, sections, price points)
+export const useAvailabilityData = (
+  availabilityData: any,
+  timeRange: string,
+  interval: string
+) => {
+  return React.useMemo(() => {
+    if (!availabilityData?.snapshots || availabilityData.snapshots.length === 0) {
+      return {
+        capacityTable: [],
+        sectionChart: [],
+        priceChart: [],
+      };
+    }
+
+    const snapshots = availabilityData.snapshots;
+
+    // Calculate time range
+    const now = moment.utc();
+    const fromDate = now.clone();
+
+    switch (timeRange) {
+      case "1h":
+        fromDate.subtract(1, "hour");
+        break;
+      case "3h":
+        fromDate.subtract(3, "hours");
+        break;
+      case "6h":
+        fromDate.subtract(6, "hours");
+        break;
+      case "12h":
+        fromDate.subtract(12, "hours");
+        break;
+      case "1d":
+        fromDate.subtract(1, "day");
+        break;
+      case "7d":
+        fromDate.subtract(7, "days");
+        break;
+      case "30d":
+        fromDate.subtract(30, "days");
+        break;
+      case "3m":
+        fromDate.subtract(3, "months");
+        break;
+      case "6m":
+        fromDate.subtract(6, "months");
+        break;
+      case "1y":
+        fromDate.subtract(1, "year");
+        break;
+    }
+
+    const rangeStart = fromDate.valueOf();
+    const rangeEnd = now.valueOf();
+
+    // Calculate interval in milliseconds
+    const intervalMs = interval.endsWith("d")
+      ? parseInt(interval) * 24 * 60 * 60 * 1000
+      : interval.endsWith("h")
+      ? parseInt(interval) * 60 * 60 * 1000
+      : parseInt(interval) * 60 * 1000;
+
+    // Sort snapshots by timestamp
+    const sortedSnapshots = [...snapshots].sort(
+      (a, b) => moment.utc(a.timestamp).valueOf() - moment.utc(b.timestamp).valueOf()
+    );
+
+    // Find last snapshot before the time range
+    let lastBefore = null;
+    for (let i = sortedSnapshots.length - 1; i >= 0; i--) {
+      const t = moment.utc(sortedSnapshots[i].timestamp).valueOf();
+      if (t < rangeStart) {
+        lastBefore = sortedSnapshots[i];
+        break;
+      }
+    }
+
+    // Get snapshots in range
+    const snapshotsInRange = sortedSnapshots.filter(s => {
+      const t = moment.utc(s.timestamp).valueOf();
+      return t >= rangeStart && t <= rangeEnd;
+    });
+    const firstSnapshotInRange = snapshotsInRange.length > 0 ? snapshotsInRange[0] : null;
+
+    // Get all unique sections and price points from snapshots in range
+    const allSections = new Set<string>();
+    const allPrices = new Set<number>();
+    
+    snapshotsInRange.forEach((snapshot: any) => {
+      snapshot.summary?.sections?.forEach((section: any) => {
+        if (section.available > 0) {
+          allSections.add(section.name);
+        }
+      });
+      snapshot.summary?.pricePoints?.forEach((pp: any) => {
+        if (pp.available > 0) {
+          allPrices.add(pp.price);
+        }
+      });
+    });
+
+    const sectionNames = Array.from(allSections);
+    const pricePoints = Array.from(allPrices).sort((a, b) => a - b);
+
+    // Group snapshots by time bucket
+    const grouped: Record<number, any[]> = {};
+    snapshotsInRange.forEach((snapshot: any) => {
+      const time = moment.utc(snapshot.timestamp).valueOf();
+      const bucket = Math.floor(time / intervalMs) * intervalMs;
+      if (!grouped[bucket]) grouped[bucket] = [];
+      grouped[bucket].push(snapshot);
+    });
+
+    // Build results
+    const capacityTable: ChartDataPoint[] = [];
+    const sectionChart: ChartDataPoint[] = [];
+    const priceChart: ChartDataPoint[] = [];
+    
+    const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
+    const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
+
+    // Initialize last values
+    let lastCapacity = lastBefore ? {
+      totalCapacity: lastBefore.capacity?.total ?? 0,
+      available: lastBefore.capacity?.available ?? 0,
+    } : null;
+
+    let lastSections: Record<string, number> = {};
+    if (lastBefore) {
+      sectionNames.forEach((sectionName) => {
+        const section = lastBefore.summary?.sections?.find((s: any) => s.name === sectionName);
+        lastSections[sectionName] = section?.available || 0;
+      });
+    }
+
+    let lastPrices: Record<string, number> = {};
+    if (lastBefore) {
+      pricePoints.forEach((price) => {
+        const priceKey = `${price.toFixed(2)}`;
+        const pricePoint = lastBefore.summary?.pricePoints?.find((pp: any) => pp.price === price);
+        lastPrices[priceKey] = pricePoint?.available || 0;
+      });
+    }
+
+    for (let t = startBucket; t <= endBucket; t += intervalMs) {
+      const bucketSnapshots = grouped[t] || [];
+      const timeStr = formatDateTime(moment.utc(t).local());
+      const bucketStartUTC = moment.utc(t).toISOString();
+
+      // Capacity Table Data
+      if (bucketSnapshots.length > 0) {
+        const totalCapacityAvg = bucketSnapshots.reduce((sum, s) => sum + (s.capacity?.total ?? 0), 0) / bucketSnapshots.length;
+        const availableAvg = bucketSnapshots.reduce((sum, s) => sum + (s.capacity?.available ?? 0), 0) / bucketSnapshots.length;
+
+        lastCapacity = {
+          totalCapacity: Math.round(totalCapacityAvg),
+          available: Math.round(availableAvg),
+        };
+
+        capacityTable.push({
+          id: bucketStartUTC,
+          time: timeStr,
+          bucketStartUTC,
+          totalCapacity: lastCapacity.totalCapacity,
+          available: lastCapacity.available,
+        });
+      } else {
+        const values = lastCapacity || (firstSnapshotInRange ? {
+          totalCapacity: firstSnapshotInRange.capacity?.total ?? 0,
+          available: firstSnapshotInRange.capacity?.available ?? 0,
+        } : { totalCapacity: 0, available: 0 });
+
+        capacityTable.push({
+          id: bucketStartUTC,
+          time: timeStr,
+          bucketStartUTC,
+          totalCapacity: values.totalCapacity,
+          available: values.available,
+        });
+      }
+
+      // Section Chart Data
+      const sectionDataPoint: ChartDataPoint = {
+        time: timeStr,
+        bucketStartUTC,
+      };
+
+      if (bucketSnapshots.length > 0) {
+        sectionNames.forEach((sectionName) => {
+          let totalAvailability = 0;
+          let count = 0;
+          
+          bucketSnapshots.forEach((snapshot: any) => {
+            const section = snapshot.summary?.sections?.find((s: any) => s.name === sectionName);
+            if (section) {
+              totalAvailability += section.available;
+              count++;
+            }
+          });
+          
+          const avgAvailability = count > 0 ? totalAvailability / count : 0;
+          sectionDataPoint[sectionName] = Math.round(avgAvailability);
+          lastSections[sectionName] = Math.round(avgAvailability);
+        });
+      } else {
+        sectionNames.forEach((sectionName) => {
+          if (lastSections[sectionName] !== undefined) {
+            sectionDataPoint[sectionName] = lastSections[sectionName];
+          } else if (firstSnapshotInRange) {
+            const section = firstSnapshotInRange.summary?.sections?.find((s: any) => s.name === sectionName);
+            sectionDataPoint[sectionName] = section?.available || 0;
+          } else {
+            sectionDataPoint[sectionName] = 0;
+          }
+        });
+      }
+
+      sectionChart.push(sectionDataPoint);
+
+      // Price Chart Data
+      const priceDataPoint: ChartDataPoint = {
+        time: timeStr,
+        bucketStartUTC,
+      };
+
+      if (bucketSnapshots.length > 0) {
+        pricePoints.forEach((price) => {
+          let totalAvailability = 0;
+          let count = 0;
+
+          bucketSnapshots.forEach((snapshot: any) => {
+            const pricePoint = snapshot.summary?.pricePoints?.find((pp: any) => pp.price === price);
+            if (pricePoint) {
+              totalAvailability += pricePoint.available;
+              count++;
+            }
+          });
+
+          const avgAvailability = count > 0 ? totalAvailability / count : 0;
+          const priceKey = `${price.toFixed(2)}`;
+          priceDataPoint[priceKey] = Math.round(avgAvailability);
+          lastPrices[priceKey] = Math.round(avgAvailability);
+        });
+      } else {
+        pricePoints.forEach((price) => {
+          const priceKey = `${price.toFixed(2)}`;
+          if (lastPrices[priceKey] !== undefined) {
+            priceDataPoint[priceKey] = lastPrices[priceKey];
+          } else if (firstSnapshotInRange) {
+            const pricePoint = firstSnapshotInRange.summary?.pricePoints?.find((pp: any) => pp.price === price);
+            priceDataPoint[priceKey] = pricePoint?.available || 0;
+          } else {
+            priceDataPoint[priceKey] = 0;
+          }
+        });
+      }
+
+      priceChart.push(priceDataPoint);
+    }
+
+    return {
+      capacityTable,
+      sectionChart,
+      priceChart,
+    };
   }, [availabilityData, timeRange, interval]);
 };
 

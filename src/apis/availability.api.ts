@@ -4,7 +4,7 @@ const availabilityApi = {
   // Fetch primary market availability data
   fetchAvailability: async (eventId: string, lastHoursCount: number = 24) => {
     const { data, error } = await supabaseClient.functions.invoke(
-      `events-api/availability/${eventId}?lastHoursCount=${lastHoursCount}`,
+      `events-api/availability/${eventId}?lastHoursCount=${lastHoursCount}&includeFirstSnapshot=true`,
       { method: "GET" }
     );
 

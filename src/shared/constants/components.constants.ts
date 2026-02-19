@@ -74,20 +74,32 @@ export const TIME_RANGE_OPTIONS = [
 // Interval Options Map (shared across all charts)
 export const INTERVAL_OPTIONS_MAP: Record<string, string[]> = {
   "1h": ["5m", "10m", "15m"],
-  "3h": ["10m", "15m", "30m", "1h"],
-  "6h": ["30m", "1h", "2h"],
-  "12h": ["1h", "2h", "3h"],
+  "3h": ["5m", "10m", "15m", "30m"],
+  "6h": ["15m", "30m", "1h"],
+  "12h": ["30m", "1h", "2h"],
   "1d": ["1h", "3h", "6h"],
-  "7d": ["3h", "6h", "12h", "1d", "3d"],
-  "30d": ["12h", "1d", "3d", "7d", "15d"],
+  "7d": ["6h", "12h", "1d", "3d"],
+  "30d": ["1d", "3d", "7d", "15d"],
   "3m": ["3d", "7d", "30d"],
   "6m": ["7d", "30d", "90d"],
-  "1y": ["30d", "90d", "180d"],
+  "1y": ["14d", "30d", "90d", "180d"],
 };
 
 // Helper function to get default interval for a time range
 export const getDefaultInterval = (range: string): string => {
-  return INTERVAL_OPTIONS_MAP[range]?.[0] || "1h";
+  const defaultMap: Record<string, string> = {
+    "1h": "5m",
+    "3h": "5m",
+    "6h": "15m",
+    "12h": "30m",
+    "1d": "1h",
+    "7d": "6h",
+    "30d": "1d",
+    "3m": "3d",
+    "6m": "7d",
+    "1y": "14d",
+  };
+  return defaultMap[range] || "1h";
 };
 
 // Charts Page Chart Configuration (similar to listings but with different formatting)
