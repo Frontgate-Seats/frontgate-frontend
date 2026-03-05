@@ -5,7 +5,6 @@ export const fetchListings = async (event_id: string) => {
   const response = await supabaseHttpClient.get(
     `/functions/v1/events-api/listings/${event_id}`,
   );
-  console.log("response : ", response);
 
   return {
     data:

@@ -13,6 +13,7 @@ import listingsDetailsReducer from "../slices/listingsDetails.slice";
 import chartsReducer from "../slices/charts.slice";
 import listingTrendsReducer from "../slices/listingTrends.slice";
 import availabilityReducer from "../slices/availability.slice";
+import vividSalesReducer from "../slices/vividSales.slice";
 
 import type { store } from "..";
 import { useDispatch } from "react-redux";
@@ -26,6 +27,7 @@ const rootReducer = combineReducers({
   suggests: suggestsReducer,
   listings: listingsReducer,
   sales: salesReducer,
+  vividSales: vividSalesReducer,
   salesMeta: salesMetaReducer,
   purchases: purchasedReducer,
   listingsDetails:  listingsDetailsReducer,

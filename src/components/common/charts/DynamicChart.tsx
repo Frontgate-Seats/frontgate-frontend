@@ -44,6 +44,7 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
   intervalOptionsMap,
   height = 400,
   logo,
+  customLogoComponent,
 }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const [hiddenSeries, setHiddenSeries] = React.useState<Set<string>>(
@@ -121,7 +122,9 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
             flexWrap="wrap"
           >
             <Stack direction="row" alignItems="center" spacing={1}>
-              {logo && (
+              {customLogoComponent ? (
+                customLogoComponent
+              ) : logo ? (
                 <Tooltip
                   title={
                     logo.includes("tj-logo")
@@ -144,7 +147,7 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                     }}
                   />
                 </Tooltip>
-              )}
+              ) : null}
               <Typography variant="h6" fontWeight={600} gutterBottom>
                 {title}
               </Typography>

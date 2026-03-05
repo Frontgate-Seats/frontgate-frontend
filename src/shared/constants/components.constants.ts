@@ -283,3 +283,43 @@ export const AVAILABILITY_PRICE_CHART_CONFIG: Omit<
   leftAxisLabel: "Available Tickets",
   rightAxisLabel: "",
 };
+
+// Combined Sales Chart Configuration (SeatGeek + Vivid)
+export const COMBINED_SALES_CHART_CONFIG: ChartConfig = {
+  lineSeries: [
+    {
+      type: "line",
+      label: "SeatGeek Avg Price",
+      dataKey: "seatgeekAvgPrice",
+      color: "#1976d2",
+      yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+    },
+    {
+      type: "line",
+      label: "Vivid Avg Price",
+      dataKey: "vividAvgPrice",
+      color: "#ff7043",
+      yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+    },
+  ] as LineSeriesType[],
+  barSeries: [
+    {
+      type: "bar",
+      label: "SeatGeek Listings",
+      dataKey: "seatgeekListings",
+      color: "rgba(25,118,210,0.45)",
+      yAxisId: "rightAxis",
+    },
+    {
+      type: "bar",
+      label: "Vivid Listings",
+      dataKey: "vividListings",
+      color: "rgba(255,112,67,0.45)",
+      yAxisId: "rightAxis",
+    },
+  ] as BarSeriesType[],
+  leftAxisLabel: "Avg Price ($)",
+  rightAxisLabel: "Listings Count",
+};
