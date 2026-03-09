@@ -1,10 +1,10 @@
 import supabaseClient from "../clients/supabase.client";
 
 const availabilityApi = {
-  // Fetch primary market availability data
+  // Fetch primary market availability data using tj-availability-info endpoint
   fetchAvailability: async (eventId: string, lastHoursCount: number = 24) => {
     const { data, error } = await supabaseClient.functions.invoke(
-      `events-api/availability/${eventId}?lastHoursCount=${lastHoursCount}&includeFirstSnapshot=true`,
+      `events-api/tj-availability-info?skyboxEventId=${eventId}&lastHoursCount=${lastHoursCount}&includeFirstSnapshot=false`,
       { method: "GET" }
     );
 

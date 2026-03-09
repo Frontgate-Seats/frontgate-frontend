@@ -90,7 +90,7 @@ export default function EventDetailsPage() {
   const salesChart = useChartState("1d");
   const listingShortChart = useChartState("1d");
   const listingLongChart = useChartState("7d");
-  const pricePointsChart = useChartState("1d"); // Single chart state for all availability data
+  const pricePointsChart = useChartState("6h"); // Single chart state for all availability data
 
   // Availability state from Redux
   const availabilityFromRedux = useSelector(
@@ -877,7 +877,7 @@ export default function EventDetailsPage() {
             rowCount={capacityTotalFiltered}
             columns={capacityColumns}
             isLoading={availabilityFromRedux.loading}
-            error={availabilityFromRedux.error}
+            error={null}
             paginationModel={capacityPaginationModel}
             setPaginationModel={setCapacityPaginationModel}
             sortingModel={capacitySortModel}
@@ -926,7 +926,7 @@ export default function EventDetailsPage() {
         {/* Listing Trends - Short Term */}
         <Grid size={{ xs: 12, md: 6 }}>
           <DynamicChart
-            title="Listing Trends (Short-term)"
+            title="Listing Trends"
             dataset={datasetListingShort}
             chartConfig={LISTING_TRENDS_SHORT_CHART_CONFIG}
             loading={loading.listingTrends}
@@ -944,7 +944,7 @@ export default function EventDetailsPage() {
         {/* Listing Trends - Long Term */}
         <Grid size={{ xs: 12, md: 6 }}>
           <DynamicChart
-            title="Listing Trends (Long-term)"
+            title="Listing Trends"
             dataset={datasetListingLong}
             chartConfig={LISTING_TRENDS_LONG_CHART_CONFIG}
             loading={loading.listingTrends}
