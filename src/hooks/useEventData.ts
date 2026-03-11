@@ -6,6 +6,7 @@ import { getEvents } from "../store/slices/events.slice";
 import { getSGEvent } from "../store/slices/sgevents.slice";
 import { getEventsExternalMappings } from "../store/slices/eventsExternalMappings.slice";
 import { getSales } from "../store/slices/sales.slice";
+import { getVividSales } from "../store/slices/vividSales.slice";
 import { getListingTrends } from "../store/slices/listingTrends.slice";
 
 export function useEventData(eventId: string | undefined) {
@@ -14,6 +15,7 @@ export function useEventData(eventId: string | undefined) {
   const events = useSelector((state: RootState) => state.events);
   const sgevents = useSelector((state: RootState) => state.sgevents);
   const sales = useSelector((state: RootState) => state.sales);
+  const vividSales = useSelector((state: RootState) => state.vividSales);
   const eventsExternalMappings = useSelector(
     (state: RootState) => state.eventsExternalMappings,
   );
@@ -93,6 +95,11 @@ export function useEventData(eventId: string | undefined) {
     dispatch(getListingTrends(eventId));
   }, [dispatch, eventId]);
 
+  const fetchVividSales = React.useCallback(() => {
+    if (!eventId) return;
+    dispatch(getVividSales(eventId));
+  }, [dispatch, eventId]);
+
   // Fetch matched SeatGeek event when we have external mapping
   React.useEffect(() => {
     const externalEventId =
@@ -113,8 +120,9 @@ export function useEventData(eventId: string | undefined) {
     if (eventId) {
       fetchExternalMappings();
       fetchListingTrends();
+      fetchVividSales();
     }
-  }, [eventId, fetchExternalMappings, fetchListingTrends]);
+  }, [eventId, fetchExternalMappings, fetchListingTrends, fetchVividSales]);
 
   React.useEffect(() => {
     if (eventsExternalMappings.rows.data?.length) {
@@ -135,24 +143,34 @@ export function useEventData(eventId: string | undefined) {
     return () => clearInterval(intervalId);
   }, [eventId, fetchListingTrends]);
 
+  React.useEffect(() => {
+    if (!eventId) return;
+    const intervalId = setInterval(fetchVividSales, 600000);
+    return () => clearInterval(intervalId);
+  }, [eventId, fetchVividSales]);
+
   return {
     selectedEvent,
     matchedSeatGeekEvent,
     events: events.rows.data,
     sales: sales.rows.data,
+    vividSales: vividSales.rows.data,
     listingTrends: listingTrends.rows.data,
     loading: {
       events: events.loading || sgevents.loading,
       sales: sales.loading,
+      vividSales: vividSales.loading,
       listingTrends: listingTrends.loading,
     },
     error: {
       events: events.error || sgevents.error,
       sales: sales.error,
+      vividSales: vividSales.error,
     },
     refetch: {
       event: fetchEvent,
       sales: fetchSales,
+      vividSales: fetchVividSales,
       listingTrends: fetchListingTrends,
     },
   };

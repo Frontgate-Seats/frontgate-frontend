@@ -39,7 +39,7 @@ import { useChartState } from "../hooks/useChartState";
 import { useEventData } from "../hooks/useEventData";
 import {
   INTERVAL_OPTIONS_MAP,
-  SALES_TRENDS_CHART_CONFIG,
+  COMBINED_SALES_CHART_CONFIG,
   LISTING_TRENDS_SHORT_CHART_CONFIG,
   LISTING_TRENDS_LONG_CHART_CONFIG,
   AVAILABILITY_SECTION_CHART_CONFIG,
@@ -52,7 +52,7 @@ import {
 } from "../shared/utils/chartConfig.util";
 import DynamicChart from "../components/common/charts/DynamicChart";
 import {
-  useSalesChartData,
+  useCombinedSalesChartData,
   useListingTrendsChartData,
   useAvailabilityData,
 } from "../hooks/useChartData";
@@ -80,12 +80,13 @@ export default function EventDetailsPage() {
     selectedEvent,
     matchedSeatGeekEvent,
     sales,
+    vividSales,
     listingTrends,
     loading,
     error,
     refetch,
   } = useEventData(eventId);
-
+console.log("sales : ", sales)
   // Chart states
   const salesChart = useChartState("1d");
   const listingShortChart = useChartState("1d");
@@ -98,11 +99,81 @@ export default function EventDetailsPage() {
   );
 
   // Chart datasets
-  const datasetSalesGraph = useSalesChartData(
+  const combinedSalesData = useCombinedSalesChartData(
     sales || [],
+    vividSales || [],
     salesChart.timeRange,
     salesChart.interval,
   );
+
+  // Merge SeatGeek and Vivid data for combined chart
+  const combinedSalesChartDataset = React.useMemo(() => {
+    if (!combinedSalesData.seatgeek.length && !combinedSalesData.vivid.length) {
+      return [];
+    }
+
+    // Create a map of all time buckets
+    const timeMap = new Map<string, any>();
+
+    combinedSalesData.seatgeek.forEach((item) => {
+      timeMap.set(item.bucketStartUTC, {
+        time: item.time,
+        bucketStartUTC: item.bucketStartUTC,
+        seatgeekAvgPrice: item.avgSalePrice,
+        seatgeekListings: item.totalListings,
+        seatgeekTickets: item.totalTickets,
+        vividAvgPrice: 0,
+        vividListings: 0,
+        vividTickets: 0,
+      });
+    });
+
+    combinedSalesData.vivid.forEach((item) => {
+      const existing = timeMap.get(item.bucketStartUTC);
+      if (existing) {
+        existing.vividAvgPrice = item.avgSalePrice;
+        existing.vividListings = item.totalListings;
+        existing.vividTickets = item.totalTickets;
+      } else {
+        timeMap.set(item.bucketStartUTC, {
+          time: item.time,
+          bucketStartUTC: item.bucketStartUTC,
+          seatgeekAvgPrice: 0,
+          seatgeekListings: 0,
+          seatgeekTickets: 0,
+          vividAvgPrice: item.avgSalePrice,
+          vividListings: item.totalListings,
+          vividTickets: item.totalTickets,
+        });
+      }
+    });
+
+    return Array.from(timeMap.values()).sort((a, b) =>
+      moment.utc(a.bucketStartUTC).valueOf() - moment.utc(b.bucketStartUTC).valueOf()
+    );
+  }, [combinedSalesData]);
+
+  // Enhanced chart config showing both price and quantity
+  const enhancedSalesChartConfig = React.useMemo(() => ({
+    ...COMBINED_SALES_CHART_CONFIG,
+    barSeries: [
+      {
+        type: "bar" as const,
+        label: "SeatGeek Tickets",
+        dataKey: "seatgeekTickets",
+        color: "rgba(25,118,210,0.45)",
+        yAxisId: "rightAxis",
+      },
+      {
+        type: "bar" as const,
+        label: "Vivid Tickets",
+        dataKey: "vividTickets",
+        color: "rgba(255,112,67,0.45)",
+        yAxisId: "rightAxis",
+      },
+    ],
+    rightAxisLabel: "Tickets Sold",
+  }), []);
 
   const datasetListingShort = useListingTrendsChartData(
     listingTrends || [],
@@ -327,38 +398,47 @@ export default function EventDetailsPage() {
 
   // Sales Data Grid Columns
   const salesColumns: CustomGridColDef[] = [
+     {
+      field: "source",
+      headerName: "Source",
+      minWidth: 100,
+      flex: 1,
+      type: "singleSelect",
+      valueOptions: ["none", "SeatGeek", "Vivid"],
+    },
     {
       field: "purchased_at",
-      headerName: "Date & Time",
+      headerName: "Sold Date",
       minWidth: 120,
       flex: 1,
       type: "dateTime",
-      valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
+      valueFormatter: (value) => (value ? moment(value).format("MM/DD/YY") : "-"),
     },
     {
       field: "section_name",
       headerName: "Section",
       flex: 1,
-      minWidth: 100,
+      minWidth: 120,
       type: "string",
     },
     {
       field: "row_name",
       headerName: "Row",
       flex: 1,
-      minWidth: 100,
+      minWidth: 60,
       type: "string",
     },
+ 
     {
       field: "base_price",
-      headerName: "Price",
-      minWidth: 120,
+      headerName: "Sold Price",
+      minWidth: 100,
       min: 0,
       flex: 1,
       max: 20000,
       type: "number",
       valueFormatter: (value: any) =>
-        typeof value === "number" && value >= 0 ? `${value.toFixed(2)}` : "-",
+        typeof value === "number" && value >= 0 ? `$${value.toFixed(0)}` : "-",
     },
     {
       field: "quantity",
@@ -408,6 +488,57 @@ export default function EventDetailsPage() {
     },
   ];
 
+  // Combine SeatGeek and Vivid sales data for the table
+  const combinedSalesTableData = React.useMemo(() => {
+    const seatgeekData = (sales || []).map((sale: any) => {
+      const totalPrice = sale.base_price * sale.quantity;
+      return {
+        id: `sg-${sale.id}`,
+        purchased_at: sale.purchased_at,
+        section_name: sale.section_name || "-",
+        row_name: sale.row_name || "-",
+        base_price: sale.base_price,
+        quantity: sale.quantity,
+        total_price: totalPrice,
+        source: "SeatGeek",
+      };
+    });
+
+    const vividData = (vividSales || []).map((sale: any, index: number) => {
+      // Parse section name to extract row if it's a number at the end
+      let sectionName = sale.sectionName || "-";
+      let rowName = "-";
+      
+      const basePrice = sale.totalTickets > 0 ? sale.totalSalePrice / sale.totalTickets : 0;
+      
+      return {
+        id: `vivid-${index}`,
+        purchased_at: sale.saleDate,
+        section_name: sectionName,
+        row_name: rowName,
+        base_price: basePrice,
+        quantity: sale.totalTickets,
+        total_price: sale.totalSalePrice,
+        source: "Vivid",
+      };
+    });
+
+    return [...seatgeekData, ...vividData].sort((a, b) => 
+      moment.utc(b.purchased_at).valueOf() - moment.utc(a.purchased_at).valueOf()
+    );
+  }, [sales, vividSales]);
+
+  // Calculate sales summary statistics
+  const salesSummary = React.useMemo(() => {
+    const totalSales = combinedSalesTableData.length;
+    const totalQuantity = combinedSalesTableData.reduce((sum, sale) => sum + (sale.quantity || 0), 0);
+    
+    return {
+      totalSales,
+      totalQuantity,
+    };
+  }, [combinedSalesTableData]);
+
   // Sales Grid State
   const {
     paginationModel: salesPaginationModel,
@@ -418,12 +549,35 @@ export default function EventDetailsPage() {
     setFilterModel: setSalesFilterModel,
     paginatedRows: paginatedSales,
     totalFilteredRows: salesTotalFiltered,
+    filteredRows: filteredSales,
   } = useClientFilters({
-    data: sales || [],
+    data: combinedSalesTableData || [],
     columns: salesColumns,
     initialPaginationModel: { page: 0, pageSize: 25 },
     initialSortModel: [{ field: "purchased_at", sort: "desc" }],
   });
+
+  // Determine which sources are present in filtered sales data
+  const activeSourcesInFilter = React.useMemo(() => {
+    const sources = new Set(filteredSales.map((sale: any) => sale.source));
+    return {
+      hasSeatGeek: sources.has("SeatGeek"),
+      hasVivid: sources.has("Vivid"),
+    };
+  }, [filteredSales]);
+
+  // Filter chart data based on active sources
+  const filteredCombinedSalesData = React.useMemo(() => {
+    return combinedSalesChartDataset.map((item) => ({
+      ...item,
+      seatgeekAvgPrice: activeSourcesInFilter.hasSeatGeek ? item.seatgeekAvgPrice : 0,
+      seatgeekListings: activeSourcesInFilter.hasSeatGeek ? item.seatgeekListings : 0,
+      seatgeekTickets: activeSourcesInFilter.hasSeatGeek ? item.seatgeekTickets : 0,
+      vividAvgPrice: activeSourcesInFilter.hasVivid ? item.vividAvgPrice : 0,
+      vividListings: activeSourcesInFilter.hasVivid ? item.vividListings : 0,
+      vividTickets: activeSourcesInFilter.hasVivid ? item.vividTickets : 0,
+    }));
+  }, [combinedSalesChartDataset, activeSourcesInFilter]);
 
   // Capacity Table Grid State
   const {
@@ -534,22 +688,64 @@ export default function EventDetailsPage() {
 
   // Custom header components with logos
   const salesHeaderComponent = (
-    <Stack direction="row" alignItems="center" spacing={1}>
-      <Tooltip title="SeatGeek">
-        <Box
-          component="img"
-          src={SEATGEEK_LOGO}
-          alt="SeatGeek Logo"
-          sx={{
-            width: 24,
-            height: 24,
-            objectFit: "contain",
-          }}
-        />
-      </Tooltip>
-      <Typography variant="h6" fontWeight={600} gutterBottom>
-        Sales Data
-      </Typography>
+    <Stack direction="row" alignItems="center" justifyContent="space-between" width="100%">
+      <Stack direction="row" alignItems="center" spacing={1}>
+        <Tooltip title={
+          activeSourcesInFilter.hasSeatGeek && activeSourcesInFilter.hasVivid
+            ? "SeatGeek & Vivid Seats"
+            : activeSourcesInFilter.hasSeatGeek
+            ? "SeatGeek"
+            : "Vivid Seats"
+        }>
+          <Stack direction="row" spacing={0.5}>
+            {activeSourcesInFilter.hasSeatGeek && (
+              <Box
+                component="img"
+                src={SEATGEEK_LOGO}
+                alt="SeatGeek Logo"
+                sx={{
+                  width: 24,
+                  height: 24,
+                  objectFit: "contain",
+                }}
+              />
+            )}
+            {activeSourcesInFilter.hasVivid && (
+              <Box
+                component="img"
+                src={VIVID_LOGO}
+                alt="Vivid Seats Logo"
+                sx={{
+                  width: 24,
+                  height: 24,
+                  objectFit: "contain",
+                }}
+              />
+            )}
+          </Stack>
+        </Tooltip>
+        <Typography variant="h6" fontWeight={600}>
+          Sales Data
+        </Typography>
+      </Stack>
+      <Stack direction="row" spacing={3} alignItems="center">
+        <Box>
+          <Typography variant="body2" color="text.secondary">
+            Total Sales:
+          </Typography>
+          <Typography variant="h6" fontWeight={600}>
+            {salesSummary.totalSales}
+          </Typography>
+        </Box>
+        <Box>
+          <Typography variant="body2" color="text.secondary">
+            Total sold QTY:
+          </Typography>
+          <Typography variant="h6" fontWeight={600}>
+            {salesSummary.totalQuantity}
+          </Typography>
+        </Box>
+      </Stack>
     </Stack>
   );
 
@@ -963,9 +1159,9 @@ export default function EventDetailsPage() {
         <Grid size={{ xs: 12, md: 6 }}>
           <DynamicChart
             title="Sales Trends"
-            dataset={datasetSalesGraph}
-            chartConfig={SALES_TRENDS_CHART_CONFIG}
-            loading={loading.sales}
+            dataset={filteredCombinedSalesData}
+            chartConfig={enhancedSalesChartConfig}
+            loading={loading.sales || loading.vividSales}
             timeRange={salesChart.timeRange}
             interval={salesChart.interval}
             onTimeRangeChange={salesChart.setTimeRange}
@@ -973,7 +1169,39 @@ export default function EventDetailsPage() {
             timeRangeOptions={TIME_RANGE_OPTIONS}
             intervalOptionsMap={INTERVAL_OPTIONS_MAP}
             height={400}
-            logo={SEATGEEK_LOGO}
+            logo={
+              activeSourcesInFilter.hasSeatGeek && activeSourcesInFilter.hasVivid
+                ? undefined // Show both logos in a custom way
+                : activeSourcesInFilter.hasSeatGeek
+                ? SEATGEEK_LOGO
+                : VIVID_LOGO
+            }
+            customLogoComponent={
+              activeSourcesInFilter.hasSeatGeek && activeSourcesInFilter.hasVivid ? (
+                <Stack direction="row" spacing={0.5}>
+                  <Box
+                    component="img"
+                    src={SEATGEEK_LOGO}
+                    alt="SeatGeek Logo"
+                    sx={{
+                      width: 24,
+                      height: 24,
+                      objectFit: "contain",
+                    }}
+                  />
+                  <Box
+                    component="img"
+                    src={VIVID_LOGO}
+                    alt="Vivid Seats Logo"
+                    sx={{
+                      width: 24,
+                      height: 24,
+                      objectFit: "contain",
+                    }}
+                  />
+                </Stack>
+              ) : undefined
+            }
           />
         </Grid>
 
@@ -984,8 +1212,8 @@ export default function EventDetailsPage() {
             rows={paginatedSales}
             rowCount={salesTotalFiltered}
             columns={salesColumns}
-            isLoading={loading.sales}
-            error={error.sales}
+            isLoading={loading.sales || loading.vividSales}
+            error={error.sales || error.vividSales}
             paginationModel={salesPaginationModel}
             setPaginationModel={setSalesPaginationModel}
             sortingModel={salesSortModel}
@@ -993,7 +1221,10 @@ export default function EventDetailsPage() {
             filterModel={salesFilterModel}
             setFilterModel={setSalesFilterModel}
             defaultFilterType="header"
-            onRefresh={refetch.sales}
+            onRefresh={() => {
+              refetch.sales();
+              refetch.vividSales();
+            }}
             height={400}
             headerComponent={salesHeaderComponent}
             logo={SEATGEEK_LOGO}

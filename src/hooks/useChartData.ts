@@ -1177,3 +1177,149 @@ export const useAvailabilityPriceChartData = (
     return result;
   }, [availabilityData, timeRange, interval]);
 };
+
+// Hook for building combined sales dataset (SeatGeek + Vivid)
+export const useCombinedSalesChartData = (
+  seatgeekSales: any[],
+  vividSales: any[],
+  timeRange: string,
+  interval: string
+) => {
+  return React.useMemo(() => {
+    const now = moment.utc();
+    const fromDate = now.clone();
+
+    switch (timeRange) {
+      case "1h":
+        fromDate.subtract(1, "hour");
+        break;
+      case "3h":
+        fromDate.subtract(3, "hours");
+        break;
+      case "6h":
+        fromDate.subtract(6, "hours");
+        break;
+      case "12h":
+        fromDate.subtract(12, "hours");
+        break;
+      case "1d":
+        fromDate.subtract(1, "day");
+        break;
+      case "7d":
+        fromDate.subtract(7, "days");
+        break;
+      case "30d":
+        fromDate.subtract(30, "days");
+        break;
+      case "3m":
+        fromDate.subtract(3, "months");
+        break;
+      case "6m":
+        fromDate.subtract(6, "months");
+        break;
+      case "1y":
+        fromDate.subtract(1, "year");
+        break;
+    }
+
+    const rangeStart = fromDate.valueOf();
+    const rangeEnd = now.valueOf();
+
+    const intervalMs = interval.endsWith("d")
+      ? parseInt(interval) * 24 * 60 * 60 * 1000
+      : interval.endsWith("h")
+      ? parseInt(interval) * 60 * 60 * 1000
+      : parseInt(interval) * 60 * 1000;
+
+    // Process SeatGeek sales
+    const seatgeekGrouped: Record<number, any[]> = {};
+    if (seatgeekSales && seatgeekSales.length > 0) {
+      seatgeekSales.forEach((item) => {
+        const time = moment.utc(item.purchased_at).valueOf();
+        if (time >= rangeStart && time <= rangeEnd) {
+          const bucket = Math.floor(time / intervalMs) * intervalMs;
+          if (!seatgeekGrouped[bucket]) seatgeekGrouped[bucket] = [];
+          seatgeekGrouped[bucket].push(item);
+        }
+      });
+    }
+
+    // Process Vivid sales
+    const vividGrouped: Record<number, any[]> = {};
+    if (vividSales && vividSales.length > 0) {
+      vividSales.forEach((item) => {
+        const time = moment.utc(item.saleDate).valueOf();
+        if (time >= rangeStart && time <= rangeEnd) {
+          const bucket = Math.floor(time / intervalMs) * intervalMs;
+          if (!vividGrouped[bucket]) vividGrouped[bucket] = [];
+          vividGrouped[bucket].push(item);
+        }
+      });
+    }
+
+    const seatgeekData: ChartDataPoint[] = [];
+    const vividData: ChartDataPoint[] = [];
+
+    const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
+    const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
+
+    for (let t = startBucket; t <= endBucket; t += intervalMs) {
+      const timeStr = formatDateTime(moment.utc(t).local());
+      const bucketStartUTC = moment.utc(t).toISOString();
+
+      // SeatGeek data point
+      const sgArr = seatgeekGrouped[t] || [];
+      if (sgArr.length === 0) {
+        seatgeekData.push({
+          time: timeStr,
+          bucketStartUTC,
+          avgSalePrice: 0,
+          totalListings: 0,
+          totalTickets: 0,
+        });
+      } else {
+        const prices = sgArr.map(item => item.base_price);
+        const quantities = sgArr.map(item => item.quantity);
+        const totalQuantity = quantities.reduce((sum, qty) => sum + qty, 0);
+        const avgPrice = prices.reduce((sum, price) => sum + price, 0) / prices.length;
+
+        seatgeekData.push({
+          time: timeStr,
+          bucketStartUTC,
+          avgSalePrice: +avgPrice.toFixed(2),
+          totalListings: sgArr.length,
+          totalTickets: totalQuantity,
+        });
+      }
+
+      // Vivid data point
+      const vividArr = vividGrouped[t] || [];
+      if (vividArr.length === 0) {
+        vividData.push({
+          time: timeStr,
+          bucketStartUTC,
+          avgSalePrice: 0,
+          totalListings: 0,
+          totalTickets: 0,
+        });
+      } else {
+        const totalListings = vividArr.reduce((sum, item) => sum + (item.totalListings || 0), 0);
+        const totalTickets = vividArr.reduce((sum, item) => sum + (item.totalTickets || 0), 0);
+        const avgPrice = vividArr.reduce((sum, item) => sum + (item.avgSalePrice || 0), 0) / vividArr.length;
+
+        vividData.push({
+          time: timeStr,
+          bucketStartUTC,
+          avgSalePrice: +avgPrice.toFixed(2),
+          totalListings,
+          totalTickets,
+        });
+      }
+    }
+
+    return {
+      seatgeek: seatgeekData,
+      vivid: vividData,
+    };
+  }, [seatgeekSales, vividSales, timeRange, interval]);
+};
