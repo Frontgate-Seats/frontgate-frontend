@@ -418,7 +418,7 @@ export default function ListingsPage() {
                 venue_id: eventInfo?.venue_id,
                 venue_name: eventInfo?.venue_name,
 
-                listing_id: selectedListing?.listing_id,
+                listing_id: selectedListing?.id,
                 price_per: listingsDetailsDataObj?.listing?.pricePer,
                 row: selectedListing?.row,
                 section: selectedListing?.section_name,
