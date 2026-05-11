@@ -32,9 +32,7 @@ const App: React.FC = () => {
     dispatch(closeSnackbar());
   };
 
-  const router = createBrowserRouter(route, {
-    basename: "/functions/v1/events-api/ui",
-  });
+  const router = createBrowserRouter(route);
 
   return (
     <ThemeProvider theme={theme} defaultMode="system">
