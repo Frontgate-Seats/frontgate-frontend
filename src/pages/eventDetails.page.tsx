@@ -215,6 +215,57 @@ console.log("sales : ", sales)
     [availabilityData.priceChart],
   );
 
+  // Stable empty set — used as fallback when dataset has no series keys
+  const EMPTY_SET = React.useMemo(() => new Set<string>(), []);
+
+  // Compute initial hidden series for price chart: show only top 10% by total availability
+  const priceChartInitialHidden = React.useMemo(() => {
+    const dataset = availabilityData.priceChart;
+    if (!dataset || dataset.length === 0) return EMPTY_SET;
+
+    const firstPoint = dataset[0];
+    const keys = Object.keys(firstPoint).filter(
+      (k) => k !== "time" && k !== "bucketStartUTC",
+    );
+    if (keys.length === 0) return EMPTY_SET;
+
+    // Sum availability across all time buckets per key
+    const totals: Record<string, number> = {};
+    keys.forEach((k) => {
+      totals[k] = dataset.reduce((sum: number, pt: any) => sum + (pt[k] ?? 0), 0);
+    });
+
+    const sorted = [...keys].sort((a, b) => totals[b] - totals[a]);
+    const topCount = Math.max(1, Math.ceil(sorted.length * 0.2));
+    const topKeys = new Set(sorted.slice(0, topCount));
+
+    return new Set(keys.filter((k) => !topKeys.has(k)));
+  }, [availabilityData.priceChart]);
+
+  // Compute initial hidden series for section chart: show only top 10% by total availability
+  const sectionChartInitialHidden = React.useMemo(() => {
+    const dataset = availabilityData.sectionChart;
+    if (!dataset || dataset.length === 0) return EMPTY_SET;
+
+    const firstPoint = dataset[0];
+    const keys = Object.keys(firstPoint).filter(
+      (k) => k !== "time" && k !== "bucketStartUTC",
+    );
+    if (keys.length === 0) return EMPTY_SET;
+
+    // Sum availability across all time buckets per key
+    const totals: Record<string, number> = {};
+    keys.forEach((k) => {
+      totals[k] = dataset.reduce((sum: number, pt: any) => sum + (pt[k] ?? 0), 0);
+    });
+
+    const sorted = [...keys].sort((a, b) => totals[b] - totals[a]);
+    const topCount = Math.max(1, Math.ceil(sorted.length * 0.2));
+    const topKeys = new Set(sorted.slice(0, topCount));
+
+    return new Set(keys.filter((k) => !topKeys.has(k)));
+  }, [availabilityData.sectionChart]);
+
   // Suggests server-side state
   const suggestsFromRedux = useSelector((state: RootState) => state.suggests);
   const [suggestsPaginationModel, setSuggestsPaginationModel] =
@@ -1042,6 +1093,117 @@ console.log("sales : ", sales)
                 ) : (
                   <></>
                 )}
+
+                     {/* TJ (Ticketmaster) Row */}
+                {availabilityFromRedux.data?.pmEvent ? (
+                  <Stack direction="row" spacing={4}>
+                    {/* Logo on left */}
+                    <Box>
+                      <Tooltip title="Ticketmaster">
+                        <Box
+                          component="img"
+                          src={TJ_LOGO}
+                          alt="Ticketmaster logo"
+                          sx={{
+                            width: 24,
+                            height: 24,
+                            objectFit: "contain",
+                          }}
+                        />
+                      </Tooltip>
+                    </Box>
+
+                    {/* Event details on right */}
+                    <Box flex={1}>
+                      <Stack
+                        direction="row"
+                        spacing={3}
+                        sx={{
+                          flexWrap: "wrap",
+                          gap: 4,
+                        }}
+                      >
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Event ID
+                          </Typography>
+                          <Typography variant="body1">
+                            {availabilityFromRedux.data.pmEvent.id ? (
+                              <Link
+                                href={availabilityFromRedux.data.pmEvent.eventUrl
+                                  ? availabilityFromRedux.data.pmEvent.eventUrl
+                                  : `https://www.ticketmaster.com/event/${availabilityFromRedux.data.pmEvent.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                underline="hover"
+                                color="primary"
+                              >
+                                {availabilityFromRedux.data.pmEvent.id}
+                              </Link>
+                            ) : (
+                              "-"
+                            )}
+                          </Typography>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Name
+                          </Typography>
+                          <Typography variant="body1">
+                            {availabilityFromRedux.data.pmEvent.name || "-"}
+                          </Typography>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Date & Time
+                          </Typography>
+                          <Typography variant="body1">
+                            {availabilityFromRedux.data.pmEvent.eventLocalDate
+                              ? formatDateTime(
+                                  moment.parseZone(availabilityFromRedux.data.pmEvent.eventLocalDate),
+                                )
+                              : availabilityFromRedux.data.pmEvent.eventUtcDate
+                              ? formatDateTime(
+                                  moment.utc(availabilityFromRedux.data.pmEvent.eventUtcDate),
+                                )
+                              : "-"}
+                          </Typography>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Venue
+                          </Typography>
+                          <Typography variant="body1">
+                            {availabilityFromRedux.data.pmEvent.venue?.name || "-"}
+                          </Typography>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Performer
+                          </Typography>
+                          <Typography variant="body1">
+                            {availabilityFromRedux.data.pmEvent.performer?.name || "-"}
+                          </Typography>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Market Type
+                          </Typography>
+                          <Typography variant="body1">
+                            {availabilityFromRedux.data.pmEvent.marketType || "-"}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Box>
+                  </Stack>
+                ) : (
+                  <></>
+                )}
               </Stack>
             </CardContent>
           </Card>
@@ -1062,6 +1224,7 @@ console.log("sales : ", sales)
             intervalOptionsMap={INTERVAL_OPTIONS_MAP}
             height={400}
             logo={TJ_LOGO}
+            initialHiddenSeries={priceChartInitialHidden}
           />
         </Grid>
 
@@ -1116,6 +1279,7 @@ console.log("sales : ", sales)
             intervalOptionsMap={INTERVAL_OPTIONS_MAP}
             height={400}
             logo={TJ_LOGO}
+            initialHiddenSeries={sectionChartInitialHidden}
           />
         </Grid>
 

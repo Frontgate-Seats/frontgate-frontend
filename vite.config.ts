@@ -5,7 +5,7 @@ import path from "path";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/frontgate-frontend/',
+  base: "https://aibuying.frontgateseats.com/storage/v1/object/public/frontgate-frontend/",
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

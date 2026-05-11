@@ -45,11 +45,19 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
   height = 400,
   logo,
   customLogoComponent,
+  initialHiddenSeries,
 }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const [hiddenSeries, setHiddenSeries] = React.useState<Set<string>>(
-    new Set(),
+    initialHiddenSeries ?? new Set(),
   );
+
+  // Re-apply initial hidden series whenever the set reference changes
+  // (e.g. when dataset is recomputed and new series keys are determined)
+  React.useEffect(() => {
+    setHiddenSeries(initialHiddenSeries ?? new Set());
+  }, [initialHiddenSeries]);
+
   const { lineSeries, barSeries, leftAxisLabel, rightAxisLabel } = chartConfig;
 
   const handleFullscreenChange = (fullscreenMode: boolean) => {
@@ -94,8 +102,6 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
   const visibleBarSeries = processedBarSeries.filter(
     (series) => series.id && !hiddenSeries.has(series.id as string),
   );
-
-  console.log("ttt : ", title, timeRange);
 
   return (
     <ToggleFullscreen onFullscreenChange={handleFullscreenChange}>
