@@ -1164,10 +1164,6 @@ console.log("sales : ", sales)
                               ? formatDateTime(
                                   moment.parseZone(availabilityFromRedux.data.pmEvent.eventLocalDate),
                                 )
-                              : availabilityFromRedux.data.pmEvent.eventUtcDate
-                              ? formatDateTime(
-                                  moment.utc(availabilityFromRedux.data.pmEvent.eventUtcDate),
-                                )
                               : "-"}
                           </Typography>
                         </Box>
