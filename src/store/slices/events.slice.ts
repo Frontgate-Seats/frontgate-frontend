@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import eventsApi from "../../apis/events.api";
 import { setSnackbar } from "./snackbar.slice";
 import type { DataGridQueryOptions } from "../../shared/types/mui.type";
+import { getErrorMessage } from "../../shared/utils/error.util";
 
 export interface EventsState {
   loading: boolean;
@@ -32,7 +33,7 @@ export const getEvents = createAsyncThunk(
       const response = await eventsApi.fetchEvents(data);
       return response;
     } catch (err: any) {
-      const message = err?.message || "Failed to fetch events";
+      const message = `[Events] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
@@ -54,7 +55,7 @@ export const startEventMonitoring = createAsyncThunk(
         dispatch(getEvents(queryOptions));
       }
     } catch (err: any) {
-      const message = err?.message || "Failed to start monitoring";
+      const message = `[Events] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
@@ -76,7 +77,7 @@ export const stopEventMonitoring = createAsyncThunk(
         dispatch(getEvents(queryOptions));
       }
     } catch (err: any) {
-      const message = err?.message || "Failed to stop monitoring";
+      const message = `[Events] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }

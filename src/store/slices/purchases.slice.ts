@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import purchasesApi from "../../apis/purchases.api";
 import { setSnackbar } from "./snackbar.slice";
 import type { DataGridQueryOptions } from "../../shared/types/mui.type";
+import { getErrorMessage } from "../../shared/utils/error.util";
 
 export interface PurchasesState {
   loading: boolean;
@@ -30,7 +31,7 @@ export const getPurchases = createAsyncThunk(
       const response = await purchasesApi.fetchPurchases(data);
       return response;
     } catch (err: any) {
-      const message = err?.message || "Failed to fetch purchases";
+      const message = `[Purchases] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
@@ -59,7 +60,7 @@ export const createQuote = createAsyncThunk(
       dispatch(setSnackbar({ message, severity: "success" }));
       return response.data;
     } catch (err: any) {
-      const message = err?.message || "Failed to create Quote";
+      const message = `[Quote] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
@@ -104,7 +105,7 @@ export const createOrder = createAsyncThunk(
       dispatch(setSnackbar({ message, severity: "success" }));
       return response.data;
     } catch (err: any) {
-      const message = err?.message || "Failed to create Order";
+      const message = `[Order] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }

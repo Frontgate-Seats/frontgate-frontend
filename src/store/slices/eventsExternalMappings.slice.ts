@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import eventsExternalMappingsApi from "../../apis/eventsExternalMappings.api";
 import { setSnackbar } from "./snackbar.slice";
 import type { DataGridQueryOptions } from "../../shared/types/mui.type";
+import { getErrorMessage } from "../../shared/utils/error.util";
 
 export interface EventsState {
   loading: boolean;
@@ -32,7 +33,7 @@ export const getEventsExternalMappings = createAsyncThunk(
       const response = await eventsExternalMappingsApi.fetchEventsExternalMappings(data);
       return response;
     } catch (err: any) {
-      const message = err?.message || "Failed to fetch eventExternalMapping";
+      const message = `[Event Mappings] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }

@@ -32,7 +32,7 @@ import {
   startEventMonitoring,
   stopEventMonitoring,
 } from "../store/slices/events.slice";
-import { getAvailability } from "../store/slices/availability.slice";
+import { getAvailability, clearAvailability } from "../store/slices/availability.slice";
 import type { UpdateSuggestPayload } from "../apis/suggests.api";
 import { useClientFilters } from "../hooks/useClientFilters";
 import { useChartState } from "../hooks/useChartState";
@@ -86,7 +86,6 @@ export default function EventDetailsPage() {
     error,
     refetch,
   } = useEventData(eventId);
-console.log("sales : ", sales)
   // Chart states
   const salesChart = useChartState("1d");
   const listingShortChart = useChartState("1d");
@@ -266,7 +265,15 @@ console.log("sales : ", sales)
     return new Set(keys.filter((k) => !topKeys.has(k)));
   }, [availabilityData.sectionChart]);
 
-  // Suggests server-side state
+  // Whether PM availability data exists (not just loading)
+  const hasPmAvailabilityData =
+    !availabilityFromRedux.loading &&
+    availabilityFromRedux.data !== null &&
+    (
+      (availabilityData.priceChart?.length ?? 0) > 0 ||
+      (availabilityData.sectionChart?.length ?? 0) > 0 ||
+      (availabilityData.capacityTable?.length ?? 0) > 0
+    );
   const suggestsFromRedux = useSelector((state: RootState) => state.suggests);
   const [suggestsPaginationModel, setSuggestsPaginationModel] =
     React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
@@ -360,7 +367,7 @@ console.log("sales : ", sales)
     suggestsFilterModel,
   ]);
 
-  // Fetch availability data
+  // Fetch availability data — clear stale data first so old time range doesn't linger
   React.useEffect(() => {
     if (!eventId) return;
 
@@ -374,6 +381,7 @@ console.log("sales : ", sales)
     };
 
     const lastHoursCount = hoursMap[pricePointsChart.timeRange] || 24;
+    dispatch(clearAvailability());
     dispatch(getAvailability({ eventId, lastHoursCount }));
   }, [dispatch, eventId, pricePointsChart.timeRange]);
 
@@ -460,10 +468,11 @@ console.log("sales : ", sales)
     {
       field: "purchased_at",
       headerName: "Sold Date",
-      minWidth: 120,
+      minWidth: 160,
       flex: 1,
       type: "dateTime",
-      valueFormatter: (value) => (value ? moment(value).format("MM/DD/YY") : "-"),
+      valueGetter: (value: any) => (value ? new Date(value) : null),
+      valueFormatter: (value: any) => (value ? formatDateTime(value) : "-"),
     },
     {
       field: "section_name",
@@ -1205,79 +1214,84 @@ console.log("sales : ", sales)
           </Card>
         </Grid>
 
-        {/* Primary Market Availability - Price Point Distribution */}
-        <Grid size={{ xs: 12 }}>
-          <DynamicChart
-            title="Price Points - Availability Trends"
-            dataset={availabilityData.priceChart}
-            chartConfig={priceChartConfig}
-            loading={availabilityFromRedux.loading}
-            timeRange={pricePointsChart.timeRange}
-            interval={pricePointsChart.interval}
-            onTimeRangeChange={pricePointsChart.setTimeRange}
-            onIntervalChange={pricePointsChart.setInterval}
-            timeRangeOptions={TIME_RANGE_OPTIONS}
-            intervalOptionsMap={INTERVAL_OPTIONS_MAP}
-            height={400}
-            logo={TJ_LOGO}
-            initialHiddenSeries={priceChartInitialHidden}
-          />
-        </Grid>
+        {/* Primary Market Availability — only shown when data exists */}
+        {hasPmAvailabilityData && (
+          <>
+            {/* Price Point Distribution */}
+            <Grid size={{ xs: 12 }}>
+              <DynamicChart
+                title="Price Points - Availability Trends"
+                dataset={availabilityData.priceChart}
+                chartConfig={priceChartConfig}
+                loading={availabilityFromRedux.loading}
+                timeRange={pricePointsChart.timeRange}
+                interval={pricePointsChart.interval}
+                onTimeRangeChange={pricePointsChart.setTimeRange}
+                onIntervalChange={pricePointsChart.setInterval}
+                timeRangeOptions={TIME_RANGE_OPTIONS}
+                intervalOptionsMap={INTERVAL_OPTIONS_MAP}
+                height={400}
+                logo={TJ_LOGO}
+                initialHiddenSeries={priceChartInitialHidden}
+              />
+            </Grid>
 
-        {/* Primary Market Availability - Capacity Table */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <CustomDataGrid
-            title="Primary Market Availability - Capacity Trends"
-            rows={paginatedCapacity}
-            rowCount={capacityTotalFiltered}
-            columns={capacityColumns}
-            isLoading={availabilityFromRedux.loading}
-            error={null}
-            paginationModel={capacityPaginationModel}
-            setPaginationModel={setCapacityPaginationModel}
-            sortingModel={capacitySortModel}
-            setSortingModel={setCapacitySortModel}
-            filterModel={capacityFilterModel}
-            setFilterModel={setCapacityFilterModel}
-            defaultFilterType="header"
-            onRefresh={() => {
-              if (eventId) {
-                const hoursMap: Record<string, number> = {
-                  "6h": 6,
-                  "12h": 12,
-                  "24h": 24,
-                  "48h": 48,
-                  "7d": 168,
-                };
-                const lastHoursCount =
-                  hoursMap[pricePointsChart.timeRange] || 24;
-                dispatch(getAvailability({ eventId, lastHoursCount }));
-              }
-            }}
-            height={400}
-            headerComponent={capacityHeaderComponent}
-            logo={TJ_LOGO}
-          />
-        </Grid>
+            {/* Capacity Table */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <CustomDataGrid
+                title="Primary Market Availability - Capacity Trends"
+                rows={paginatedCapacity}
+                rowCount={capacityTotalFiltered}
+                columns={capacityColumns}
+                isLoading={availabilityFromRedux.loading}
+                error={null}
+                paginationModel={capacityPaginationModel}
+                setPaginationModel={setCapacityPaginationModel}
+                sortingModel={capacitySortModel}
+                setSortingModel={setCapacitySortModel}
+                filterModel={capacityFilterModel}
+                setFilterModel={setCapacityFilterModel}
+                defaultFilterType="header"
+                onRefresh={() => {
+                  if (eventId) {
+                    const hoursMap: Record<string, number> = {
+                      "6h": 6,
+                      "12h": 12,
+                      "24h": 24,
+                      "48h": 48,
+                      "7d": 168,
+                    };
+                    const lastHoursCount =
+                      hoursMap[pricePointsChart.timeRange] || 24;
+                    dispatch(getAvailability({ eventId, lastHoursCount }));
+                  }
+                }}
+                height={400}
+                headerComponent={capacityHeaderComponent}
+                logo={TJ_LOGO}
+              />
+            </Grid>
 
-        {/* Primary Market Availability - Section Breakdown */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <DynamicChart
-            title="Sections - Availability Trends"
-            dataset={availabilityData.sectionChart}
-            chartConfig={sectionChartConfig}
-            loading={availabilityFromRedux.loading}
-            timeRange={pricePointsChart.timeRange}
-            interval={pricePointsChart.interval}
-            onTimeRangeChange={pricePointsChart.setTimeRange}
-            onIntervalChange={pricePointsChart.setInterval}
-            timeRangeOptions={TIME_RANGE_OPTIONS}
-            intervalOptionsMap={INTERVAL_OPTIONS_MAP}
-            height={400}
-            logo={TJ_LOGO}
-            initialHiddenSeries={sectionChartInitialHidden}
-          />
-        </Grid>
+            {/* Section Breakdown */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <DynamicChart
+                title="Sections - Availability Trends"
+                dataset={availabilityData.sectionChart}
+                chartConfig={sectionChartConfig}
+                loading={availabilityFromRedux.loading}
+                timeRange={pricePointsChart.timeRange}
+                interval={pricePointsChart.interval}
+                onTimeRangeChange={pricePointsChart.setTimeRange}
+                onIntervalChange={pricePointsChart.setInterval}
+                timeRangeOptions={TIME_RANGE_OPTIONS}
+                intervalOptionsMap={INTERVAL_OPTIONS_MAP}
+                height={400}
+                logo={TJ_LOGO}
+                initialHiddenSeries={sectionChartInitialHidden}
+              />
+            </Grid>
+          </>
+        )}
 
         {/* Listing Trends - Short Term */}
         <Grid size={{ xs: 12, md: 6 }}>

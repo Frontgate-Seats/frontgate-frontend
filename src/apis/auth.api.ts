@@ -1,5 +1,6 @@
 import supabaseClient from "../clients/supabase.client";
 import type { SignInProps } from "./types";
+import { getErrorMessage } from "../shared/utils/error.util";
 
 export const signIn = async (payload: SignInProps) => {
   try {
@@ -9,7 +10,7 @@ export const signIn = async (payload: SignInProps) => {
     });
 
     if (error) {
-      throw error;
+      throw new Error(getErrorMessage(error));
     }
 
     return {
@@ -26,7 +27,7 @@ export const signOut = async () => {
     const { error } = await supabaseClient.auth.signOut();
 
     if (error) {
-      throw error;
+      throw new Error(getErrorMessage(error));
     }
 
     return { success: true };
@@ -43,7 +44,7 @@ export const getCurrentUser = async () => {
     } = await supabaseClient.auth.getUser();
 
     if (error) {
-      throw error;
+      throw new Error(getErrorMessage(error));
     }
 
     return user;
@@ -60,7 +61,7 @@ export const getCurrentSession = async () => {
     } = await supabaseClient.auth.getSession();
 
     if (error) {
-      throw error;
+      throw new Error(getErrorMessage(error));
     }
 
     return session;

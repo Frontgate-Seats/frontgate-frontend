@@ -1,5 +1,6 @@
 import httpClient from "../clients/http.client";
 import type { DataGridQueryOptions } from "../shared/types/mui.type";
+import { getErrorMessage } from "../shared/utils/error.util";
 
 // Backend is expected to return: { data: Event[], total: number }
 export const fetchSalesMeta = async ({
@@ -9,15 +10,20 @@ export const fetchSalesMeta = async ({
   filters,
   search,
 }: DataGridQueryOptions) => {
-  const params = {
-    page,
-    pageSize,
-    ...(sortFields ? { sortFields: JSON.stringify(sortFields) } : []),
-    ...(filters ? { filters: JSON.stringify(filters) } : []),
-    search,
-  };
+  try {
+    const params = {
+      page,
+      pageSize,
+      ...(sortFields ? { sortFields: JSON.stringify(sortFields) } : []),
+      ...(filters ? { filters: JSON.stringify(filters) } : []),
+      search,
+    };
 
-  return httpClient.get("/salesMeta", { params });
+    return await httpClient.get("/salesMeta", { params });
+  } catch (error: any) {
+    const message = getErrorMessage(error);
+    throw new Error(message);
+  }
 };
 
 const salesMetaApi = {

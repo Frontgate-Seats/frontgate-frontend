@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import suggestsApi, { type UpdateSuggestPayload } from "../../apis/suggests.api";
 import { setSnackbar } from "./snackbar.slice";
 import type { DataGridQueryOptions } from "../../shared/types/mui.type";
+import { getErrorMessage } from "../../shared/utils/error.util";
 
 export interface SuggestsState {
   loading: boolean;
@@ -28,7 +29,7 @@ export const getSuggests = createAsyncThunk(
       const response = await suggestsApi.fetchSuggests(data);
       return response;
     } catch (err: any) {
-      const message = err?.message || "Failed to fetch suggests";
+      const message = `[Suggestions] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
@@ -53,7 +54,7 @@ export const updateSuggest = createAsyncThunk(
         dispatch(getSuggests(queryOptions));
       }
     } catch (err: any) {
-      const message = err?.message || "Failed to update suggestion";
+      const message = `[Suggestions] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }

@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { setSnackbar } from "./snackbar.slice";
 import listingTrendsApi from "../../apis/listingTrends.api";
+import { getErrorMessage } from "../../shared/utils/error.util";
 
 export interface ListingTrendsState {
   loading: boolean;
@@ -27,7 +28,7 @@ export const getListingTrends = createAsyncThunk(
       const response = await listingTrendsApi.fetchListingTrends(event_id);
       return response;
     } catch (err: any) {
-      const message = err?.message || "Failed to fetch listing trends";
+      const message = `[Listing Trends] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }

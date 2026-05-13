@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { setSnackbar } from "./snackbar.slice";
 import vividSalesApi from "../../apis/vividSales.api";
+import { getErrorMessage } from "../../shared/utils/error.util";
 
 export interface VividSalesState {
   loading: boolean;
@@ -28,7 +29,7 @@ export const getVividSales = createAsyncThunk(
       const response = await vividSalesApi.fetchVividSales(eventId);
       return response;
     } catch (err: any) {
-      const message = err?.message || "Failed to fetch Vivid Sales";
+      const message = `[Vivid Sales] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }

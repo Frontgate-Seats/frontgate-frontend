@@ -1,6 +1,7 @@
 import { getDBData } from "../shared/helpers/supabase.helper";
 import type { DataGridQueryOptions } from "../shared/types/mui.type";
 import supabaseClient from "../clients/supabase.client";
+import { getErrorMessage } from "../shared/utils/error.util";
 
 const sgeventsApi = {
   // Fetch SeatGeek events
@@ -17,7 +18,7 @@ const sgeventsApi = {
       .single();
 
     if (error) {
-      throw new Error(error.message || "Failed to fetch SeatGeek event");
+      throw new Error(getErrorMessage(error));
     }
 
     return data;

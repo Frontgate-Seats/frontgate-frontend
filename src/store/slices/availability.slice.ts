@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import availabilityApi from "../../apis/availability.api";
 import { setSnackbar } from "./snackbar.slice";
+import { getErrorMessage } from "../../shared/utils/error.util";
 
 export interface AvailabilityState {
   data: any | null;
@@ -41,7 +42,7 @@ export const getAvailability = createAsyncThunk(
       
       return response;
     } catch (err: any) {
-      const message = err?.message || "Failed to fetch availability data";
+      const message = `[PM Availability] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }

@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import sgeventsApi from "../../apis/sgevents.api";
 import { setSnackbar } from "./snackbar.slice";
 import type { DataGridQueryOptions } from "../../shared/types/mui.type";
+import { getErrorMessage } from "../../shared/utils/error.util";
 
 export interface SGEventsState {
   loading: boolean;
@@ -32,7 +33,7 @@ export const getSGEvents = createAsyncThunk(
       const response = await sgeventsApi.fetchSGEvents(data);
       return response;
     } catch (err: any) {
-      const message = err?.message || "Failed to fetch SeatGeek events";
+      const message = `[SG Events] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
@@ -50,7 +51,7 @@ export const getSGEvent = createAsyncThunk(
       const response = await sgeventsApi.fetchSGEvent(eventId);
       return response;
     } catch (err: any) {
-      const message = err?.message || "Failed to fetch SeatGeek event";
+      const message = `[SG Events] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }

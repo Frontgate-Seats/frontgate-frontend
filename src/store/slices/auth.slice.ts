@@ -3,6 +3,7 @@ import { setSnackbar } from "./snackbar.slice";
 import type { SignInProps, UserStateSlice } from "./types";
 import authApi from "../../apis/auth.api";
 import supabaseClient from "../../clients/supabase.client";
+import { getErrorMessage } from "../../shared/utils/error.util";
 
 const initialState: UserStateSlice = {
   loading: true, // Start with loading true to check initial session
@@ -32,9 +33,10 @@ export const signIn = createAsyncThunk(
       };
     } catch (error: any) {
       console.log("ERRO : ", error);
+      const message = getErrorMessage(error);
       dispatch(
         setSnackbar({
-          message: error.message || "Something went wrong",
+          message: `[Sign In] ${message}`,
           severity: "error",
         }),
       );
@@ -59,9 +61,10 @@ export const signOut = createAsyncThunk(
       return null;
     } catch (error: any) {
       console.log("ERRO : ", error);
+      const message = getErrorMessage(error);
       dispatch(
         setSnackbar({
-          message: error.message || "Something went wrong",
+          message: `[Sign Out] ${message}`,
           severity: "error",
         }),
       );

@@ -1,6 +1,7 @@
 import { getDBData } from "../shared/helpers/supabase.helper";
 import type { DataGridQueryOptions } from "../shared/types/mui.type";
 import supabaseClient from "../clients/supabase.client";
+import { getErrorMessage } from "../shared/utils/error.util";
 
 const eventsApi = {
   // Main events fetcher with enhanced search
@@ -18,7 +19,7 @@ const eventsApi = {
       .single();
 
     if (error) {
-      throw new Error(error.message || "Failed to start monitoring");
+      throw new Error(getErrorMessage(error));
     }
 
     return data;
@@ -34,7 +35,7 @@ const eventsApi = {
       .single();
 
     if (error) {
-      throw new Error(error.message || "Failed to stop monitoring");
+      throw new Error(getErrorMessage(error));
     }
 
     return data;

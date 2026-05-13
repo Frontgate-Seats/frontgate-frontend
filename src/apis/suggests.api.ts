@@ -1,6 +1,7 @@
 import { getDBData } from "../shared/helpers/supabase.helper";
 import type { DataGridQueryOptions } from "../shared/types/mui.type";
 import supabaseClient from "../clients/supabase.client";
+import { getErrorMessage } from "../shared/utils/error.util";
 
 export interface UpdateSuggestPayload {
   id: string;
@@ -23,7 +24,7 @@ const suggestsApi = {
       .single();
 
     if (error) {
-      throw new Error(error.message || "Failed to update suggest");
+      throw new Error(getErrorMessage(error));
     }
 
     return data;

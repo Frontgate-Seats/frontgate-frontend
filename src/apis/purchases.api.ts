@@ -1,6 +1,7 @@
 import supabaseHttpClient from "../clients/supabaseHttp.client";
 import { getDBData } from "../shared/helpers/supabase.helper";
 import type { DataGridQueryOptions } from "../shared/types/mui.type";
+import { getErrorMessage } from "../shared/utils/error.util";
 
 const fetchPurchases = async (options: DataGridQueryOptions) => {
   return getDBData("inventory", options);
@@ -16,11 +17,16 @@ export const createQuote = async (payload: {
   exclusiveListings?: boolean;
   shippingCountry?: string;
 }) => {
-  const response = await supabaseHttpClient.post(
-    `/functions/v1/events-api/quote`,
-    { data: payload },
-  );
-  return response;
+  try {
+    const response = await supabaseHttpClient.post(
+      `/functions/v1/events-api/quote`,
+      { data: payload },
+    );
+    return response;
+  } catch (error: any) {
+    const message = getErrorMessage(error);
+    throw new Error(message);
+  }
 };
 
 export const createOrder = async (payload: {
@@ -51,11 +57,16 @@ export const createOrder = async (payload: {
 
   currency?: string;
 }) => {
+  try {
     const response = await supabaseHttpClient.post(
-    `/functions/v1/events-api/order`,
-    { data: payload },
-  );
-  return response;
+      `/functions/v1/events-api/order`,
+      { data: payload },
+    );
+    return response;
+  } catch (error: any) {
+    const message = getErrorMessage(error);
+    throw new Error(message);
+  }
 };
 
 const purchasesApi = {

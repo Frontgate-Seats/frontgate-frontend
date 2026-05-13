@@ -5,6 +5,8 @@ import {
   type PayloadAction,
 } from "@reduxjs/toolkit";
 import chartsApi from "../../apis/charts.api";
+import { getErrorMessage } from "../../shared/utils/error.util";
+import { setSnackbar } from "./snackbar.slice";
 
 export const fetchTopEvents = createAsyncThunk(
   "charts/fetchTopEvents",
@@ -14,15 +16,15 @@ export const fetchTopEvents = createAsyncThunk(
       to?: string;
       field: string;
     },
-    { rejectWithValue }
+    { rejectWithValue, dispatch }
   ) => {
     try {
       const response = await chartsApi.fetchTopEvents(params);
       return response.data.data;
     } catch (error: any) {
-      return rejectWithValue(
-        error.response?.data?.message || "Failed to fetch top events"
-      );
+      const message = `[Charts] ${getErrorMessage(error)}`;
+      dispatch(setSnackbar({ message, severity: "error" }));
+      return rejectWithValue(message);
     }
   }
 );

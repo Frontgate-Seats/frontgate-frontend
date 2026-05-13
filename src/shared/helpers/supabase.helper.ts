@@ -1,6 +1,7 @@
 import supabaseClient from "../../clients/supabase.client";
 import type { DataGridQueryOptions } from "../types/mui.type";
 import { buildSupabaseQuery } from "../utils/supabase.util";
+import { getErrorMessage } from "../utils/error.util";
 
 // Response type
 export interface DatabaseResponse<T = any> {
@@ -98,7 +99,7 @@ export const getDBData = async (
 
     if (error) {
       console.error(`Database error for table ${tableName}:`, error);
-      throw new Error(`Database error: ${error.message}`);
+      throw new Error(getErrorMessage(error));
     }
 
     return {
