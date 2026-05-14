@@ -1,15 +1,11 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  type GridFilterModel,
-  type GridPaginationModel,
-  type GridSortModel,
-} from "@mui/x-data-grid";
 import { Typography, Grid, Alert, Link, Stack } from "@mui/material";
 import type { AppDispatch, RootState } from "../store";
 import { getPurchases } from "../store/slices/purchases.slice";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
+import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
 
 const PurchasesPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -19,12 +15,25 @@ const PurchasesPage: React.FC = () => {
     error: purchasesError,
   } = useSelector((state: RootState) => state.purchases);
 
-  const [paginationModel, setPaginationModel] =
-    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
-  const [sortModel, setSortModel] = React.useState<GridSortModel>([]);
-  const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
-    items: [],
-  });
+  const { paginationModel, setPaginationModel, sortModel, setSortModel, filterModel, setFilterModel } =
+    useDataGridQueryParams({
+      columns: [
+        { field: "event_id", type: "string" },
+        { field: "listing_id", type: "string" },
+        { field: "purchase_id", type: "string" },
+        { field: "inventory_id", type: "string" },
+        { field: "section", type: "string" },
+        { field: "row", type: "string" },
+        { field: "quantity", type: "number" },
+        { field: "total_amount", type: "number" },
+        { field: "status", type: "string" },
+        { field: "purchase_status", type: "string" },
+        { field: "inventory_status", type: "string" },
+      ],
+      defaultPaginationModel: { page: 0, pageSize: 25 },
+      defaultSortModel: [],
+      defaultFilterModel: { items: [] },
+    });
 
   React.useEffect(() => {
     dispatch(

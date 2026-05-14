@@ -1,11 +1,27 @@
 import * as React from "react";
-import type { 
-  GridPaginationModel, 
-  GridSortModel, 
-  GridFilterModel 
+import type {
+  GridPaginationModel,
+  GridSortModel,
+  GridFilterModel,
 } from "@mui/x-data-grid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import moment from "moment";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+/**
+ * Optional external state override.  When provided, useClientFilters uses
+ * these values + setters instead of its own internal useState, so the caller
+ * (e.g. a page using useDataGridQueryParams) fully controls the state.
+ */
+interface ExternalState {
+  paginationModel: GridPaginationModel;
+  sortModel: GridSortModel;
+  filterModel: GridFilterModel;
+  setPaginationModel: React.Dispatch<React.SetStateAction<GridPaginationModel>>;
+  setSortModel: React.Dispatch<React.SetStateAction<GridSortModel>>;
+  setFilterModel: React.Dispatch<React.SetStateAction<GridFilterModel>>;
+}
 
 interface UseClientFiltersProps<T = any> {
   data: T[];
@@ -13,6 +29,8 @@ interface UseClientFiltersProps<T = any> {
   initialPaginationModel?: GridPaginationModel;
   initialSortModel?: GridSortModel;
   initialFilterModel?: GridFilterModel;
+  /** Pass the return value of useDataGridQueryParams to sync state with URL. */
+  externalState?: ExternalState;
 }
 
 interface UseClientFiltersReturn<T = any> {
@@ -20,21 +38,23 @@ interface UseClientFiltersReturn<T = any> {
   paginationModel: GridPaginationModel;
   sortModel: GridSortModel;
   filterModel: GridFilterModel;
-  
+
   // State setters
   setPaginationModel: React.Dispatch<React.SetStateAction<GridPaginationModel>>;
   setSortModel: React.Dispatch<React.SetStateAction<GridSortModel>>;
   setFilterModel: React.Dispatch<React.SetStateAction<GridFilterModel>>;
-  
+
   // Processed data
   filteredRows: T[];
   sortedRows: T[];
   paginatedRows: T[];
-  
+
   // Metadata
   totalRows: number;
   totalFilteredRows: number;
 }
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useClientFilters<T = any>({
   data,
@@ -42,22 +62,42 @@ export function useClientFilters<T = any>({
   initialPaginationModel = { page: 0, pageSize: 25 },
   initialSortModel = [],
   initialFilterModel = { items: [] },
+  externalState,
 }: UseClientFiltersProps<T>): UseClientFiltersReturn<T> {
-  
-  // State management
-  const [paginationModel, setPaginationModel] = React.useState<GridPaginationModel>(
-    initialPaginationModel
-  );
-  
-  const [sortModel, setSortModel] = React.useState<GridSortModel>(
-    initialSortModel
-  );
-  
-  const [filterModel, setFilterModel] = React.useState<GridFilterModel>(
-    initialFilterModel
-  );
+  // ── Internal state (used when no externalState is provided) ───────────────
 
-  // Memoized filtered rows
+  const [internalPaginationModel, setInternalPaginationModel] =
+    React.useState<GridPaginationModel>(initialPaginationModel);
+
+  const [internalSortModel, setInternalSortModel] =
+    React.useState<GridSortModel>(initialSortModel);
+
+  const [internalFilterModel, setInternalFilterModel] =
+    React.useState<GridFilterModel>(initialFilterModel);
+
+  // ── Pick external or internal state ───────────────────────────────────────
+
+  const paginationModel = externalState
+    ? externalState.paginationModel
+    : internalPaginationModel;
+  const setPaginationModel = externalState
+    ? externalState.setPaginationModel
+    : setInternalPaginationModel;
+
+  const sortModel = externalState ? externalState.sortModel : internalSortModel;
+  const setSortModel = externalState
+    ? externalState.setSortModel
+    : setInternalSortModel;
+
+  const filterModel = externalState
+    ? externalState.filterModel
+    : internalFilterModel;
+  const setFilterModel = externalState
+    ? externalState.setFilterModel
+    : setInternalFilterModel;
+
+  // ── Filtered rows ─────────────────────────────────────────────────────────
+
   const filteredRows = React.useMemo(() => {
     if (!filterModel?.items?.length) return data;
 
@@ -97,7 +137,7 @@ export function useClientFilters<T = any>({
               return !fieldValue || String(fieldValue).trim() === "";
             }
             if (operator === "isNotEmpty") {
-              return fieldValue && String(fieldValue).trim() !== "";
+              return !!(fieldValue && String(fieldValue).trim() !== "");
             }
             return true;
           }
@@ -130,14 +170,10 @@ export function useClientFilters<T = any>({
               return fv.isSame(val, "day") || fv.isAfter(val, "day");
             if (operator === "onOrBefore")
               return fv.isSame(val, "day") || fv.isBefore(val, "day");
-            if (operator === "is")
-              return fv.isSame(val, "day");
-            if (operator === "not")
-              return !fv.isSame(val, "day");
-            if (operator === "after")
-              return fv.isAfter(val, "day");
-            if (operator === "before")
-              return fv.isBefore(val, "day");
+            if (operator === "is") return fv.isSame(val, "day");
+            if (operator === "not") return !fv.isSame(val, "day");
+            if (operator === "after") return fv.isAfter(val, "day");
+            if (operator === "before") return fv.isBefore(val, "day");
             if (operator === "isEmpty") return !fv.isValid();
             if (operator === "isNotEmpty") return fv.isValid();
             return true;
@@ -155,7 +191,7 @@ export function useClientFilters<T = any>({
               return !fieldValue || String(fieldValue).trim() === "";
             }
             if (operator === "isNotEmpty") {
-              return fieldValue && String(fieldValue).trim() !== "";
+              return !!(fieldValue && String(fieldValue).trim() !== "");
             }
             return String(fieldValue ?? "") === String(value);
           }
@@ -164,18 +200,16 @@ export function useClientFilters<T = any>({
           case "boolean": {
             const boolValue = Boolean(fieldValue);
             const filterBoolValue = value === "true" || value === true;
-            
-            if (operator === "is") {
-              return boolValue === filterBoolValue;
-            }
+            if (operator === "is") return boolValue === filterBoolValue;
             return boolValue === filterBoolValue;
           }
         }
-      })
+      }),
     );
   }, [data, filterModel, columns]);
 
-  // Memoized sorted rows
+  // ── Sorted rows ───────────────────────────────────────────────────────────
+
   const sortedRows = React.useMemo(() => {
     if (!sortModel?.length) return filteredRows;
 
@@ -184,22 +218,17 @@ export function useClientFilters<T = any>({
       const aValue = a[field as keyof T];
       const bValue = b[field as keyof T];
 
-      // Handle null/undefined values
       if (aValue == null && bValue == null) return 0;
       if (aValue == null) return 1;
       if (bValue == null) return -1;
 
-      // Handle different data types
       const col = columns.find((c) => c.field === field);
       const colType = col?.type || "string";
-
       let comparison = 0;
 
       switch (colType) {
         case "number": {
-          const numA = Number(aValue);
-          const numB = Number(bValue);
-          comparison = numA - numB;
+          comparison = Number(aValue) - Number(bValue);
           break;
         }
         case "date":
@@ -207,7 +236,11 @@ export function useClientFilters<T = any>({
           const dateA = moment(aValue as any);
           const dateB = moment(bValue as any);
           if (dateA.isValid() && dateB.isValid()) {
-            comparison = dateA.isBefore(dateB) ? -1 : dateA.isAfter(dateB) ? 1 : 0;
+            comparison = dateA.isBefore(dateB)
+              ? -1
+              : dateA.isAfter(dateB)
+                ? 1
+                : 0;
           } else {
             comparison = String(aValue).localeCompare(String(bValue));
           }
@@ -229,35 +262,33 @@ export function useClientFilters<T = any>({
     });
   }, [filteredRows, sortModel, columns]);
 
-  // Memoized paginated rows
+  // ── Paginated rows ────────────────────────────────────────────────────────
+
   const paginatedRows = React.useMemo(() => {
     const start = paginationModel.page * paginationModel.pageSize;
     const end = start + paginationModel.pageSize;
     return sortedRows.slice(start, end);
   }, [sortedRows, paginationModel]);
 
-  // Reset pagination when filters or sorting change
+  // ── Reset page to 0 on filter / sort change (internal state only) ─────────
+  // When externalState is used, useDataGridQueryParams already handles this.
+
   React.useEffect(() => {
-    setPaginationModel(prev => ({ ...prev, page: 0 }));
-  }, [filterModel, sortModel]);
+    if (!externalState) {
+      setInternalPaginationModel((prev) => ({ ...prev, page: 0 }));
+    }
+  }, [filterModel, sortModel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
-    // State
     paginationModel,
     sortModel,
     filterModel,
-    
-    // State setters
     setPaginationModel,
     setSortModel,
     setFilterModel,
-    
-    // Processed data
     filteredRows,
     sortedRows,
     paginatedRows,
-    
-    // Metadata
     totalRows: data.length,
     totalFilteredRows: filteredRows.length,
   };

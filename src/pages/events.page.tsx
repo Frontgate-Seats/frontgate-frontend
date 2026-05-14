@@ -20,11 +20,6 @@ import {
 } from "@mui/icons-material";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import type {
-  GridPaginationModel,
-  GridSortModel,
-  GridFilterModel,
-} from "@mui/x-data-grid";
 
 import moment from "moment";
 
@@ -36,6 +31,7 @@ import {
   stopEventMonitoring,
 } from "../store/slices/events.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
+import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
 import { AdapterMoment } from "@mui/x-date-pickers/AdapterMoment";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
@@ -60,14 +56,13 @@ export default function EventsPage() {
   } = useSelector((state: RootState) => state.events);
 
   // ------------------------
-  // Grid State
+  // Grid State — synced with URL query params
   // ------------------------
-  const [paginationModel, setPaginationModel] =
-    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
-  const [sortModel, setSortModel] = React.useState<GridSortModel>([
-    { field: "local_date", sort: "asc" },
-  ]);
-  const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
+  // Memoized so moment() is only evaluated once — not on every re-render.
+  // If we don't do this, defaultFilterModel gets a new reference each render
+  // and the "same as default" check in the hook would always be false,
+  // causing the default date range to appear in the URL.
+  const defaultFilterModel = React.useMemo(() => ({
     items: [
       {
         field: "local_date",
@@ -80,7 +75,27 @@ export default function EventsPage() {
         value: moment().add(6, "months").toISOString(),
       },
     ],
-  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), []); // evaluated once on mount
+
+  const { paginationModel, setPaginationModel, sortModel, setSortModel, filterModel, setFilterModel } =
+    useDataGridQueryParams({
+      columns: [
+        { field: "local_date", type: "dateTime" },
+        { field: "id", type: "number" },
+        { field: "name", type: "string" },
+        { field: "venue_name", type: "string" },
+        { field: "venue_city", type: "string" },
+        { field: "venue_state", type: "string" },
+        { field: "category_name", type: "string" },
+        { field: "ticket_count", type: "number" },
+        { field: "listing_count", type: "number" },
+        { field: "monitor_level", type: "singleSelect" },
+      ],
+      defaultPaginationModel: { page: 0, pageSize: 25 },
+      defaultSortModel: [{ field: "local_date", sort: "asc" }],
+      defaultFilterModel,
+    });
 
   // ------------------------
   // Confirmation Dialog State

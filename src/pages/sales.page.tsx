@@ -13,6 +13,7 @@ import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { formatDateTime } from "../shared/utils/dateTime.util";
 import { useClientFilters } from "../hooks/useClientFilters";
+import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
 
 export default function SalesPage() {
   const dispatch = useAppDispatch();
@@ -78,6 +79,20 @@ export default function SalesPage() {
     },
   ];
 
+  // URL-synced grid state
+  const queryState = useDataGridQueryParams({
+    columns: [
+      { field: "section_name", type: "string" },
+      { field: "row_name", type: "string" },
+      { field: "quantity", type: "number" },
+      { field: "base_price", type: "number" },
+      { field: "purchased_at", type: "dateTime" },
+    ],
+    defaultPaginationModel: { page: 0, pageSize: 25 },
+    defaultSortModel: [{ field: "purchaseUtc", sort: "desc" }],
+    defaultFilterModel: { items: [] },
+  });
+
   // Use client-side filtering, pagination, and sorting
   const {
     paginationModel,
@@ -91,12 +106,21 @@ export default function SalesPage() {
   } = useClientFilters({
     data: sales || [],
     columns: allColumns,
-    initialPaginationModel: { page: 0, pageSize: 25 },
-    initialSortModel: [{ field: "purchaseUtc", sort: "desc" }],
-    initialFilterModel: {
-      items: [],
-    },
+    externalState: queryState,
   });
+
+  // Reset filters when the event changes (but NOT on initial mount, so URL
+  // params loaded on first visit are preserved).
+  const isFirstRenderSales = React.useRef(true);
+  React.useEffect(() => {
+    if (isFirstRenderSales.current) {
+      isFirstRenderSales.current = false;
+      return;
+    }
+    queryState.setFilterModel({ items: [] });
+    queryState.setPaginationModel({ page: 0, pageSize: 25 });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event_id]);
 
   return (
     <Stack

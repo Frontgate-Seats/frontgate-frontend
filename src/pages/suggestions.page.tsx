@@ -2,11 +2,6 @@ import * as React from "react";
 import { useSelector } from "react-redux";
 import { Stack, Grid, IconButton, Typography, Link } from "@mui/material";
 import { Edit } from "@mui/icons-material";
-import type {
-  GridPaginationModel,
-  GridSortModel,
-  GridFilterModel,
-} from "@mui/x-data-grid";
 
 import type { RootState } from "../store";
 import { formatDateTime } from "../shared/utils/dateTime.util";
@@ -16,6 +11,7 @@ import { useAppDispatch } from "../store/reducers/root.reducer";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { SuggestionDialog } from "../components/common/dialogs";
+import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
 
 export default function SuggestionsPage() {
   const dispatch = useAppDispatch();
@@ -27,15 +23,26 @@ export default function SuggestionsPage() {
     error: suggestsError,
   } = useSelector((state: RootState) => state.suggests);
 
-  // Grid State
-  const [paginationModel, setPaginationModel] =
-    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
-  const [sortModel, setSortModel] = React.useState<GridSortModel>([
-    { field: "created_at", sort: "desc" },
-  ]);
-  const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
+  // Grid State — synced with URL query params
+  const defaultSuggestionsFilter = React.useMemo(() => ({
     items: [{ field: "llm_type", operator: "equals", value: "event-signal" }],
-  });
+  }), []);
+
+  const { paginationModel, setPaginationModel, sortModel, setSortModel, filterModel, setFilterModel } =
+    useDataGridQueryParams({
+      columns: [
+        { field: "event_id", type: "number" },
+        { field: "event_name", type: "string" },
+        { field: "created_at", type: "dateTime" },
+        { field: "llm_result_comment", type: "string" },
+        { field: "llm_result_score", type: "number" },
+        // filterOperator: "equals" ensures the operator is preserved on URL reload
+        { field: "llm_type", type: "string", filterOperator: "equals" },
+      ],
+      defaultPaginationModel: { page: 0, pageSize: 25 },
+      defaultSortModel: [{ field: "created_at", sort: "desc" }],
+      defaultFilterModel: defaultSuggestionsFilter,
+    });
 
   // Edit Dialog State
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);

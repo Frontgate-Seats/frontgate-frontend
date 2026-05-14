@@ -37,6 +37,7 @@ import type { CustomGridColDef } from "../shared/types/mui.type";
 import { formatDateTime } from "../shared/utils/dateTime.util";
 import { useClientFilters } from "../hooks/useClientFilters";
 import { getEvents } from "../store/slices/events.slice";
+import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
 
 export default function ListingsPage() {
   const dispatch = useAppDispatch();
@@ -102,6 +103,7 @@ export default function ListingsPage() {
       width: 140,
       flex: 0.8,
       minWidth: 120,
+      urlParamName: "listing_id",
     },
     {
       field: "section_name",
@@ -164,6 +166,20 @@ export default function ListingsPage() {
     },
   ];
 
+  // URL-synced grid state
+  const queryState = useDataGridQueryParams({
+    columns: [
+      { field: "id", type: "string", urlParamName: "listing_id" },
+      { field: "section_name", type: "string" },
+      { field: "row", type: "string" },
+      { field: "quantity", type: "number" },
+      { field: "price", type: "number" },
+    ],
+    defaultPaginationModel: { page: 0, pageSize: 25 },
+    defaultSortModel: [],
+    defaultFilterModel: { items: [] },
+  });
+
   // Use client-side filtering, pagination, and sorting
   const {
     paginationModel,
@@ -177,12 +193,21 @@ export default function ListingsPage() {
   } = useClientFilters({
     data: listingsData || [],
     columns: allColumns,
-    initialPaginationModel: { page: 0, pageSize: 25 },
-    initialSortModel: [],
-    initialFilterModel: {
-      items: [],
-    },
+    externalState: queryState,
   });
+
+  // Reset filters when the event changes (but NOT on initial mount, so URL
+  // params loaded on first visit are preserved).
+  const isFirstRenderListings = React.useRef(true);
+  React.useEffect(() => {
+    if (isFirstRenderListings.current) {
+      isFirstRenderListings.current = false;
+      return;
+    }
+    queryState.setFilterModel({ items: [] });
+    queryState.setPaginationModel({ page: 0, pageSize: 25 });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event_id]);
 
   const handleRefresh = () => {
     if (event_id) dispatch(getListings(event_id));
@@ -214,7 +239,6 @@ export default function ListingsPage() {
     );
   }, [listingsDetailsDataObj?.deliveryOptions]);
 
-  console.log("eventInfo : ", eventInfo)
   const steps: StepData[] = [
     {
       label: "Listing Details",
