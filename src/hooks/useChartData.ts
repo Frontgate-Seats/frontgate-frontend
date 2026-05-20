@@ -1323,3 +1323,98 @@ export const useCombinedSalesChartData = (
     };
   }, [seatgeekSales, vividSales, timeRange, interval]);
 };
+
+/**
+ * Builds the combined sales chart dataset from already-normalized combined rows
+ * (shape: { source: "SeatGeek"|"Vivid", purchased_at, base_price, quantity }).
+ * This is the preferred hook when the rows have already been filtered/merged by
+ * useClientFilters, so the chart always reflects the same data as the table.
+ */
+export const useCombinedSalesChartDataFromRows = (
+  combinedRows: any[],
+  timeRange: string,
+  interval: string
+) => {
+  return React.useMemo(() => {
+    const now = moment.utc();
+    const fromDate = now.clone();
+
+    switch (timeRange) {
+      case "1h": fromDate.subtract(1, "hour"); break;
+      case "3h": fromDate.subtract(3, "hours"); break;
+      case "6h": fromDate.subtract(6, "hours"); break;
+      case "12h": fromDate.subtract(12, "hours"); break;
+      case "1d": fromDate.subtract(1, "day"); break;
+      case "7d": fromDate.subtract(7, "days"); break;
+      case "30d": fromDate.subtract(30, "days"); break;
+      case "3m": fromDate.subtract(3, "months"); break;
+      case "6m": fromDate.subtract(6, "months"); break;
+      case "1y": fromDate.subtract(1, "year"); break;
+    }
+
+    const rangeStart = fromDate.valueOf();
+    const rangeEnd = now.valueOf();
+
+    const intervalMs = interval.endsWith("d")
+      ? parseInt(interval) * 24 * 60 * 60 * 1000
+      : interval.endsWith("h")
+      ? parseInt(interval) * 60 * 60 * 1000
+      : parseInt(interval) * 60 * 1000;
+
+    const sgGrouped: Record<number, any[]> = {};
+    const vividGrouped: Record<number, any[]> = {};
+
+    (combinedRows || []).forEach((row) => {
+      const time = moment.utc(row.purchased_at).valueOf();
+      if (time < rangeStart || time > rangeEnd) return;
+      const bucket = Math.floor(time / intervalMs) * intervalMs;
+      if (row.source === "SeatGeek") {
+        if (!sgGrouped[bucket]) sgGrouped[bucket] = [];
+        sgGrouped[bucket].push(row);
+      } else if (row.source === "Vivid") {
+        if (!vividGrouped[bucket]) vividGrouped[bucket] = [];
+        vividGrouped[bucket].push(row);
+      }
+    });
+
+    const startBucket = Math.floor(rangeStart / intervalMs) * intervalMs;
+    const endBucket = Math.ceil(rangeEnd / intervalMs) * intervalMs;
+
+    const result: ChartDataPoint[] = [];
+
+    for (let t = startBucket; t <= endBucket; t += intervalMs) {
+      const timeStr = formatDateTime(moment.utc(t).local());
+      const bucketStartUTC = moment.utc(t).toISOString();
+
+      const sgArr = sgGrouped[t] || [];
+      const vividArr = vividGrouped[t] || [];
+
+      const sgAvgPrice = sgArr.length
+        ? sgArr.reduce((s, r) => s + r.base_price, 0) / sgArr.length
+        : 0;
+      const sgTickets = sgArr.reduce((s, r) => s + (r.quantity || 0), 0);
+      const sgTotalPrice = sgArr.reduce((s, r) => s + (r.total_price || r.base_price * (r.quantity || 1)), 0);
+
+      const vividAvgPrice = vividArr.length
+        ? vividArr.reduce((s, r) => s + r.base_price, 0) / vividArr.length
+        : 0;
+      const vividTickets = vividArr.reduce((s, r) => s + (r.quantity || 0), 0);
+      const vividTotalPrice = vividArr.reduce((s, r) => s + (r.total_price || r.base_price * (r.quantity || 1)), 0);
+
+      result.push({
+        time: timeStr,
+        bucketStartUTC,
+        seatgeekAvgPrice: +sgAvgPrice.toFixed(2),
+        seatgeekListings: sgArr.length,
+        seatgeekTickets: sgTickets,
+        seatgeekTotalPrice: +sgTotalPrice.toFixed(2),
+        vividAvgPrice: +vividAvgPrice.toFixed(2),
+        vividListings: vividArr.length,
+        vividTickets: vividTickets,
+        vividTotalPrice: +vividTotalPrice.toFixed(2),
+      });
+    }
+
+    return result;
+  }, [combinedRows, timeRange, interval]);
+};

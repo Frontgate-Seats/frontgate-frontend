@@ -54,6 +54,12 @@ export default function TradesPage() {
     }));
   }, [dispatch, paginationModel.page, paginationModel.pageSize, sortModel, filterModel]);
 
+  // Auto-refresh every 5 minutes using the current filter/sort/pagination state
+  React.useEffect(() => {
+    const interval = setInterval(handleRefresh, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [handleRefresh]);
+
   const columns: CustomGridColDef[] = [
     // ── Joined from event_analysis_logs (display only) ──────────────
     {

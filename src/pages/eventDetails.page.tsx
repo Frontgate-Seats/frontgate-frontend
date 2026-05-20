@@ -52,9 +52,9 @@ import {
 } from "../shared/utils/chartConfig.util";
 import DynamicChart from "../components/common/charts/DynamicChart";
 import {
-  useCombinedSalesChartData,
   useListingTrendsChartData,
   useAvailabilityData,
+  useCombinedSalesChartDataFromRows,
 } from "../hooks/useChartData";
 import {
   ConfirmDialog,
@@ -97,64 +97,28 @@ export default function EventDetailsPage() {
     (state: RootState) => state.availability,
   );
 
-  // Chart datasets
-  const combinedSalesData = useCombinedSalesChartData(
-    sales || [],
-    vividSales || [],
-    salesChart.timeRange,
-    salesChart.interval,
-  );
-
-  // Merge SeatGeek and Vivid data for combined chart
-  const combinedSalesChartDataset = React.useMemo(() => {
-    if (!combinedSalesData.seatgeek.length && !combinedSalesData.vivid.length) {
-      return [];
-    }
-
-    // Create a map of all time buckets
-    const timeMap = new Map<string, any>();
-
-    combinedSalesData.seatgeek.forEach((item) => {
-      timeMap.set(item.bucketStartUTC, {
-        time: item.time,
-        bucketStartUTC: item.bucketStartUTC,
-        seatgeekAvgPrice: item.avgSalePrice,
-        seatgeekListings: item.totalListings,
-        seatgeekTickets: item.totalTickets,
-        vividAvgPrice: 0,
-        vividListings: 0,
-        vividTickets: 0,
-      });
-    });
-
-    combinedSalesData.vivid.forEach((item) => {
-      const existing = timeMap.get(item.bucketStartUTC);
-      if (existing) {
-        existing.vividAvgPrice = item.avgSalePrice;
-        existing.vividListings = item.totalListings;
-        existing.vividTickets = item.totalTickets;
-      } else {
-        timeMap.set(item.bucketStartUTC, {
-          time: item.time,
-          bucketStartUTC: item.bucketStartUTC,
-          seatgeekAvgPrice: 0,
-          seatgeekListings: 0,
-          seatgeekTickets: 0,
-          vividAvgPrice: item.avgSalePrice,
-          vividListings: item.totalListings,
-          vividTickets: item.totalTickets,
-        });
-      }
-    });
-
-    return Array.from(timeMap.values()).sort((a, b) =>
-      moment.utc(a.bucketStartUTC).valueOf() - moment.utc(b.bucketStartUTC).valueOf()
-    );
-  }, [combinedSalesData]);
-
-  // Enhanced chart config showing both price and quantity
+  // Enhanced chart config showing price, total revenue, and ticket quantity
   const enhancedSalesChartConfig = React.useMemo(() => ({
     ...COMBINED_SALES_CHART_CONFIG,
+    lineSeries: [
+      ...(COMBINED_SALES_CHART_CONFIG.lineSeries || []),
+      {
+        type: "line" as const,
+        label: "SeatGeek Total Revenue",
+        dataKey: "seatgeekTotalPrice",
+        color: "#2e7d32",
+        yAxisId: "leftAxis",
+        valueFormatter: (v: any) => (v != null ? `$${v}` : "-"),
+      },
+      {
+        type: "line" as const,
+        label: "Vivid Total Revenue",
+        dataKey: "vividTotalPrice",
+        color: "#7b1fa2",
+        yAxisId: "leftAxis",
+        valueFormatter: (v: any) => (v != null ? `$${v}` : "-"),
+      },
+    ],
     barSeries: [
       {
         type: "bar" as const,
@@ -171,6 +135,7 @@ export default function EventDetailsPage() {
         yAxisId: "rightAxis",
       },
     ],
+    leftAxisLabel: "Price / Revenue ($)",
     rightAxisLabel: "Tickets Sold",
   }), []);
 
@@ -491,14 +456,14 @@ export default function EventDetailsPage() {
  
     {
       field: "base_price",
-      headerName: "Sold Price",
+      headerName: "Avg. Price",
       minWidth: 100,
       min: 0,
       flex: 1,
       max: 20000,
       type: "number",
       valueFormatter: (value: any) =>
-        typeof value === "number" && value >= 0 ? `$${value.toFixed(0)}` : "-",
+        typeof value === "number" && value >= 0 ? `$${value}` : "-",
     },
     {
       field: "quantity",
@@ -510,6 +475,17 @@ export default function EventDetailsPage() {
       type: "number",
       valueFormatter: (value: any) =>
         typeof value === "number" && value >= 0 ? value.toString() : "-",
+    },
+    {
+      field: "total_price",
+      headerName: "Total Price",
+      minWidth: 110,
+      flex: 1,
+      min: 0,
+      max: 500000,
+      type: "number",
+      valueFormatter: (value: any) =>
+        typeof value === "number" && value >= 0 ? `$${value}` : "-",
     },
   ];
 
@@ -588,18 +564,26 @@ export default function EventDetailsPage() {
     );
   }, [sales, vividSales]);
 
-  // Calculate sales summary statistics
-  const salesSummary = React.useMemo(() => {
-    const totalSales = combinedSalesTableData.length;
-    const totalQuantity = combinedSalesTableData.reduce((sum, sale) => sum + (sale.quantity || 0), 0);
-    
-    return {
-      totalSales,
-      totalQuantity,
-    };
-  }, [combinedSalesTableData]);
+  // Derive the "onOrAfter" date from the chart time range so the table stays in sync.
+  // This is recomputed whenever salesChart.timeRange changes.
+  const salesTimeRangeFilterDate = React.useMemo(() => {
+    const now = moment.utc();
+    switch (salesChart.timeRange) {
+      case "1h":  return now.subtract(1, "hour").toDate();
+      case "3h":  return now.subtract(3, "hours").toDate();
+      case "6h":  return now.subtract(6, "hours").toDate();
+      case "12h": return now.subtract(12, "hours").toDate();
+      case "1d":  return now.subtract(1, "day").toDate();
+      case "7d":  return now.subtract(7, "days").toDate();
+      case "30d": return now.subtract(30, "days").toDate();
+      case "3m":  return now.subtract(3, "months").toDate();
+      case "6m":  return now.subtract(6, "months").toDate();
+      case "1y":  return now.subtract(1, "year").toDate();
+      default:    return now.subtract(1, "day").toDate();
+    }
+  }, [salesChart.timeRange]);
 
-  // Sales Grid State
+  // Sales Grid State — seeded with the time range filter
   const {
     paginationModel: salesPaginationModel,
     sortModel: salesSortModel,
@@ -615,8 +599,43 @@ export default function EventDetailsPage() {
     columns: salesColumns,
     initialPaginationModel: { page: 0, pageSize: 25 },
     initialSortModel: [{ field: "purchased_at", sort: "desc" }],
+    initialFilterModel: {
+      items: [
+        {
+          field: "purchased_at",
+          operator: "onOrAfter",
+          value: salesTimeRangeFilterDate,
+        },
+      ],
+    },
   });
 
+  // When the chart time range changes, push the new "onOrAfter" date into the table filter.
+  // We preserve any other active filter items (source, section, price, etc.) and only
+  // replace the purchased_at onOrAfter item.
+  React.useEffect(() => {
+    setSalesFilterModel((prev) => {
+      const otherItems = prev.items.filter((item) => item.field !== "purchased_at");
+      return {
+        ...prev,
+        items: [
+          ...otherItems,
+          {
+            field: "purchased_at",
+            operator: "onOrAfter",
+            value: salesTimeRangeFilterDate,
+          },
+        ],
+      };
+    });
+  }, [salesTimeRangeFilterDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Calculate sales summary statistics — based on filtered rows so header stats match the table
+  const salesSummary = React.useMemo(() => {
+    const totalSales = filteredSales.length;
+    const totalQuantity = filteredSales.reduce((sum: number, sale: any) => sum + (sale.quantity || 0), 0);
+    return { totalSales, totalQuantity };
+  }, [filteredSales]);
   // Determine which sources are present in filtered sales data
   const activeSourcesInFilter = React.useMemo(() => {
     const sources = new Set(filteredSales.map((sale: any) => sale.source));
@@ -626,18 +645,13 @@ export default function EventDetailsPage() {
     };
   }, [filteredSales]);
 
-  // Filter chart data based on active sources
-  const filteredCombinedSalesData = React.useMemo(() => {
-    return combinedSalesChartDataset.map((item) => ({
-      ...item,
-      seatgeekAvgPrice: activeSourcesInFilter.hasSeatGeek ? item.seatgeekAvgPrice : 0,
-      seatgeekListings: activeSourcesInFilter.hasSeatGeek ? item.seatgeekListings : 0,
-      seatgeekTickets: activeSourcesInFilter.hasSeatGeek ? item.seatgeekTickets : 0,
-      vividAvgPrice: activeSourcesInFilter.hasVivid ? item.vividAvgPrice : 0,
-      vividListings: activeSourcesInFilter.hasVivid ? item.vividListings : 0,
-      vividTickets: activeSourcesInFilter.hasVivid ? item.vividTickets : 0,
-    }));
-  }, [combinedSalesChartDataset, activeSourcesInFilter]);
+  // Re-bucket filtered sales for the chart using the shared hook — reuses the same
+  // time-range/interval logic from useChartData, no duplication.
+  const filteredCombinedSalesChartDataset = useCombinedSalesChartDataFromRows(
+    filteredSales,
+    salesChart.timeRange,
+    salesChart.interval,
+  );
 
   // Capacity Table Grid State
   const {
@@ -1333,7 +1347,7 @@ export default function EventDetailsPage() {
         <Grid size={{ xs: 12, md: 6 }}>
           <DynamicChart
             title="Sales Trends"
-            dataset={filteredCombinedSalesData}
+            dataset={filteredCombinedSalesChartDataset}
             chartConfig={enhancedSalesChartConfig}
             loading={loading.sales || loading.vividSales}
             timeRange={salesChart.timeRange}
