@@ -24,6 +24,7 @@ const ListingsPage = Loadable(lazy(() => import("./pages/listings.page")));
 const SalesPage = Loadable(lazy(() => import("./pages/sales.page")));
 const PurchasesPage = Loadable(lazy(() => import("./pages/purchases.page")));
 const SuggestionsPage = Loadable(lazy(() => import("./pages/suggestions.page")));
+const TradesPage = Loadable(lazy(() => import("./pages/trades.page")));
 
 const SignInAuthPage = Loadable(
   lazy(() => import("./pages/auth/signIn.auth.page"))
@@ -75,6 +76,10 @@ export const route: RouteObject[] = [
       {
         path: "/suggestions",
         element: <SuggestionsPage />,
+      },
+      {
+        path: "/trades",
+        element: <TradesPage />,
       },
       {
         path: "*",
