@@ -1,7 +1,9 @@
 import * as React from "react";
 import { useSelector } from "react-redux";
-import { Stack, Grid, Typography, Link, Button } from "@mui/material";
-
+import { Stack, Grid, Typography, Link, Button, Tooltip, IconButton } from "@mui/material";
+import {
+  BarChart,
+} from "@mui/icons-material";
 import type { RootState } from "../store";
 import { getTrades } from "../store/slices/trades.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
@@ -63,6 +65,32 @@ export default function TradesPage() {
   const columns: CustomGridColDef[] = [
     // ── Joined from event_analysis_logs (display only) ──────────────
     {
+      field: "view",
+      headerName: "",
+      width: 60,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      renderCell: (params) => (
+        <Tooltip title="View Event Details">
+          <IconButton
+            onClick={(e) => {
+              e.stopPropagation();
+
+              window.open(
+                `/functions/v1/events-api/ui/events/${params.row.event_id}`,
+                "_blank",
+              );
+            }}
+            color="primary"
+            size="small"
+          >
+            <BarChart />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
+    {
       field: "event_id",
       headerName: "Event ID",
       width: 120,
@@ -105,7 +133,7 @@ export default function TradesPage() {
     {
       field: "venue_name",
       headerName: "Venue",
-      width: 180,
+      width: 150,
       type: "string",
       sortable: false,
       filterable: false,
@@ -185,7 +213,7 @@ export default function TradesPage() {
     {
       field: "confidence_level",
       headerName: "Confidence",
-      width: 140,
+      width: 120,
       type: "singleSelect",
       valueOptions: ["BUY", "STRONG_BUY", "CONVICTION_BUY"],
       renderCell: (params) => {
@@ -210,9 +238,9 @@ export default function TradesPage() {
       valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
     },
     {
-      field: "buy",
+      field: "trade",
       headerName: "Actions",
-      width: 100,
+      width: 150,
       sortable: false,
       filterable: false,
       headerAlign: "center",
@@ -230,7 +258,7 @@ export default function TradesPage() {
             target="_blank"
             sx={{ textTransform: "none", borderRadius: 2 }}
           >
-            Buy
+            Make Trade
           </Button>
         );
       },

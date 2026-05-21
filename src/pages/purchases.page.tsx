@@ -6,6 +6,7 @@ import { getPurchases } from "../store/slices/purchases.slice";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
+import { formatDateTime } from "../shared/utils/dateTime.util";
 
 const PurchasesPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -19,6 +20,9 @@ const PurchasesPage: React.FC = () => {
     useDataGridQueryParams({
       columns: [
         { field: "event_id", type: "string" },
+        { field: "event_name", type: "string" },
+        { field: "event_utc_date", type: "dateTime" },
+        { field: "created_at", type: "dateTime" },
         { field: "listing_id", type: "string" },
         { field: "purchase_id", type: "string" },
         { field: "inventory_id", type: "string" },
@@ -57,117 +61,140 @@ const PurchasesPage: React.FC = () => {
     );
   }, [dispatch, paginationModel, sortModel, filterModel]);
 
-  const columns: CustomGridColDef[] = [
-    {
-      field: "event_id",
-      headerName: "Event ID",
-      width: 160,
-      type: "string",
-      renderCell: (params) => (
-        <Link
-          href={`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${params.value}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          underline="hover"
-          color="primary"
-        >
-          {params.value}
-        </Link>
-      ),
-    },
-    {
-      field: "listing_id",
-      headerName: "Listing ID",
-      type: "string",
-      width: 160,
-    },
-    {
-      field: "purchase_id",
-      headerName: "PO ID",
-      type: "string",
-      width: 160,
-      renderCell: (params) => (
-        <Link
-          href={`https://skybox.vividseats.com/purchases/${params.value}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          underline="hover"
-          color="primary"
-        >
-          {params.value}
-        </Link>
-      ),
-    },
-    {
-      field: "inventory_id",
-      headerName: "Inventory ID",
-      type: "string",
-      width: 160,
-    },
-    {
-      field: "section",
-      headerName: "Section",
-      type: "string",
-      flex: 1,
-    },
-    {
-      field: "row",
-      headerName: "Row",
-      type: "string",
-      width: 100,
-      align: "center",
-      headerAlign: "center",
-    },
-    {
-      field: "quantity",
-      headerName: "Qty",
-      width: 80,
-      align: "center",
-      headerAlign: "center",
-      type: "number",
-      min: 0,
-      max: 1000,
-    },
-    {
-      field: "total_amount",
-      headerName: "Total",
-      width: 100,
-      type: "number",
-      min: 0,
-      max: 10000,
-      align: "right",
-      headerAlign: "right",
-      renderCell: (params) => (
-        <Typography fontWeight={600} color="text.primary">
-          ${params.value?.toFixed?.(2) || 0}
-        </Typography>
-      ),
-    },
-    {
-      field: "status",
-      headerName: "Status",
-      headerAlign: "center",
-      align: "center",
-      width: 160,
-      type: "string",
-    },
-    {
-      field: "purchase_status",
-      headerName: "PO Status",
-      headerAlign: "center",
-      align: "center",
-      width: 160,
-      type: "string",
-    },
-    {
-      field: "inventory_status",
-      headerName: "Inventory Status",
-      headerAlign: "center",
-      align: "center",
-      width: 160,
-      type: "string",
-    },
-  ];
+const columns: CustomGridColDef[] = [
+  {
+    field: "event_id",
+    headerName: "Event ID",
+    width: 140,
+    type: "string",
+    renderCell: (params) => (
+      <Link
+        href={`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${params.value}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        underline="hover"
+        color="primary"
+      >
+        {params.value}
+      </Link>
+    ),
+  },
+  {
+    field: "event_name",
+    headerName: "Event",
+    flex: 1.5,
+    minWidth: 260,
+    type: "string",
+  },
+  {
+    field: "event_utc_date",
+    headerName: "Event Date",
+    width: 180,
+    type: "dateTime",
+    valueGetter: (value: any) => (value ? new Date(value) : null),
+    valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
+  },
+  {
+    field: "created_at",
+    headerName: "Purchase Date",
+    width: 180,
+    type: "dateTime",
+    valueGetter: (value: any) => (value ? new Date(value) : null),
+    valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
+  },
+  {
+    field: "listing_id",
+    headerName: "Listing ID",
+    type: "string",
+    width: 140,
+  },
+  {
+    field: "purchase_id",
+    headerName: "PO ID",
+    type: "string",
+    width: 140,
+    renderCell: (params) => (
+      <Link
+        href={`https://skybox.vividseats.com/purchases/${params.value}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        underline="hover"
+        color="primary"
+      >
+        {params.value}
+      </Link>
+    ),
+  },
+  {
+    field: "inventory_id",
+    headerName: "Inventory ID",
+    type: "string",
+    width: 140,
+  },
+  {
+    field: "section",
+    headerName: "Section",
+    type: "string",
+    width: 140,
+  },
+  {
+    field: "row",
+    headerName: "Row",
+    type: "string",
+    width: 90,
+    align: "center",
+    headerAlign: "center",
+  },
+  {
+    field: "quantity",
+    headerName: "Qty",
+    width: 80,
+    align: "center",
+    headerAlign: "center",
+    type: "number",
+    min: 0,
+    max: 1000,
+  },
+  {
+    field: "total_amount",
+    headerName: "Total",
+    width: 110,
+    type: "number",
+    min: 0,
+    max: 10000,
+    align: "right",
+    headerAlign: "right",
+    renderCell: (params) => (
+      <Typography fontWeight={600} color="text.primary">
+        ${params.value?.toFixed?.(2) || 0}
+      </Typography>
+    ),
+  },
+  {
+    field: "status",
+    headerName: "Status",
+    headerAlign: "center",
+    align: "center",
+    width: 140,
+    type: "string",
+  },
+  {
+    field: "purchase_status",
+    headerName: "PO Status",
+    headerAlign: "center",
+    align: "center",
+    width: 140,
+    type: "string",
+  },
+  {
+    field: "inventory_status",
+    headerName: "Inventory Status",
+    headerAlign: "center",
+    align: "center",
+    width: 160,
+    type: "string",
+  },
+];
 
   return (
     <Stack
