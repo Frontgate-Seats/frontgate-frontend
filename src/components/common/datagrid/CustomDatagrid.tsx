@@ -10,6 +10,7 @@ import {
   type GridSortModel,
   type GridFilterModel,
   type GridEventListener,
+  type GridRowHeightParams,
 } from "@mui/x-data-grid";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import FilterListIcon from "@mui/icons-material/FilterList";
@@ -42,6 +43,10 @@ interface CustomDataGridProps {
   height?: number;
   headerComponent?: React.ReactNode;
   logo?: string;
+  getRowHeight?: (params: GridRowHeightParams) => number | null | undefined;
+  getRowClassName?: (params: any) => string;
+  paginationMode?: "client" | "server";
+  sortingMode?: "client" | "server";
 }
 
 export default function CustomDataGrid({
@@ -60,9 +65,13 @@ export default function CustomDataGrid({
   columns,
   onRowClick,
   defaultFilterType = "custom",
-  height = 800,
+  height = 840,
   headerComponent,
   logo,
+  getRowHeight,
+  getRowClassName,
+  paginationMode = "server",
+  sortingMode = "server",
 }: CustomDataGridProps) {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const handleFullscreenChange = (fullscreenMode: boolean) => {
@@ -230,16 +239,22 @@ export default function CustomDataGrid({
                 density: "compact",
               }}
               pagination
-              paginationMode={"server"}
+              paginationMode={paginationMode}
               paginationModel={paginationModel}
               onPaginationModelChange={setPaginationModel}
-              sortingMode={"server"}
+              sortingMode={sortingMode}
               sortModel={sortingModel}
               onSortModelChange={setSortingModel}
               disableRowSelectionOnClick
               onRowClick={onRowClick}
               loading={isLoading}
               pageSizeOptions={[5, 10, INITIAL_PAGE_SIZE, 50, 100]}
+              {...(getRowHeight ? { getRowHeight } : {})}
+              getRowClassName={
+                getRowClassName ??
+                ((params) =>
+                  params.row._rowType === "detail" ? "trade-detail-row" : "")
+              }
               sx={{
                 "& .MuiDataGrid-cell": {
                   whiteSpace: "nowrap !important",
@@ -255,6 +270,15 @@ export default function CustomDataGrid({
                   overflow: "hidden !important",
                   textOverflow: "ellipsis !important",
                   width: "100%",
+                },
+                // Detail rows: the spanning cell needs overflow visible and no padding
+                // so the full-width panel renders flush. Target only the __expand cell.
+                "& .trade-detail-row .MuiDataGrid-cell[data-field='__expand']": {
+                  overflow: "visible !important",
+                  whiteSpace: "normal !important",
+                  padding: "0 !important",
+                  display: "flex !important",
+                  alignItems: "flex-start !important",
                 },
                 "& .MuiDataGrid-columnHeaderTitle": {
                   whiteSpace: "normal !important",

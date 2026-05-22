@@ -28,7 +28,8 @@ const tradesApi = {
             event_name,
             utc_date,
             venue_name,
-            primary_performer_name
+            primary_performer_name,
+            llm_result
           ),
           events (
             web_path
@@ -54,6 +55,7 @@ const tradesApi = {
         utc_date: row.event_analysis_logs?.utc_date ?? null,
         venue_name: row.event_analysis_logs?.venue_name ?? "-",
         primary_performer_name: row.event_analysis_logs?.primary_performer_name ?? "-",
+        llm_result: row.event_analysis_logs?.llm_result ?? null,
         vs_web_path: row.events?.web_path ?? null,
       }));
 
