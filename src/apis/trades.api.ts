@@ -1,9 +1,26 @@
 import type { DataGridQueryOptions } from "../shared/types/mui.type";
+import type { LlmResultComment } from "../shared/types/trade.types";
 import supabaseClient from "../clients/supabase.client";
 import { getErrorMessage } from "../shared/utils/error.util";
 import { applyFilters, applySorting, applyPagination } from "../shared/utils/supabase.util";
 
+export type { LlmResultComment as TradeComment };
+
 const tradesApi = {
+  updateTradeComment: async (tradeId: number | string, comment: LlmResultComment) => {
+    const { data, error } = await supabaseClient
+      .from("event_buy_listings_logs")
+      .update({ llm_result_comment: comment })
+      .eq("id", tradeId)
+      .select("id, llm_result_comment")
+      .single();
+
+    if (error) {
+      throw new Error(getErrorMessage(error));
+    }
+    return data;
+  },
+
   fetchTrades: async (options: DataGridQueryOptions = {}) => {
     const { page = 0, pageSize = 25, sortFields, filters } = options;
 
@@ -24,6 +41,7 @@ const tradesApi = {
           estimated_margin_percent,
           confidence_level,
           created_at,
+          llm_result_comment,
           event_analysis_logs (
             event_name,
             utc_date,
@@ -57,6 +75,7 @@ const tradesApi = {
         primary_performer_name: row.event_analysis_logs?.primary_performer_name ?? "-",
         llm_result: row.event_analysis_logs?.llm_result ?? null,
         vs_web_path: row.events?.web_path ?? null,
+        llm_result_comment: row.llm_result_comment ?? null,
       }));
 
       return {

@@ -4,6 +4,8 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import listingsApi from "../../apis/listings.api";
 import CustomDataGrid from "../common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../../shared/types/mui.type";
+import type { Trade } from "../../shared/types/trade.types";
+import TradeCommentSection from "./TradeCommentSection";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,7 +27,7 @@ export interface ListingsCacheEntry {
 export type ListingsCache = Record<string, ListingsCacheEntry>;
 
 export interface TradeDetailPanelProps {
-  trade: any;
+  trade: Trade;
   listingsCache: React.RefObject<ListingsCache>;
   onCacheUpdate: (eventId: string, entry: ListingsCacheEntry) => void;
 }
@@ -54,22 +56,20 @@ export interface TradeDetailPanelProps {
  *   }
  * }
  */
-function extractReason(llmResult: any, listingId: string): string | null {
+function extractReason(llmResult: Record<string, unknown> | null | undefined, listingId: string | null): string | null {
   if (!llmResult) return null;
 
   // 1. Find the specific recommendation for this listing_id
-  const recs: any[] = llmResult.recommendations ?? [];
-  const match = recs.find(
-    (r: any) => r.target_listing_id === listingId,
-  );
-  if (match?.reasoning && typeof match.reasoning === "string" && match.reasoning.trim()) {
+  const recs = (llmResult.recommendations ?? []) as Array<Record<string, unknown>>;
+  const match = recs.find((r) => r.target_listing_id === listingId);
+  if (typeof match?.reasoning === "string" && match.reasoning.trim()) {
     return match.reasoning.trim();
   }
 
   // 2. Fall back to event_assessment.reasoning (event-level context)
-  const eventReasoning = llmResult.event_assessment?.reasoning;
-  if (typeof eventReasoning === "string" && eventReasoning.trim()) {
-    return eventReasoning.trim();
+  const eventAssessment = llmResult.event_assessment as Record<string, unknown> | undefined;
+  if (typeof eventAssessment?.reasoning === "string" && eventAssessment.reasoning.trim()) {
+    return eventAssessment.reasoning.trim();
   }
 
   // 3. Fall back to first recommendation's reasoning
@@ -297,36 +297,43 @@ export default function TradeDetailPanel({
 
         <Divider />
 
+        {/* ── Feedback & Comments ───────────────────────────────────── */}
+        <TradeCommentSection trade={trade} />
+
+        <Divider />
+
         {fetchError && <Alert severity="error">{fetchError}</Alert>}
 
-        {/* ── Listings via CustomDataGrid ────────────────────────────── */}
-        <CustomDataGrid
-          title="Available Listings for This Event"
-          rows={filteredListings}
-          rowCount={filteredListings.length}
-          columns={columns}
-          isLoading={loading}
-          error={null}
-          onRefresh={() => fetchListings(true)}
-          filterModel={filterModel}
-          setFilterModel={setFilterModel}
-          paginationMode="client"
-          sortingMode="client"
-          paginationModel={paginationModel}
-          setPaginationModel={setPaginationModel}
-          height={420}
-          headerComponent={
-            <Typography variant="subtitle1" fontWeight={600}>
-              Available Listings for This Event
-              {!loading && listings.length > 0 && (
-                <Typography component="span" variant="caption" color="text.secondary" ml={1}>
-                  ({filteredListings.length}
-                  {filterModel.items.length > 0 ? ` of ${listings.length}` : ""})
-                </Typography>
-              )}
-            </Typography>
-          }
-        />
+        {/* ── Listings via CustomDataGrid — only when event_id exists ── */}
+        {eventId && (
+          <CustomDataGrid
+            title="Available Listings for This Event"
+            rows={filteredListings}
+            rowCount={filteredListings.length}
+            columns={columns}
+            isLoading={loading}
+            error={null}
+            onRefresh={() => fetchListings(true)}
+            filterModel={filterModel}
+            setFilterModel={setFilterModel}
+            paginationMode="client"
+            sortingMode="client"
+            paginationModel={paginationModel}
+            setPaginationModel={setPaginationModel}
+            height={420}
+            headerComponent={
+              <Typography variant="subtitle1" fontWeight={600}>
+                Available Listings for This Event
+                {!loading && listings.length > 0 && (
+                  <Typography component="span" variant="caption" color="text.secondary" ml={1}>
+                    ({filteredListings.length}
+                    {filterModel.items.length > 0 ? ` of ${listings.length}` : ""})
+                  </Typography>
+                )}
+              </Typography>
+            }
+          />
+        )}
       </Stack>
     </Box>
   );

@@ -24,8 +24,15 @@ import { formatDateTime } from "../shared/utils/dateTime.util";
 import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
 import TradeDetailPanel from "../components/trades/TradeDetailPanel";
 import type { ListingsCache, ListingsCacheEntry } from "../components/trades/TradeDetailPanel";
+import type { Trade } from "../shared/types/trade.types";
 
-const DETAIL_ROW_HEIGHT = 620;
+// ── Display row types ─────────────────────────────────────────────────────────
+type ParentRow = Trade & { _rowType: "parent" };
+type DetailRow = { id: string; _rowType: "detail"; _parentRow: Trade };
+type DisplayRow = ParentRow | DetailRow;
+
+const DETAIL_ROW_HEIGHT_WITH_LISTINGS = 680;
+const DETAIL_ROW_HEIGHT_NO_LISTINGS = 240;
 
 export default function TradesPage() {
   const dispatch = useAppDispatch();
@@ -115,8 +122,9 @@ export default function TradesPage() {
 
   // ── Build display rows: inject a detail row after each expanded parent ────
   const totalColumns = 14; // single expand+view col + 13 data cols
-  const displayRows = React.useMemo(() => {
-    const rows: any[] = [];
+
+  const displayRows = React.useMemo<DisplayRow[]>(() => {
+    const rows: DisplayRow[] = [];
     trades.forEach((trade) => {
       rows.push({ ...trade, _rowType: "parent" });
       if (expanded[trade.id]) {
@@ -182,6 +190,8 @@ export default function TradesPage() {
                     "_blank",
                   );
                 }}
+                disabled={!params.row.event_id}
+                sx={{ display: params.row.event_id ? undefined : "none" }}
               >
                 <BarChart fontSize="small" />
               </IconButton>
@@ -427,9 +437,12 @@ export default function TradesPage() {
             filterModel={filterModel}
             setFilterModel={setFilterModel}
             onRefresh={handleRefresh}
-            getRowHeight={(params: any) =>
-              params.model._rowType === "detail" ? DETAIL_ROW_HEIGHT : null 
-            }
+            getRowHeight={(params: any) => {
+              if (params.model._rowType !== "detail") return null;
+              return params.model._parentRow?.event_id
+                ? DETAIL_ROW_HEIGHT_WITH_LISTINGS
+                : DETAIL_ROW_HEIGHT_NO_LISTINGS;
+            }}
             getRowClassName={(params: any) =>
               params.row._rowType === "detail" ? "trade-detail-row" : ""
             }
