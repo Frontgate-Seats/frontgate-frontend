@@ -134,7 +134,7 @@ export default function SuggestionsPage() {
       renderCell: (params) => {
         return (
           <Link
-            href={`/functions/v1/events-api/ui/events/${params.value}`}
+            href={`/events/${params.value}`}
             target="_blank"
             rel="noopener noreferrer"
             underline="hover"

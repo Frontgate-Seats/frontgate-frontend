@@ -168,7 +168,7 @@ function buildColumns(eventId: string): CustomGridColDef[] {
         return (
           <Button
             component={Link}
-            href={`/functions/v1/events-api/ui/listings/${eventId}?listing_id=${listingId}`}
+            href={`/listings/${eventId}?listing_id=${listingId}`}
             variant="contained"
             size="small"
             target="_blank"

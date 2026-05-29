@@ -219,7 +219,7 @@ export default function EventsPage() {
             onClick={(e) => {
               e.stopPropagation();
               window.open(
-                `/functions/v1/events-api/ui/events/${params.row.id}`,
+                `/events/${params.row.id}`,
                 "_blank",
               );
             }}
@@ -376,7 +376,7 @@ export default function EventsPage() {
 
         const handleViewListings = () => {
           window.open(
-            `/functions/v1/events-api/ui/listings/${params.row.id}`,
+            `/listings/${params.row.id}`,
             "_blank",
           );
           handleClose();

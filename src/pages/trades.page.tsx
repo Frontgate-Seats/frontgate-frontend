@@ -186,7 +186,7 @@ export default function TradesPage() {
                 onClick={(e) => {
                   e.stopPropagation();
                   window.open(
-                    `/functions/v1/events-api/ui/events/${params.row.event_id}`,
+                    `/events/${params.row.event_id}`,
                     "_blank",
                   );
                 }}
@@ -400,7 +400,7 @@ export default function TradesPage() {
         return (
           <Button
             component={Link}
-            href={`/functions/v1/events-api/ui/listings/${eventId}?listing_id=${listingId}`}
+            href={`/listings/${eventId}?listing_id=${listingId}`}
             variant="contained"
             size="small"
             target="_blank"
