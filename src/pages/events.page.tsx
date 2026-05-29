@@ -2,51 +2,49 @@ import * as React from "react";
 import { useSelector } from "react-redux";
 import {
   Alert,
-  Typography,
-  Button,
-  Card,
-  CardContent,
   Grid,
   Stack,
-  Divider,
   Link,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Chip,
 } from "@mui/material";
-import { BarChart } from "@mui/icons-material";
+import {
+  BarChart,
+  MoreVert,
+  Visibility,
+  PlayArrow,
+  Stop,
+} from "@mui/icons-material";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import type {
-  GridPaginationModel,
-  GridSortModel,
-  GridFilterModel,
-} from "@mui/x-data-grid";
 
 import moment from "moment";
 
 import type { RootState } from "../store";
 import { formatDateTime } from "../shared/utils/dateTime.util";
-import { getEvents } from "../store/slices/events.slice";
-import { getListingsMeta } from "../store/slices/listingsMeta.slice";
+import {
+  getEvents,
+  startEventMonitoring,
+  stopEventMonitoring,
+} from "../store/slices/events.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
+import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
 import { AdapterMoment } from "@mui/x-date-pickers/AdapterMoment";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
-import { getSalesMeta } from "../store/slices/salesMeta.slice";
-import { getSales } from "../store/slices/sales.slice";
-import { useListingsChartData, useSalesChartData } from "../hooks/useChartData";
 import {
-  getDefaultInterval,
-  INTERVAL_OPTIONS_MAP,
-  LISTINGS_META_CHART_CONFIG,
-  SALES_META_CHART_CONFIG,
-  TIME_RANGE_OPTIONS,
-} from "../shared/constants/components.constants";
-import DynamicChart from "../components/common/charts/DynamicChart";
+  ConfirmDialog,
+  StartMonitoringDialog,
+  type MonitorLevel,
+} from "../components/common/dialogs";
 
 export default function EventsPage() {
   const dispatch = useAppDispatch();
-  const chartRef = React.useRef<HTMLDivElement>(null);
 
   // ------------------------
   // Redux Data
@@ -57,92 +55,74 @@ export default function EventsPage() {
     error: eventsError,
   } = useSelector((state: RootState) => state.events);
 
-  const {
-    rows: { data: listingsMeta },
-    loading: listingsMetaLoading,
-  } = useSelector((state: RootState) => state.listingsMeta);
-
-  const {
-    rows: { data: salesMeta },
-    loading: salesMetaLoading,
-  } = useSelector((state: RootState) => state.salesMeta);
-
-  const {
-    rows: { data: sales, total: salesTotal },
-    loading: salesLoading,
-    error: salesErr,
-  } = useSelector((state: RootState) => state.sales);
-
   // ------------------------
-  // Grid State
+  // Grid State — synced with URL query params
   // ------------------------
-  const [paginationModel, setPaginationModel] =
-    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
-  const [sortModel, setSortModel] = React.useState<GridSortModel>([
-    { field: "localDate", sort: "asc" },
-  ]);
-  const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
+  // Memoized so moment() is only evaluated once — not on every re-render.
+  // If we don't do this, defaultFilterModel gets a new reference each render
+  // and the "same as default" check in the hook would always be false,
+  // causing the default date range to appear in the URL.
+  const defaultFilterModel = React.useMemo(() => ({
     items: [
-      { field: "category", operator: "is", value: "Sports" },
       {
-        field: "matchedProviderNames",
-        operator: "contains",
-        value: "seatgeek",
-      },
-      {
-        field: "localDate",
+        field: "local_date",
         operator: "onOrAfter",
         value: moment().toISOString(),
       },
       {
-        field: "localDate",
+        field: "local_date",
         operator: "onOrBefore",
         value: moment().add(6, "months").toISOString(),
       },
     ],
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), []); // evaluated once on mount
+
+  const { paginationModel, setPaginationModel, sortModel, setSortModel, filterModel, setFilterModel } =
+    useDataGridQueryParams({
+      columns: [
+        { field: "local_date", type: "dateTime" },
+        { field: "id", type: "number" },
+        { field: "name", type: "string" },
+        { field: "venue_name", type: "string" },
+        { field: "venue_city", type: "string" },
+        { field: "venue_state", type: "string" },
+        { field: "category_name", type: "string" },
+        { field: "ticket_count", type: "number" },
+        { field: "listing_count", type: "number" },
+        { field: "monitor_level", type: "singleSelect" },
+      ],
+      defaultPaginationModel: { page: 0, pageSize: 25 },
+      defaultSortModel: [{ field: "local_date", sort: "asc" }],
+      defaultFilterModel,
+    });
+
+  // ------------------------
+  // Confirmation Dialog State
+  // ------------------------
+  const [confirmDialog, setConfirmDialog] = React.useState<{
+    open: boolean;
+    eventId: string | null;
+    eventName: string | null;
+  }>({
+    open: false,
+    eventId: null,
+    eventName: null,
   });
 
   // ------------------------
-  // Selected + Chart State
+  // Start Monitoring Dialog State
   // ------------------------
-  const [selectedEvent, setSelectedEvent] = React.useState<any>(null);
-  const [timeRangeGraphOne, setTimeRangeGraphOne] = React.useState("1d");
-  const [intervalGraphOne, setIntervalGraphOne] = React.useState("1h");
+  const [startMonitoringDialog, setStartMonitoringDialog] = React.useState<{
+    open: boolean;
+    eventId: string | null;
+    eventName: string | null;
+  }>({
+    open: false,
+    eventId: null,
+    eventName: null,
+  });
 
-  const [timeRangeGraphTwo, setTimeRangeGraphTwo] = React.useState("7d");
-  const [intervalGraphTwo, setIntervalGraphTwo] = React.useState("1d");
-
-  const [timeRangeGraphThree, setTimeRangeGraphThree] = React.useState("1d");
-  const [intervalGraphThree, setIntervalGraphThree] = React.useState("1h");
-
-  // ------------------------
-  // Sales Grid State
-  // ------------------------
-  const [salesPaginationModel, setSalesPaginationModel] =
-    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
-  const [salesSortModel, setSalesSortModel] = React.useState<GridSortModel>([
-    { field: "purchaseUtc", sort: "desc" },
-  ]);
-  const [salesFilterModel, setSalesFilterModel] =
-    React.useState<GridFilterModel>({
-      items: [],
-    });
-
-  React.useEffect(() => {
-    setIntervalGraphOne(getDefaultInterval(timeRangeGraphOne));
-  }, [timeRangeGraphOne]);
-
-  React.useEffect(() => {
-    setIntervalGraphTwo(getDefaultInterval(timeRangeGraphTwo));
-  }, [timeRangeGraphTwo]);
-
-  React.useEffect(() => {
-    setIntervalGraphThree(getDefaultInterval(timeRangeGraphThree));
-  }, [timeRangeGraphThree]);
-
-  // ------------------------
-  // Fetch events
-  // ------------------------
   React.useEffect(() => {
     dispatch(
       getEvents({
@@ -150,7 +130,7 @@ export default function EventsPage() {
         pageSize: paginationModel.pageSize,
         sortFields: sortModel,
         filters: filterModel,
-      })
+      }),
     );
   }, [dispatch, paginationModel, sortModel, filterModel]);
 
@@ -161,243 +141,70 @@ export default function EventsPage() {
         pageSize: paginationModel.pageSize,
         sortFields: sortModel,
         filters: filterModel,
-      })
+      }),
     );
   }, [dispatch, paginationModel, sortModel, filterModel]);
 
-  const handleSalesRefresh = React.useCallback(() => {
-    if (!selectedEvent) return;
+  const handleConfirmStopMonitoring = () => {
+    if (confirmDialog.eventId) {
+      const queryOptions = {
+        page: paginationModel.page,
+        pageSize: paginationModel.pageSize,
+        sortFields: sortModel,
+        filters: filterModel,
+      };
+      dispatch(
+        stopEventMonitoring({ eventId: confirmDialog.eventId, queryOptions }),
+      );
+    }
+    setConfirmDialog({ open: false, eventId: null, eventName: null });
+  };
 
-    const seatgeekMatch = selectedEvent.matches?.find(
-      (m: any) => m.providerName === "seatgeek"
-    );
+  const handleCancelStopMonitoring = () => {
+    setConfirmDialog({ open: false, eventId: null, eventName: null });
+  };
 
-    const salesFilters = {
-      items: [
-        { field: "eventId", operator: "equals", value: seatgeekMatch?.eventId },
-        ...salesFilterModel.items,
-      ],
-    };
+  const handleConfirmStartMonitoring = (monitorLevel: MonitorLevel) => {
+    if (startMonitoringDialog.eventId) {
+      const queryOptions = {
+        page: paginationModel.page,
+        pageSize: paginationModel.pageSize,
+        sortFields: sortModel,
+        filters: filterModel,
+      };
+      dispatch(
+        startEventMonitoring({
+          eventId: startMonitoringDialog.eventId,
+          monitorLevel,
+          queryOptions,
+        }),
+      );
+    }
+    setStartMonitoringDialog({ open: false, eventId: null, eventName: null });
+  };
 
-    dispatch(
-      getSales({
-        filters: salesFilters,
-        page: salesPaginationModel.page,
-        pageSize: salesPaginationModel.pageSize,
-        sortFields: salesSortModel,
-      })
-    );
-  }, [
-    dispatch,
-    selectedEvent,
-    salesPaginationModel,
-    salesSortModel,
-    salesFilterModel,
-  ]);
+  const handleCancelStartMonitoring = () => {
+    setStartMonitoringDialog({ open: false, eventId: null, eventName: null });
+  };
 
-  React.useEffect(() => {
-    if (!selectedEvent) return;
-
-    const seatgeekMatch = selectedEvent.matches?.find(
-      (m: any) => m.providerName === "seatgeek"
-    );
-
-    const salesFilters = {
-      items: [
-        { field: "eventId", operator: "equals", value: seatgeekMatch?.eventId },
-        ...salesFilterModel.items,
-      ],
-    };
-
-    dispatch(
-      getSales({
-        filters: salesFilters,
-        page: salesPaginationModel.page,
-        pageSize: salesPaginationModel.pageSize,
-        sortFields: salesSortModel,
-      })
-    );
-  }, [
-    dispatch,
-    selectedEvent,
-    salesPaginationModel,
-    salesSortModel,
-    salesFilterModel,
-  ]);
-
-  const handleRowClick = (row: any) => {
-    if (row.eventId === selectedEvent?.eventId) return;
-    setSelectedEvent(row);
-
-    // Smooth scroll to top using ref
-    setTimeout(() => {
-      chartRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-    }, 150);
+  const getMonitorLevelColor = (level: string) => {
+    switch (level) {
+      case "critical":
+        return "error";
+      case "high":
+        return "warning";
+      case "medium":
+        return "info";
+      case "low":
+        return "success";
+      default:
+        return "default";
+    }
   };
 
   // ------------------------
-  // Fetch listingsMeta and salesMeta for selected event (initial load + auto-refresh)
+  // Data Grid Columns
   // ------------------------
-  React.useEffect(() => {
-    if (!selectedEvent) return;
-
-    const listingsMetaFilters = {
-      items: [
-        { field: "eventId", operator: "equals", value: selectedEvent.eventId },
-      ],
-    };
-
-    // Find seatgeek match for sales data
-    const seatgeekMatch = selectedEvent.matches?.find(
-      (m: any) => m.providerName === "seatgeek"
-    );
-
-    const salesMetaFilters = {
-      items: [
-        { field: "eventId", operator: "equals", value: seatgeekMatch?.eventId },
-      ],
-    };
-
-    const salesFilters = {
-      items: [
-        { field: "eventId", operator: "equals", value: seatgeekMatch?.eventId },
-        ...salesFilterModel.items,
-      ],
-    };
-
-    // ✅ Call immediately once
-    dispatch(
-      getListingsMeta({ filters: listingsMetaFilters, page: -1, pageSize: -1 })
-    );
-    dispatch(
-      getSalesMeta({ filters: salesMetaFilters, page: -1, pageSize: -1 })
-    );
-    dispatch(
-      getSales({
-        filters: salesFilters,
-        page: salesPaginationModel.page,
-        pageSize: salesPaginationModel.pageSize,
-        sortFields: salesSortModel,
-      })
-    );
-
-    // ✅ Then call every 10 minutes (only listings and sales meta, not sales data)
-    const intervalId = setInterval(() => {
-      dispatch(
-        getListingsMeta({
-          filters: listingsMetaFilters,
-          page: -1,
-          pageSize: -1,
-        })
-      );
-      dispatch(
-        getSalesMeta({ filters: salesMetaFilters, page: -1, pageSize: -1 })
-      );
-    }, 600000); // 600000 ms = 10 minutes
-
-    // ✅ Cleanup on unmount or change in selectedEvent
-    return () => clearInterval(intervalId);
-  }, [selectedEvent, dispatch]);
-
-  // ------------------------
-  // Fetch sales data when sales table state changes
-  // ------------------------
-  React.useEffect(() => {
-    if (!selectedEvent) return;
-
-    const seatgeekMatch = selectedEvent.matches?.find(
-      (m: any) => m.providerName === "seatgeek"
-    );
-
-    const salesFilters = {
-      items: [
-        { field: "eventId", operator: "equals", value: seatgeekMatch?.eventId },
-        ...salesFilterModel.items,
-      ],
-    };
-
-    dispatch(
-      getSales({
-        filters: salesFilters,
-        page: salesPaginationModel.page,
-        pageSize: salesPaginationModel.pageSize,
-        sortFields: salesSortModel,
-      })
-    );
-  }, [selectedEvent, dispatch]);
-
-  // ------------------------
-  // Chart Data using custom hooks
-  // ------------------------
-  const datasetOne = useListingsChartData(
-    listingsMeta || [],
-    timeRangeGraphOne,
-    intervalGraphOne
-  );
-
-  const datasetTwo = useListingsChartData(
-    listingsMeta || [],
-    timeRangeGraphTwo,
-    intervalGraphTwo
-  );
-
-  const datasetThree = useSalesChartData(
-    salesMeta || [],
-    timeRangeGraphThree,
-    intervalGraphThree
-  );
-
-  // Sales data grid columns
-  const salesColumns: CustomGridColDef[] = [
-    {
-      field: "purchaseUtc",
-      headerName: "Date & Time",
-      minWidth: 120,
-      flex: 1,
-      type: "dateTime",
-      valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
-    },
-    {
-      field: "section",
-      headerName: "Section",
-      flex: 1,
-      minWidth: 100,
-      type: "string",
-    },
-    {
-      field: "row",
-      headerName: "Row",
-      flex: 1,
-      minWidth: 100,
-      type: "string",
-    },
-    {
-      field: "broadcastPrice",
-      headerName: "Price",
-      minWidth: 120,
-      min: 0,
-      flex: 1,
-      max: 20000,
-      type: "number",
-      valueFormatter: (value: any) =>
-        typeof value === "number" && value >= 0 ? `$${value.toFixed(2)}` : "-",
-    },
-    {
-      field: "quantity",
-      headerName: "Quantity",
-      minWidth: 80,
-      flex: 1,
-      min: 0,
-      max: 1000,
-      type: "number",
-      valueFormatter: (value: any) =>
-        typeof value === "number" && value >= 0 ? value.toString() : "-",
-    },
-  ];
-
   const columns: CustomGridColDef[] = [
     {
       field: "view",
@@ -407,11 +214,14 @@ export default function EventsPage() {
       filterable: false,
       disableColumnMenu: true,
       renderCell: (params) => (
-        <Tooltip title="View listings Meta Data">
+        <Tooltip title="View Event Details">
           <IconButton
             onClick={(e) => {
               e.stopPropagation();
-              handleRowClick(params.row);
+              window.open(
+                `/functions/v1/events-api/ui/events/${params.row.id}`,
+                "_blank",
+              );
             }}
             color="primary"
             size="small"
@@ -422,23 +232,34 @@ export default function EventsPage() {
       ),
     },
     {
-      field: "eventId",
+      field: "id",
       headerName: "Event ID",
       minWidth: 120,
       type: "number",
       headerAlign: "left",
       align: "left",
-      renderCell: (params) => (
-        <Link
-          href={`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${params.value}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          underline="hover"
-          color="primary"
-        >
-          {params.value}
-        </Link>
-      ),
+      renderCell: (params) => {
+        const event = events.find((e) => e.id == params.value);
+        let url;
+        switch (event.platform) {
+          case "vividseats":
+            url = `https://www.vividseats.com${event.web_path}`;
+            break;
+          default:
+            break;
+        }
+        return (
+          <Link
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            underline="hover"
+            color="primary"
+          >
+            {params.value}
+          </Link>
+        );
+      },
     },
     {
       field: "name",
@@ -447,7 +268,7 @@ export default function EventsPage() {
       type: "string",
     },
     {
-      field: "localDate",
+      field: "local_date",
       headerName: "Event Date & Time",
       type: "dateTime",
       width: 160,
@@ -471,37 +292,28 @@ export default function EventsPage() {
     },
     // TODO AGGIGATE VENUE
     {
-      field: "venueName",
+      field: "venue_name",
       headerName: "Venue",
       flex: 0.5,
       minWidth: 120,
     },
     {
-      field: "city",
+      field: "venue_city",
       headerName: "City",
       minWidth: 100,
     },
     {
-      field: "stateCode",
+      field: "venue_state",
       headerName: "State",
       minWidth: 100,
     },
     {
-      field: "matchedProviderNames",
-      headerName: "Match",
-      minWidth: 100,
-      type: "singleSelect",
-      valueOptions: ["seatgeek"],
-    },
-    {
-      field: "category",
+      field: "category_name",
       headerName: "Category",
       minWidth: 100,
-      type: "singleSelect",
-      valueOptions: ["Sports", "Concerts"],
     },
     {
-      field: "ticketCount",
+      field: "ticket_count",
       headerName: "Tickets",
       minWidth: 100,
       type: "number",
@@ -509,7 +321,7 @@ export default function EventsPage() {
       max: 20000,
     },
     {
-      field: "listingCount",
+      field: "listing_count",
       headerName: "Listings",
       minWidth: 100,
       type: "number",
@@ -517,33 +329,122 @@ export default function EventsPage() {
       max: 20000,
     },
     {
-      field: "getInPriceMedian",
-      headerName: "Median Price",
-      minWidth: 10,
-      type: "number",
-      min: 0,
-      max: 20000,
-      valueFormatter: (value) => (value >= 0 ? `$${value}` : "-"),
+      field: "monitor_level",
+      headerName: "Monitor Level",
+      minWidth: 150,
+      type: "singleSelect",
+      valueOptions: ["none", "low", "medium", "high", "critical"],
+      renderCell: (params) => {
+        const level = params.value;
+        if (!level || level === "none") {
+          return <span>-</span>;
+        }
+        return (
+          <Chip
+            label={level.charAt(0).toUpperCase() + level.slice(1)}
+            color={getMonitorLevelColor(level)}
+            size="small"
+          />
+        );
+      },
     },
     {
       field: "actions",
-      type: "actions",
       headerName: "Actions",
       headerAlign: "center",
       align: "center",
-      minWidth: 120,
-      getActions: (params) => [
-        <Button
-          key="listings"
-          onClick={() =>
-            window.open(`/listings/${params.row.eventId}`, "_blank")
+      width: 80,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => {
+        const eventId = params.row.id.toString();
+        const isMonitoring = params.row.is_monitored || false;
+
+        const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(
+          null,
+        );
+        const open = Boolean(anchorEl);
+
+        const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+          event.stopPropagation();
+          setAnchorEl(event.currentTarget);
+        };
+
+        const handleClose = () => {
+          setAnchorEl(null);
+        };
+
+        const handleViewListings = () => {
+          window.open(
+            `/functions/v1/events-api/ui/listings/${params.row.id}`,
+            "_blank",
+          );
+          handleClose();
+        };
+
+        const handleToggleMonitoring = () => {
+          if (isMonitoring) {
+            // Show confirmation dialog for stopping monitoring
+            setConfirmDialog({
+              open: true,
+              eventId,
+              eventName: params.row.name,
+            });
+          } else {
+            // Show start monitoring dialog with level selection
+            setStartMonitoringDialog({
+              open: true,
+              eventId,
+              eventName: params.row.name,
+            });
           }
-          variant="contained"
-          size="small"
-        >
-          View Listings
-        </Button>,
-      ],
+          handleClose();
+        };
+
+        return (
+          <>
+            <IconButton
+              onClick={handleClick}
+              size="small"
+              aria-controls={open ? "actions-menu" : undefined}
+              aria-haspopup="true"
+              aria-expanded={open ? "true" : undefined}
+            >
+              <MoreVert />
+            </IconButton>
+            <Menu
+              id="actions-menu"
+              anchorEl={anchorEl}
+              open={open}
+              onClose={handleClose}
+              slotProps={{
+                paper: {
+                  "aria-labelledby": "actions-button",
+                },
+              }}
+            >
+              <MenuItem onClick={handleViewListings}>
+                <ListItemIcon>
+                  <Visibility fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>View Listings</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={handleToggleMonitoring}>
+                <ListItemIcon>
+                  {isMonitoring ? (
+                    <Stop fontSize="small" />
+                  ) : (
+                    <PlayArrow fontSize="small" />
+                  )}
+                </ListItemIcon>
+                <ListItemText>
+                  {isMonitoring ? "Stop Monitor" : "Start Monitor"}
+                </ListItemText>
+              </MenuItem>
+            </Menu>
+          </>
+        );
+      },
     },
   ];
 
@@ -561,139 +462,6 @@ export default function EventsPage() {
       }}
     >
       <Grid container spacing={3}>
-        {selectedEvent && (
-          <>
-            {/* EVENT DETAILS */}
-            <Grid size={{ xs: 12 }} ref={chartRef}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography variant="h4" fontWeight="bold" gutterBottom>
-                    {selectedEvent?.name}
-                  </Typography>
-                  <Divider sx={{ mb: 2 }} />
-
-                  <Grid container spacing={3}>
-                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Date & Time
-                      </Typography>
-                      <Typography variant="body1">
-                        {selectedEvent?.localDate
-                          ? formatDateTime(
-                              moment.parseZone(selectedEvent.localDate)
-                            )
-                          : ""}
-                      </Typography>
-                    </Grid>
-
-                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Venue
-                      </Typography>
-                      <Typography variant="body1">
-                        {selectedEvent?.venueDBId
-                          ? `${selectedEvent.venueDBId?.city}, ${selectedEvent.venueDBId?.stateCode} (${selectedEvent.venueDBId.countryCode})`
-                          : "-"}
-                      </Typography>
-                    </Grid>
-
-                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Performer
-                      </Typography>
-                      <Typography variant="body1">
-                        {selectedEvent?.performerDBIds?.length
-                          ? selectedEvent.performerDBIds
-                              .map((p: any) => p?.name)
-                              .filter(Boolean)
-                              .join(", ")
-                          : "-"}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            {/* GRAPH 1 */}
-            <Grid size={{ xs: 12, md: 6 }}>
-              <DynamicChart
-                title="Listings Trends"
-                dataset={datasetOne}
-                chartConfig={LISTINGS_META_CHART_CONFIG}
-                loading={listingsMetaLoading}
-                timeRange={timeRangeGraphOne}
-                interval={intervalGraphOne}
-                onTimeRangeChange={setTimeRangeGraphOne}
-                onIntervalChange={setIntervalGraphOne}
-                timeRangeOptions={TIME_RANGE_OPTIONS}
-                intervalOptionsMap={INTERVAL_OPTIONS_MAP}
-                height={400}
-              />
-            </Grid>
-
-            {/* GRAPH 2 */}
-            <Grid size={{ xs: 12, md: 6 }}>
-              <DynamicChart
-                title="Listings Trends"
-                dataset={datasetTwo}
-                chartConfig={LISTINGS_META_CHART_CONFIG}
-                loading={listingsMetaLoading}
-                timeRange={timeRangeGraphTwo}
-                interval={intervalGraphTwo}
-                onTimeRangeChange={setTimeRangeGraphTwo}
-                onIntervalChange={setIntervalGraphTwo}
-                timeRangeOptions={TIME_RANGE_OPTIONS}
-                intervalOptionsMap={INTERVAL_OPTIONS_MAP}
-                height={400}
-              />
-            </Grid>
-
-            {/* GRAPH 3 */}
-            <Grid size={{ xs: 12, md: 6 }}>
-              <DynamicChart
-                title="Sales Trends"
-                dataset={datasetThree}
-                chartConfig={SALES_META_CHART_CONFIG}
-                loading={salesMetaLoading}
-                timeRange={timeRangeGraphThree}
-                interval={intervalGraphThree}
-                onTimeRangeChange={setTimeRangeGraphThree}
-                onIntervalChange={setIntervalGraphThree}
-                timeRangeOptions={TIME_RANGE_OPTIONS}
-                intervalOptionsMap={INTERVAL_OPTIONS_MAP}
-                height={400}
-              />
-            </Grid>
-
-            {/* SALES DATA GRID */}
-            <Grid size={{ xs: 12, md: 6 }}>
-              <CustomDataGrid
-                title="Sales Data"
-                rows={sales || []}
-                rowCount={salesTotal || 0}
-                columns={salesColumns}
-                isLoading={salesLoading}
-                error={salesErr}
-                paginationModel={salesPaginationModel}
-                setPaginationModel={setSalesPaginationModel}
-                sortingModel={salesSortModel}
-                setSortingModel={setSalesSortModel}
-                filterModel={salesFilterModel}
-                setFilterModel={setSalesFilterModel}
-                defaultFilterType="header"
-                onRefresh={handleSalesRefresh}
-                height={400}
-                headerComponent={
-                  <Typography variant="h6" fontWeight={600} gutterBottom>
-                    {"Sales Data"}
-                  </Typography>
-                }
-              />
-            </Grid>
-          </>
-        )}
-
         {/* EVENT GRID */}
         <Grid
           size={{ xs: 12 }}
@@ -725,6 +493,35 @@ export default function EventsPage() {
           )}
         </Grid>
       </Grid>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onClose={handleCancelStopMonitoring}
+        onConfirm={handleConfirmStopMonitoring}
+        title="Stop Monitoring Event?"
+        message={
+          <>
+            Are you sure you want to stop monitoring "{confirmDialog.eventName}
+            "?
+            <br />
+            <br />
+            This will stop collecting listings and sales data for this event.
+          </>
+        }
+        confirmLabel="Stop Monitoring"
+        cancelLabel="Cancel"
+        confirmColor="error"
+        severity="warning"
+      />
+
+      {/* Start Monitoring Dialog */}
+      <StartMonitoringDialog
+        open={startMonitoringDialog.open}
+        eventName={startMonitoringDialog.eventName}
+        onClose={handleCancelStartMonitoring}
+        onConfirm={handleConfirmStartMonitoring}
+      />
     </Stack>
   );
 }

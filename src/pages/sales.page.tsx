@@ -1,106 +1,126 @@
 import * as React from "react";
-import { Alert, Grid, Stack } from "@mui/material";
+import {
+  Alert,
+  Grid,
+  Stack,
+} from "@mui/material";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import { getSales } from "../store/slices/sales.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
-import type { GridPaginationModel, GridSortModel } from "@mui/x-data-grid";
+import { useParams } from "react-router-dom";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
-import type { GridFilterModel } from "@mui/x-data-grid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { formatDateTime } from "../shared/utils/dateTime.util";
-import { Link } from "@mui/material";
+import { useClientFilters } from "../hooks/useClientFilters";
+import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
 
 export default function SalesPage() {
   const dispatch = useAppDispatch();
+  const { event_id } = useParams();
 
   const {
-    rows: { data: sales, total: totalSales },
+    rows: { data: sales },
     loading: salesLoading,
     error: salesError,
   } = useSelector((state: RootState) => state.sales);
 
-  const [paginationModel, setPaginationModel] =
-    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
-  const [sortModel, setSortModel] = React.useState<GridSortModel>([
-    { field: "localDate", sort: "asc" },
-  ]);
-  const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
-    items: [],
-  });
 
+  // Fetch sales data once
   React.useEffect(() => {
-    dispatch(
-      getSales({
-        pageSize: paginationModel.pageSize,
-        sortFields: sortModel,
-        filters: filterModel,
-      })
-    );
-  }, [dispatch, paginationModel, sortModel, filterModel]);
+    if (event_id) dispatch(getSales(event_id));
+  }, [dispatch, event_id]);
 
   const handleRefresh = () => {
-    dispatch(
-      getSales({
-        pageSize: paginationModel.pageSize,
-        sortFields: sortModel,
-        filters: filterModel,
-      })
-    );
+    if (event_id) dispatch(getSales(event_id));
   };
 
   const allColumns: CustomGridColDef[] = [
     {
-      field: "eventId",
-      headerName: "Event ID",
+      field: "section_name",
+      headerName: "Section",
       type: "string",
-      width: 200,
-      renderCell: (params) => (
-        <Link
-          href={`https://seatgeek.com/philadelphia-eagles-tickets/1-4-2026-philadelphia-pennsylvania-lincoln-financial-field/nfl/${params.value}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          underline="hover"
-          color="primary"
-        >
-          {params.value}
-        </Link>
-      ),
+      flex: 1,
+      minWidth: 120,
     },
-    { field: "eventName", headerName: "Event Name", flex: 1, type: "string" },
     {
-      field: "eventLocalDate",
-      headerName: "Event Date & Time",
-      width: 160,
-      type: "dateTime",
-      valueFormatter: (value) => formatDateTime(value),
+      field: "row_name",
+      headerName: "Row",
+      type: "string",
+      width: 80,
+      flex: 0,
     },
-    { field: "section", headerName: "Section",  type: "string", width: 200 },
-    { field: "row", headerName: "Row",  type: "string", width: 80 },
     {
       field: "quantity",
-      headerName: "Qty",
+      headerName: "Quantity",
       type: "number",
-      width: 80, 
+      width: 80,
+      flex: 1,
       min: 0,
       max: 10000,
     },
     {
-      field: "broadcastPrice",
+      field: "base_price",
       headerName: "Price",
       type: "number",
+      width: 100,
+      flex: 1,
       min: 0,
       max: 10000,
       valueFormatter: (value) => (value ? `$${value}` : "-"),
     },
     {
-      field: "purchaseUtc",
+      field: "purchased_at",
       headerName: "Sale Date & Time",
-      width: 160,
       type: "dateTime",
+      flex: 0,
+      minWidth: 160,
       valueFormatter: (value) => formatDateTime(value),
     },
   ];
+
+  // URL-synced grid state
+  const queryState = useDataGridQueryParams({
+    columns: [
+      { field: "section_name", type: "string" },
+      { field: "row_name", type: "string" },
+      { field: "quantity", type: "number" },
+      { field: "base_price", type: "number" },
+      { field: "purchased_at", type: "dateTime" },
+    ],
+    defaultPaginationModel: { page: 0, pageSize: 25 },
+    defaultSortModel: [{ field: "purchaseUtc", sort: "desc" }],
+    defaultFilterModel: { items: [] },
+  });
+
+  // Use client-side filtering, pagination, and sorting
+  const {
+    paginationModel,
+    sortModel,
+    filterModel,
+    setPaginationModel,
+    setSortModel,
+    setFilterModel,
+    paginatedRows,
+    totalFilteredRows,
+  } = useClientFilters({
+    data: sales || [],
+    columns: allColumns,
+    externalState: queryState,
+  });
+
+  // Reset filters when the event changes (but NOT on initial mount, so URL
+  // params loaded on first visit are preserved).
+  const isFirstRenderSales = React.useRef(true);
+  React.useEffect(() => {
+    if (isFirstRenderSales.current) {
+      isFirstRenderSales.current = false;
+      return;
+    }
+    queryState.setFilterModel({ items: [] });
+    queryState.setPaginationModel({ page: 0, pageSize: 25 });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event_id]);
 
   return (
     <Stack
@@ -120,8 +140,8 @@ export default function SalesPage() {
             <Grid size={{ xs: 12 }}>
               <CustomDataGrid
                 title="Seat Geek Sales"
-                rows={sales}
-                rowCount={totalSales}
+                rows={paginatedRows}
+                rowCount={totalFilteredRows}
                 isLoading={salesLoading}
                 error={salesError}
                 columns={allColumns}

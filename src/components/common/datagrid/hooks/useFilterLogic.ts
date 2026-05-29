@@ -137,7 +137,7 @@ export const useFilterLogic = ({
             newItems.push({
               id: `${field}-${Date.now()}`,
               field,
-              operator: "contains" as any,
+              operator: "is" as any,
               value,
             });
             break;
@@ -179,6 +179,16 @@ export const useFilterLogic = ({
     },
     [updateFilter]
   );
+
+  // Clear any pending debounce timer on unmount to prevent state updates
+  // on an unmounted component.
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
 
   return {
     localValue,

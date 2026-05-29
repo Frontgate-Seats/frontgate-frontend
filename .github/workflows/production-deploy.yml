@@ -28,6 +28,10 @@ jobs:
       - name: Build Vite project
         env:
           VITE_APP_SERVER_URL: ${{ secrets.VITE_APP_SERVER_URL }}
+          VITE_APP_SUPABASE_URL: ${{ secrets.VITE_APP_SUPABASE_URL }}
+          VITE_APP_SUPABASE_ANON_KEY: ${{ secrets.VITE_APP_SUPABASE_ANON_KEY }}
+          VITE_APP_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_APP_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_APP_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.VITE_APP_SUPABASE_SERVICE_ROLE_KEY }}
         run: npm run build  # make sure "build": "vite build" exists in package.json
 
       # 5️⃣ Configure AWS

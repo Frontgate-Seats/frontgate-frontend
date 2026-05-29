@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { setSnackbar } from "./snackbar.slice";
 import listingsApi from "../../apis/listings.api";
+import { getErrorMessage } from "../../shared/utils/error.util";
 
 export interface EventsState {
   loading: boolean;
@@ -29,8 +30,8 @@ export const getSingleListingsDetails = createAsyncThunk(
   "listingsDetais",
   async (
     data: {
-      listingDBId: string;
-      listingId: string;
+      event_id: string;
+      listing_id: string;
       quantity: number;
       shippingCountry?: string;
       exclusiveListings?: boolean;
@@ -41,7 +42,7 @@ export const getSingleListingsDetails = createAsyncThunk(
       const response = await listingsApi.fetchListingsDetails(data);
       return response.data;
     } catch (err: any) {
-      const message = err?.message || "Failed to fetch listings";
+      const message = `[Listing Details] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }

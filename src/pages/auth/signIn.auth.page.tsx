@@ -24,7 +24,6 @@ const LogoContainer = styled("div")({
   },
 });
 
-
 const Card = styled(MuiCard)(({ theme }) => ({
   display: "flex",
   flexDirection: "column",
@@ -73,42 +72,89 @@ const SignInAuthPage = () => {
   const navigate = useNavigate();
   const { mode } = useColorScheme();
 
+  const [emailError, setEmailError] = React.useState(false);
+  const [emailErrorMessage, setEmailErrorMessage] = React.useState("");
   const [passwordError, setPasswordError] = React.useState(false);
   const [passwordErrorMessage, setPasswordErrorMessage] = React.useState("");
 
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); // ✅ stop page refresh
+    event.preventDefault();
 
     const data = new FormData(event.currentTarget);
+    const email = data.get("email") as string;
     const password = data.get("password") as string;
 
+    // Reset errors
+    setEmailError(false);
+    setEmailErrorMessage("");
+    setPasswordError(false);
+    setPasswordErrorMessage("");
+
     // Validate inputs
+    let hasError = false;
+
+    if (!email || !validateEmail(email)) {
+      setEmailError(true);
+      setEmailErrorMessage("Please enter a valid email address.");
+      hasError = true;
+    }
+
     if (!password || password.length < 6) {
       setPasswordError(true);
       setPasswordErrorMessage("Password must be at least 6 characters long.");
-      return;
-    } else {
-      setPasswordError(false);
-      setPasswordErrorMessage("");
+      hasError = true;
     }
 
-    // Dispatch login
-    await dispatch(signIn({ password }));
-    navigate("/");
-  };
+    if (hasError) return;
 
+    try {
+      // Dispatch login
+      await dispatch(signIn({ email, password })).unwrap();
+      navigate("/");
+    } catch (error) {
+      // Error handling is done in the slice
+      console.error("Sign in error:", error);
+    }
+  };
 
   return (
     <>
       <SignUpContainer direction="column" justifyContent="space-between">
         <Card variant="outlined">
-          <LogoContainer><img src={mode === "dark" ? FrontGateLogoWhite : FrontGateLogoBlack} alt="Frontgate Logo" sizes="" /></LogoContainer>
+          <LogoContainer>
+            <img 
+              src={mode === "dark" ? FrontGateLogoWhite : FrontGateLogoBlack} 
+              alt="Frontgate Logo" 
+            />
+          </LogoContainer>
           <Box
             component="form"
             onSubmit={handleSubmit}
             sx={{ display: "flex", flexDirection: "column", gap: 2 }}
           >
+            <FormControl sx={{ display: 'none' }}>
+              <TextField
+                required
+                fullWidth
+                name="email"
+                hidden
+                placeholder="Enter your email"
+                type="email"
+                id="email"
+                autoComplete="email"
+                variant="outlined"
+                size="small"
+                error={emailError}
+                helperText={emailErrorMessage}
+                color={emailError ? "error" : "primary"}
+                defaultValue="admin@frontgate.com"
+              />
+            </FormControl>
             <FormControl>
               <TextField
                 required
@@ -117,7 +163,7 @@ const SignInAuthPage = () => {
                 placeholder="••••••"
                 type="password"
                 id="password"
-                autoComplete="new-password"
+                autoComplete="current-password"
                 variant="outlined"
                 size="small"
                 error={passwordError}
@@ -129,9 +175,9 @@ const SignInAuthPage = () => {
               type="submit"
               fullWidth
               variant="contained"
-              loading={loading}
+              disabled={loading}
             >
-              Sign In
+              {loading ? "Signing In..." : "Sign In"}
             </Button>
           </Box>
         </Card>

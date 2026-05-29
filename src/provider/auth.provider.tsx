@@ -4,40 +4,68 @@ import type { ReactNodeProps } from "../shared/types/node.type";
 import { useDispatch, useSelector } from "react-redux";
 import type { AppDispatch, RootState } from "../store";
 import AuthContext from "../contexts/auth.contexts";
-import { verifyToken } from "../store/slices/auth.slice";
+import {
+  initializeAuth,
+  setAuthState,
+  logout,
+} from "../store/slices/auth.slice";
+import supabaseClient from "../clients/supabase.client";
 
 const AuthProvider: React.FC<ReactNodeProps> = ({ children }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const { user, loading } = useSelector((state: RootState) => state.auth);
 
+  // Initialize auth on mount
   useEffect(() => {
-    if (loading) return;
-    if (!user) {
-      dispatch({ type: "auth/logout" });
+    dispatch(initializeAuth());
+  }, [dispatch]);
+
+  // Set up auth state listener
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        dispatch(
+          setAuthState({
+            user: session.user,
+            token: session.access_token,
+          }),
+        );
+      } else if (event === "SIGNED_OUT") {
+        dispatch(logout());
+        navigate("/auth/signin");
+      } else if (event === "TOKEN_REFRESHED" && session) {
+        dispatch(
+          setAuthState({
+            user: session.user,
+            token: session.access_token,
+          }),
+        );
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [dispatch, navigate]);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
       navigate("/auth/signin");
     }
-  }, [dispatch, navigate, user, loading]);
+  }, [navigate, user, loading]);
 
-  // Verify token every 10s
-  useEffect(() => {
-    const verify = async () => {
-      try {
-        await dispatch(verifyToken()).unwrap();
-      } catch (err) {
-        dispatch({ type: "auth/logout" });
-        navigate("/auth/signin");
-      }
-    };
-
-    verify();
-
-    const interval = setInterval(verify, 1000 * 60);
-    return () => clearInterval(interval);
-  }, [dispatch, navigate]);
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
   return <AuthContext.Provider value={null}>{children}</AuthContext.Provider>;
 };
-
 
 export default AuthProvider;

@@ -5,8 +5,9 @@ import List from "@mui/material/List";
 import Toolbar from "@mui/material/Toolbar";
 import { matchPath, useLocation } from "react-router";
 import EventIcon from "@mui/icons-material/Event";
-import ListIcon from "@mui/icons-material/List";
-import BarChartIcon from "@mui/icons-material/BarChart";
+import StoreIcon from "@mui/icons-material/Store";
+import LightbulbIcon from "@mui/icons-material/Lightbulb";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 
 import {
   getDrawerSxTransitionMixin,
@@ -20,7 +21,6 @@ import {
 import DashboardSidebarHeaderItem from "./headerItem.dashboard";
 import DashboardSidebarPageItem from "./pageItem.dashboard";
 import { useDashboardLayoutContext } from "../../contexts/dashboardLayout.context";
-import StoreIcon from "@mui/icons-material/Store";
 
 export default function DashboardSidebar() {
   const { pathname } = useLocation();
@@ -81,7 +81,7 @@ export default function DashboardSidebar() {
                 !!matchPath("/events/*", pathname) || pathname === "/events"
               }
             />
-            <DashboardSidebarPageItem
+            {/* <DashboardSidebarPageItem
               id="listings"
               title="Listings"
               icon={<ListIcon />}
@@ -89,8 +89,8 @@ export default function DashboardSidebar() {
               selected={
                 !!matchPath("/listings/*", pathname) || pathname === "/listings"
               }
-            />
-            <DashboardSidebarPageItem
+            /> */}
+            {/* <DashboardSidebarPageItem
               id="sales"
               title="Seatgeek Sales"
               icon={<ListIcon />}
@@ -98,7 +98,7 @@ export default function DashboardSidebar() {
               selected={
                 !!matchPath("/sales/*", pathname) || pathname === "/sales"
               }
-            />
+            /> */}
             <DashboardSidebarPageItem
               id="purchases"
               title="Purchases"
@@ -109,8 +109,28 @@ export default function DashboardSidebar() {
                 pathname === "/purchases"
               }
             />
-
             <DashboardSidebarPageItem
+              id="suggestions"
+              title="Suggestions"
+              icon={<LightbulbIcon />}
+              href="/suggestions"
+              selected={
+                !!matchPath("/suggestions/*", pathname) ||
+                pathname === "/suggestions"
+              }
+            />
+            <DashboardSidebarPageItem
+              id="trades"
+              title="Trades"
+              icon={<TrendingUpIcon />}
+              href="/trades"
+              selected={
+                !!matchPath("/trades/*", pathname) ||
+                pathname === "/trades"
+              }
+            />
+
+            {/* <DashboardSidebarPageItem
               id="charts"
               title="Charts"
               icon={<BarChartIcon />}
@@ -118,7 +138,7 @@ export default function DashboardSidebar() {
               selected={
                 !!matchPath("/charts/*", pathname) || pathname === "/charts"
               }
-            />
+            /> */}
           </List>
         </Box>
       </Fragment>

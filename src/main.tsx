@@ -1,4 +1,3 @@
-import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
@@ -8,13 +7,11 @@ import { PersistGate } from "redux-persist/integration/react";
 import { StyledEngineProvider } from "@mui/material/styles";
 
 createRoot(document.getElementById("frontgate")!).render(
-  <StrictMode>
-    <StyledEngineProvider injectFirst>
-      <Provider store={store}>
-        <PersistGate loading={null} persistor={persistor}>
-          <App />
-        </PersistGate>
-      </Provider>
-    </StyledEngineProvider>
-  </StrictMode>
+  <StyledEngineProvider injectFirst>
+    <Provider store={store}>
+      <PersistGate loading={null} persistor={persistor}>
+        <App />
+      </PersistGate>
+    </Provider>
+  </StyledEngineProvider>,
 );

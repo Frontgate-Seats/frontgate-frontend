@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import eventsApi from "../../apis/events.api";
 import { setSnackbar } from "./snackbar.slice";
 import type { DataGridQueryOptions } from "../../shared/types/mui.type";
+import { getErrorMessage } from "../../shared/utils/error.util";
 
 export interface EventsState {
   loading: boolean;
@@ -23,16 +24,60 @@ const initialState: EventsState = {
 
 // Async thunk to fetch events
 export const getEvents = createAsyncThunk(
-  "events",
+  "events/fetchEvents",
   async (
     data: DataGridQueryOptions,
     { dispatch, rejectWithValue }
   ) => {
     try {
       const response = await eventsApi.fetchEvents(data);
-      return response.data;
+      return response;
     } catch (err: any) {
-      const message = err?.message || "Failed to fetch events";
+      const message = `[Events] ${getErrorMessage(err)}`;
+      dispatch(setSnackbar({ message, severity: "error" }));
+      return rejectWithValue(message);
+    }
+  }
+);
+
+// Async thunk to start monitoring
+export const startEventMonitoring = createAsyncThunk(
+  "events/startMonitoring",
+  async (
+    { eventId, monitorLevel, queryOptions }: { eventId: string; monitorLevel?: string; queryOptions?: DataGridQueryOptions },
+    { dispatch, rejectWithValue }
+  ) => {
+    try {
+      await eventsApi.startMonitoring(eventId, monitorLevel);
+      dispatch(setSnackbar({ message: "Monitoring started successfully", severity: "success" }));
+      // Refetch events to get updated data
+      if (queryOptions) {
+        dispatch(getEvents(queryOptions));
+      }
+    } catch (err: any) {
+      const message = `[Events] ${getErrorMessage(err)}`;
+      dispatch(setSnackbar({ message, severity: "error" }));
+      return rejectWithValue(message);
+    }
+  }
+);
+
+// Async thunk to stop monitoring
+export const stopEventMonitoring = createAsyncThunk(
+  "events/stopMonitoring",
+  async (
+    { eventId, queryOptions }: { eventId: string; queryOptions?: DataGridQueryOptions },
+    { dispatch, rejectWithValue }
+  ) => {
+    try {
+      await eventsApi.stopMonitoring(eventId);
+      dispatch(setSnackbar({ message: "Monitoring stopped successfully", severity: "success" }));
+      // Refetch events to get updated data
+      if (queryOptions) {
+        dispatch(getEvents(queryOptions));
+      }
+    } catch (err: any) {
+      const message = `[Events] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
@@ -51,7 +96,7 @@ const eventsSlice = createSlice({
       })
       .addCase(getEvents.fulfilled, (state, action) => {
         state.loading = false;
-        state.rows = action.payload.data;
+        state.rows = action.payload;
       })
       .addCase(getEvents.rejected, (state, action) => {
         state.loading = false;

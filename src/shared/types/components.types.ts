@@ -20,6 +20,9 @@ export interface DynamicChartProps {
   intervalOptionsMap: Record<string, string[]>;
   height?: number;
   onFullscreenChange?: (isFullscreen: boolean) => void;
+  logo?: string;
+  customLogoComponent?: React.ReactNode;
+  initialHiddenSeries?: Set<string>;
 }
 
 export interface ChartDataPoint {

@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import purchasesApi from "../../apis/purchases.api";
 import { setSnackbar } from "./snackbar.slice";
 import type { DataGridQueryOptions } from "../../shared/types/mui.type";
+import { getErrorMessage } from "../../shared/utils/error.util";
 
 export interface PurchasesState {
   loading: boolean;
@@ -28,13 +29,13 @@ export const getPurchases = createAsyncThunk(
   async (data: DataGridQueryOptions, { dispatch, rejectWithValue }) => {
     try {
       const response = await purchasesApi.fetchPurchases(data);
-      return response.data;
+      return response;
     } catch (err: any) {
-      const message = err?.message || "Failed to fetch purchases";
+      const message = `[Purchases] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
-  }
+  },
 );
 
 // 🔹 Create Purchase
@@ -42,16 +43,16 @@ export const createQuote = createAsyncThunk(
   "purchases/createQuote",
   async (
     data: {
-      listingDBId: string;
-      listingId: string;
-      deliveryMethodId: string;
+      event_id: string;
+      listing_id: string;
+      delivery_id: string;
 
       quantity: number;
 
       exclusiveListings?: boolean;
       shippingCountry?: string;
     },
-    { dispatch, rejectWithValue }
+    { dispatch, rejectWithValue },
   ) => {
     try {
       const response = await purchasesApi.createQuote(data);
@@ -59,28 +60,44 @@ export const createQuote = createAsyncThunk(
       dispatch(setSnackbar({ message, severity: "success" }));
       return response.data;
     } catch (err: any) {
-      const message = err?.message || "Failed to create Quote";
+      const message = `[Quote] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
-  }
+  },
 );
 
 export const createOrder = createAsyncThunk(
   "purchases/createOrder",
   async (
     data: {
-      listingDBId: string;
-      listingId: string;
-      deliveryMethodId: string;
-      quoteId: string;
-      totalAmount: number;
+      // Event
+      event_id: string;
+      event_name: string;
+      event_utc_date: string;
+
+      // Venue
+      venue_id: string;
+      venue_name: string;
+
+      // Performer
+      primary_performer_name: string;
+
+      // Listing
+      listing_id: string;
+      delivery_id: string;
+      quote_id: string;
+      section: string;
+      row: string;
+
+      // Pricing
+      total_amount: number;
       quantity: number;
-      pricePer: number;
+      price_per: number;
 
       currency?: string;
     },
-    { dispatch, rejectWithValue }
+    { dispatch, rejectWithValue },
   ) => {
     try {
       const response = await purchasesApi.createOrder(data);
@@ -88,11 +105,11 @@ export const createOrder = createAsyncThunk(
       dispatch(setSnackbar({ message, severity: "success" }));
       return response.data;
     } catch (err: any) {
-      const message = err?.message || "Failed to create Order";
+      const message = `[Order] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }
-  }
+  },
 );
 
 const purchasesSlice = createSlice({
@@ -112,7 +129,7 @@ const purchasesSlice = createSlice({
       })
       .addCase(getPurchases.fulfilled, (state, action) => {
         state.loading = false;
-        state.rows = action.payload?.data || { data: [], total: 0 };
+        state.rows = action.payload || { data: [], total: 0 };
       })
       .addCase(getPurchases.rejected, (state, action) => {
         state.loading = false;

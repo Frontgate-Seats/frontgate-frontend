@@ -1,4 +1,4 @@
 export type SignInProps = {
-  email?: FormDataEntryValue;
-  password: FormDataEntryValue;
+  email: string;
+  password: string;
 };

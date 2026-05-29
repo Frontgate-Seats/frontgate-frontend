@@ -13,14 +13,12 @@ import {
   MenuItem,
   CircularProgress,
   Paper,
-  Link,
 } from "@mui/material";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import { getListings } from "../store/slices/listings.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
 import { useNavigate, useParams } from "react-router-dom";
-import type { GridPaginationModel, GridSortModel } from "@mui/x-data-grid";
 import type { StepData } from "../components/common/models/types.model";
 import StepperModal from "../components/common/models/stepper.model";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
@@ -35,20 +33,26 @@ import {
   resetPurchase,
 } from "../store/slices/purchases.slice";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
-import type { GridFilterModel } from "@mui/x-data-grid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { formatDateTime } from "../shared/utils/dateTime.util";
+import { useClientFilters } from "../hooks/useClientFilters";
+import { getEvents } from "../store/slices/events.slice";
+import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
 
 export default function ListingsPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { eventId } = useParams();
+  const { event_id } = useParams();
 
   const {
-    rows: { data: listingsData, total: listingsDataCount },
+    rows: { data: listingsData },
     loading: listingLoading,
     error: listingsError,
   } = useSelector((state: RootState) => state.listings);
+
+  const {
+    rows: { data: events },
+  } = useSelector((state: RootState) => state.events);
 
   const {
     data: listingsDetailsDataObj,
@@ -71,89 +75,142 @@ export default function ListingsPage() {
   const [modelCompleted, setMdelCompleted] = React.useState(false);
 
   const eventInfo = React.useMemo(() => {
-    if (!listingsData?.length) return {};
-    return listingsData?.[0]?.eventDBId || {};
-  }, [listingsData]);
+    if (!events?.length) return {};
+    return events?.[0] || {};
+  }, [events]);
 
-  const venueInfo = React.useMemo(() => {
-    if (!listingsData?.length) return {};
-    return listingsData?.[0]?.venueDBId || {};
-  }, [listingsData]);
+  // Fetch all listings data once
+  React.useEffect(() => {
+    if (event_id) {
+      dispatch(getListings(event_id));
+      dispatch(
+        getEvents({
+          page: 0,
+          pageSize: 1,
+          filters: {
+            items: [{ field: "id", operator: "equals", value: event_id }],
+          },
+        }),
+      );
+    }
+  }, [dispatch, event_id]);
 
-  const performerInfo = React.useMemo(() => {
-    if (!listingsData?.length) return {};
-    return listingsData?.[0]?.performerDBId || {};
-  }, [listingsData]);
+  const allColumns: CustomGridColDef[] = [
+    {
+      field: "id",
+      headerName: "Listing Id",
+      type: "string",
+      width: 140,
+      flex: 0.8,
+      minWidth: 120,
+      urlParamName: "listing_id",
+    },
+    {
+      field: "section_name",
+      headerName: "Section",
+      type: "string",
+      width: 180,
+      flex: 1.2,
+      minWidth: 150,
+    },
+    {
+      field: "row",
+      headerName: "Row",
+      type: "string",
+      width: 70,
+      flex: 0.4,
+      minWidth: 60,
+    },
+    {
+      field: "quantity",
+      headerName: "Qty",
+      width: 70,
+      flex: 0.4,
+      minWidth: 60,
+      type: "number",
+      min: 0,
+      max: 10000,
+    },
+    {
+      field: "price",
+      headerName: "Price",
+      type: "number",
+      width: 100,
+      flex: 0.6,
+      minWidth: 80,
+      min: 0,
+      max: 10000,
+      valueFormatter: (value) => (value ? `$${value}` : "-"),
+    },
+    {
+      field: "actions",
+      type: "actions",
+      headerName: "Actions",
+      width: 100,
+      flex: 0.5,
+      minWidth: 90,
+      sortable: false,
+      filterable: false,
+      getActions: (params: any) => [
+        <Button
+          key={params.row.id}
+          onClick={() => handleBuyClick(params.row)}
+          variant="contained"
+          color="primary"
+          size="small"
+          sx={{ textTransform: "none", borderRadius: 2 }}
+        >
+          Buy
+        </Button>,
+      ],
+    },
+  ];
 
-  const [paginationModel, setPaginationModel] =
-    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
-
-  const [sortModel, setSortModel] = React.useState<GridSortModel>([]);
-  const [filterModel, setFilterModel] = React.useState<GridFilterModel>({
-    items: [
-      ...(eventId
-        ? [
-            {
-              id: "default",
-              field: "eventId",
-              operator: "equals",
-              value: eventId,
-            },
-          ]
-        : []),
+  // URL-synced grid state
+  const queryState = useDataGridQueryParams({
+    columns: [
+      { field: "id", type: "string", urlParamName: "listing_id" },
+      { field: "section_name", type: "string" },
+      { field: "row", type: "string" },
+      { field: "quantity", type: "number" },
+      { field: "price", type: "number" },
     ],
+    defaultPaginationModel: { page: 0, pageSize: 25 },
+    defaultSortModel: [],
+    defaultFilterModel: { items: [] },
   });
 
-  // React.useEffect(() => {
-  //   dispatch(
-  //     setFilterModel({
-  //         items: [
-  //           ...(eventId
-  //             ? [
-  //                 {
-  //                   id: "default",
-  //                   field: "eventId",
-  //                   operator: "equals",
-  //                   value: eventId,
-  //                 },
-  //               ]
-  //             : []),
-  //         ],
-  //       },
-  //     })
-  //   );
-  // }, [dispatch, eventId]);
+  // Use client-side filtering, pagination, and sorting
+  const {
+    paginationModel,
+    sortModel,
+    filterModel,
+    setPaginationModel,
+    setSortModel,
+    setFilterModel,
+    paginatedRows,
+    totalFilteredRows,
+  } = useClientFilters({
+    data: listingsData || [],
+    columns: allColumns,
+    externalState: queryState,
+  });
 
+  // Reset filters when the event changes (but NOT on initial mount, so URL
+  // params loaded on first visit are preserved).
+  const isFirstRenderListings = React.useRef(true);
   React.useEffect(() => {
-    dispatch(
-      getListings({
-        page: paginationModel.page,
-        pageSize: paginationModel.pageSize,
-        sortFields: sortModel,
-        filters: filterModel,
-      })
-    );
-  }, [dispatch, paginationModel, sortModel, filterModel]);
+    if (isFirstRenderListings.current) {
+      isFirstRenderListings.current = false;
+      return;
+    }
+    queryState.setFilterModel({ items: [] });
+    queryState.setPaginationModel({ page: 0, pageSize: 25 });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event_id]);
 
   const handleRefresh = () => {
-    dispatch(
-      getListings({
-        filters: {
-          items: [
-            ...(eventId
-              ? [
-                  {
-                    id: "default",
-                    field: "eventId",
-                    operator: "equals",
-                    value: eventId,
-                  },
-                ]
-              : []),
-          ],
-        },
-      })
-    );
+    if (event_id) dispatch(getListings(event_id));
   };
 
   const handleBuyClick = (listing: any) => {
@@ -168,91 +225,17 @@ export default function ListingsPage() {
     setModelActiveStep(0);
     setMdelCompleted(false);
     setOpenModel(false);
-    resetPurchase();
-    resetListingDetails();
+    dispatch(resetPurchase());
+    dispatch(resetListingDetails());
   };
 
-  const allColumns: CustomGridColDef[] = [
-    {
-      field: "listingId",
-      headerName: "Listing Id",
-      type: "string",
-      width: 160,
-    },
-    {
-      field: "eventId",
-      headerName: "Event Id",
-      type: "string",
-      width: 120,
-      renderCell: (params) => (
-        <Link
-          href={`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${params.value}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          underline="hover"
-          color="primary"
-        >
-          {params.value}
-        </Link>
-      ),
-    },
-    { field: "eventName", headerName: "Event Name", flex: 1, type: "string" },
-    {
-      field: "eventLocalDate",
-      headerName: "Event Date & Time",
-      width: 160,
-      type: "dateTime",
-      valueFormatter: (value) => formatDateTime(value),
-    },
-    { field: "section", headerName: "Section", type: "string", width: 200 },
-    { field: "row", headerName: "Row", type: "string", width: 80 },
-    {
-      field: "quantity",
-      headerName: "Qty",
-      width: 80,
-      type: "number",
-      min: 0,
-      max: 10000,
-    },
-    {
-      field: "price",
-      headerName: "Price",
-      type: "number",
-      min: 0,
-      max: 10000,
-      valueFormatter: (value) => (value ? `$${value}` : "-"),
-    },
-    {
-      field: "actions",
-      type: "actions",
-      headerName: "Actions",
-      width: 120,
-      getActions: (params: any) => [
-        <Button
-          key={params.row.listingId}
-          onClick={() => handleBuyClick(params.row)}
-          variant="contained"
-          color="primary"
-          size="small"
-          sx={{ textTransform: "none", borderRadius: 2 }}
-        >
-          Buy
-        </Button>,
-      ],
-    },
-  ];
-
   React.useEffect(() => {
-    setQuantity(
-      Number(
-        selectedListing?.splits?.[selectedListing?.splits?.length - 1] ?? 0
-      )
-    );
+    setQuantity(Math.max(...(selectedListing?.splits ?? []), 0));
   }, [selectedListing?.splits]);
 
   React.useEffect(() => {
     setDeliveryId(
-      String(listingsDetailsDataObj?.deliveryOptions?.[0]?.id ?? "")
+      String(listingsDetailsDataObj?.deliveryOptions?.[0]?.id ?? ""),
     );
   }, [listingsDetailsDataObj?.deliveryOptions]);
 
@@ -272,7 +255,7 @@ export default function ListingsPage() {
               <strong>Row:</strong> {selectedListing?.row}
             </Typography>
             <Typography variant="body2">
-              <strong>Subtotal:</strong> {selectedListing?.section}
+              <strong>Section:</strong> {selectedListing?.section_name}
             </Typography>
             <Typography variant="body2">
               <strong>Price:</strong> ${selectedListing?.price} per ticket
@@ -319,10 +302,10 @@ export default function ListingsPage() {
           onClick={async () => {
             await dispatch(
               getSingleListingsDetails({
-                listingDBId: selectedListing?._id as string,
-                listingId: selectedListing?.listingId as string,
+                event_id: eventInfo?.id,
+                listing_id: selectedListing?.id,
                 quantity,
-              })
+              }),
             );
             setModelActiveStep((prev) => prev + 1);
           }}
@@ -369,7 +352,7 @@ export default function ListingsPage() {
             <Typography>
               <strong>Subtotal:</strong> $
               {(listingsDetailsDataObj?.listing?.pricePer * quantity).toFixed(
-                2
+                2,
               )}
             </Typography>
             <Typography>
@@ -385,7 +368,7 @@ export default function ListingsPage() {
                 ? (
                     listingsDetailsDataObj?.listing?.pricePer * quantity +
                     (listingsDetailsDataObj?.deliveryOptions?.find(
-                      (x: any) => String(x.id) === String(deliveryId)
+                      (x: any) => String(x.id) === String(deliveryId),
                     )?.cost ?? 0)
                   ).toFixed(2)
                 : "-"}
@@ -399,11 +382,11 @@ export default function ListingsPage() {
           onClick={async () => {
             await dispatch(
               createQuote({
-                listingDBId: selectedListing?._id,
-                listingId: selectedListing?.listingId,
+                event_id: eventInfo?.id,
+                listing_id: selectedListing?.id,
                 quantity,
-                deliveryMethodId: deliveryId,
-              })
+                delivery_id: deliveryId,
+              }),
             );
             setModelActiveStep((prev) => prev + 1);
           }}
@@ -450,14 +433,24 @@ export default function ListingsPage() {
           onClick={async () => {
             await dispatch(
               createOrder({
-                listingDBId: selectedListing?._id,
-                listingId: selectedListing?.listingId,
-                deliveryMethodId: deliveryId,
-                quoteId: purchasesDataObj?.id,
-                totalAmount: purchasesDataObj?.totalCharge,
-                pricePer: listingsDetailsDataObj?.listing?.pricePer,
+                event_id: eventInfo?.id,
+                event_name: eventInfo?.name,
+                event_utc_date: eventInfo?.utc_date,
+
+                primary_performer_name: eventInfo?.primary_performer_name,
+
+                venue_id: eventInfo?.venue_id,
+                venue_name: eventInfo?.venue_name,
+
+                listing_id: selectedListing?.id,
+                price_per: listingsDetailsDataObj?.listing?.pricePer,
+                row: selectedListing?.row,
+                section: selectedListing?.section_name,
+                total_amount: purchasesDataObj?.totalCharge,
+                quote_id: purchasesDataObj?.id,
+                delivery_id: deliveryId,
                 quantity,
-              })
+              }),
             );
             setMdelCompleted(true);
           }}
@@ -486,7 +479,7 @@ export default function ListingsPage() {
         ) : (
           <>
             <Grid size={{ xs: 12 }}>
-              {eventInfo?.name && (
+              {eventInfo && (
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="h4" fontWeight="bold" gutterBottom>
@@ -499,8 +492,8 @@ export default function ListingsPage() {
                           Date & Time
                         </Typography>
                         <Typography variant="body1">
-                          {eventInfo?.localDate
-                            ? formatDateTime(eventInfo?.localDate)
+                          {eventInfo?.local_date
+                            ? formatDateTime(eventInfo?.local_date)
                             : ""}
                         </Typography>
                       </Grid>
@@ -509,9 +502,7 @@ export default function ListingsPage() {
                           Venue
                         </Typography>
                         <Typography variant="body1">
-                          {venueInfo
-                            ? `${venueInfo?.city}, ${venueInfo?.stateCode} (${venueInfo.countryCode})`
-                            : "-"}
+                          {`${eventInfo.venue_name}, ${eventInfo?.venue_city}, ${eventInfo?.venue_state}`}
                         </Typography>
                       </Grid>
                       <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -519,7 +510,7 @@ export default function ListingsPage() {
                           Performer
                         </Typography>
                         <Typography variant="body1">
-                          {performerInfo ? `${performerInfo?.name}` : "-"}
+                          {eventInfo?.primary_performer_name}
                         </Typography>
                       </Grid>
                     </Grid>
@@ -531,8 +522,8 @@ export default function ListingsPage() {
             <Grid size={{ xs: 12 }}>
               <CustomDataGrid
                 title="Listings"
-                rows={listingsData}
-                rowCount={listingsDataCount}
+                rows={paginatedRows}
+                rowCount={totalFilteredRows}
                 isLoading={listingLoading}
                 error={listingsError}
                 columns={allColumns}
@@ -622,19 +613,17 @@ export default function ListingsPage() {
                   ["Event", eventInfo?.name || "—"],
                   [
                     "Date & Time",
-                    eventInfo?.localDate
-                      ? formatDateTime(eventInfo?.localDate)
+                    eventInfo?.local_date
+                      ? formatDateTime(eventInfo?.local_date)
                       : "-",
                   ],
                   [
                     "Venue",
-                    venueInfo
-                      ? `${venueInfo?.city}, ${venueInfo?.stateCode} (${venueInfo.countryCode})`
-                      : "-",
+                    `${eventInfo.venue_name}, ${eventInfo?.venue_city}, ${eventInfo?.venue_state}`,
                   ],
-                  ["Performer", performerInfo?.name || "-"],
+                  ["Performer", eventInfo?.primary_performer_name],
                   ["Row", selectedListing?.row],
-                  ["Section", selectedListing?.section],
+                  ["Section", selectedListing?.section_name],
                   [
                     "Tickets",
                     `${quantity || 0} × $${
@@ -646,7 +635,7 @@ export default function ListingsPage() {
                     "Delivery",
                     `${
                       listingsDetailsDataObj?.deliveryOptions?.find(
-                        (x: any) => String(x.id) === String(deliveryId)
+                        (x: any) => String(x.id) === String(deliveryId),
                       )?.description || "-"
                     } ($${
                       listingsDetailsDataObj?.deliveryOptions
@@ -691,7 +680,7 @@ export default function ListingsPage() {
               onClick={(e) => {
                 close();
                 e.stopPropagation();
-                const url = `/purchases`;
+                const url = `/functions/v1/events-api/ui/purchases`;
                 if (e.ctrlKey || e.metaKey) {
                   window.open(url, "_blank");
                 } else {
@@ -794,8 +783,8 @@ export default function ListingsPage() {
                       Date & Time
                     </Typography>
                     <Typography variant="caption">
-                      {eventInfo?.localDate
-                        ? formatDateTime(eventInfo?.localDate)
+                      {eventInfo?.local_date
+                        ? formatDateTime(eventInfo?.local_date)
                         : "-"}
                     </Typography>
                   </Grid>
@@ -810,9 +799,7 @@ export default function ListingsPage() {
                       Venue
                     </Typography>
                     <Typography variant="caption">
-                      {venueInfo
-                        ? `${venueInfo?.city}, ${venueInfo?.stateCode} (${venueInfo.countryCode})`
-                        : "-"}
+                      {`${eventInfo.venue_name}, ${eventInfo?.venue_city}, ${eventInfo?.venue_state}`}
                     </Typography>
                   </Grid>
 
@@ -826,7 +813,7 @@ export default function ListingsPage() {
                       Performer
                     </Typography>
                     <Typography variant="caption">
-                      {performerInfo?.name || "-"}
+                      {eventInfo?.primary_performer_name}
                     </Typography>
                   </Grid>
                 </Grid>

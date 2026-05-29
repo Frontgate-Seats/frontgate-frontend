@@ -19,10 +19,12 @@ const DashboardLayout = Loadable(
 
 /* ****Pages**** */
 const EventsPage = Loadable(lazy(() => import("./pages/events.page")));
+const EventDetailsPage = Loadable(lazy(() => import("./pages/eventDetails.page")));
 const ListingsPage = Loadable(lazy(() => import("./pages/listings.page")));
 const SalesPage = Loadable(lazy(() => import("./pages/sales.page")));
 const PurchasesPage = Loadable(lazy(() => import("./pages/purchases.page")));
-const ChartsPage = Loadable(lazy(() => import("./pages/charts.page")));
+const SuggestionsPage = Loadable(lazy(() => import("./pages/suggestions.page")));
+const TradesPage = Loadable(lazy(() => import("./pages/trades.page")));
 
 const SignInAuthPage = Loadable(
   lazy(() => import("./pages/auth/signIn.auth.page"))
@@ -43,20 +45,20 @@ export const route: RouteObject[] = [
         index: true,
         element: <Navigate to="/events" replace />,
       },
-      // {
-      //   path: "/dashboard",
-      //   element: <DashboardPage />,
-      // },
       {
         path: "/events",
         element: <EventsPage />,
+      },
+      {
+        path: "/events/:eventId",
+        element: <EventDetailsPage />,
       },
       {
         path: "/listings",
         element: <ListingsPage />,
       },
       {
-        path: "/listings/:eventId",
+        path: "/listings/:event_id",
         element: <ListingsPage />,
       },
       {
@@ -64,7 +66,7 @@ export const route: RouteObject[] = [
         element: <SalesPage />,
       },
       {
-        path: "/sales/:eventId",
+        path: "/sales/:event_id",
         element: <SalesPage />,
       },
       {
@@ -72,8 +74,12 @@ export const route: RouteObject[] = [
         element: <PurchasesPage />,
       },
       {
-        path: "/charts",
-        element: <ChartsPage />,
+        path: "/suggestions",
+        element: <SuggestionsPage />,
+      },
+      {
+        path: "/trades",
+        element: <TradesPage />,
       },
       {
         path: "*",

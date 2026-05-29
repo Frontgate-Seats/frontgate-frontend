@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { setSnackbar } from "./snackbar.slice";
 import type { DataGridQueryOptions } from "../../shared/types/mui.type";
 import salesMetaApi from "../../apis/salesMeta.api";
+import { getErrorMessage } from "../../shared/utils/error.util";
 
 
 export interface salesMetaState {
@@ -32,7 +33,7 @@ export const getSalesMeta = createAsyncThunk(
       const response = await salesMetaApi.fetchSalesMeta(data);
       return response.data;
     } catch (err: any) {
-      const message = err?.message || "Failed to fetch salesMeta";
+      const message = `[Sales Meta] ${getErrorMessage(err)}`;
       dispatch(setSnackbar({ message, severity: "error" }));
       return rejectWithValue(message);
     }

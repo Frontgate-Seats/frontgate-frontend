@@ -58,7 +58,7 @@ export const formatChartAxis = (
       return FALLBACK_VALUE;
     }
 
-    return timeRange === "1d" ? date.format("h:mm A") : date.format("M/D");
+    return timeRange?.endsWith("h") ? date.format("h:mm A") : date.format("M/D");
   } catch {
     return FALLBACK_VALUE;
   }

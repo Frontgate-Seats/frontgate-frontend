@@ -1,30 +1,80 @@
-import type { AxiosError } from "axios";
-import httpClient from "../clients/http.client";
+import supabaseClient from "../clients/supabase.client";
 import type { SignInProps } from "./types";
+import { getErrorMessage } from "../shared/utils/error.util";
 
 export const signIn = async (payload: SignInProps) => {
   try {
-    const response = await httpClient.post("/auth/signin", payload);
-    return response.data;
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: payload.email,
+      password: payload.password,
+    });
+
+    if (error) {
+      throw new Error(getErrorMessage(error));
+    }
+
+    return {
+      user: data.user,
+      session: data.session,
+    };
   } catch (error) {
-    const axiosError = error as AxiosError;
-    throw axiosError.response?.data || "AxiosError: Something went wrong";
+    throw error;
   }
 };
 
-export const verifyToken = async () => {
+export const signOut = async () => {
   try {
-    const response = await httpClient.post("/auth/verifyToken");
-    return response.data;
+    const { error } = await supabaseClient.auth.signOut();
+
+    if (error) {
+      throw new Error(getErrorMessage(error));
+    }
+
+    return { success: true };
   } catch (error) {
-    const axiosError = error as AxiosError;
-    throw axiosError.response?.data || "AxiosError: Something went wrong";
+    throw error;
+  }
+};
+
+export const getCurrentUser = async () => {
+  try {
+    const {
+      data: { user },
+      error,
+    } = await supabaseClient.auth.getUser();
+
+    if (error) {
+      throw new Error(getErrorMessage(error));
+    }
+
+    return user;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getCurrentSession = async () => {
+  try {
+    const {
+      data: { session },
+      error,
+    } = await supabaseClient.auth.getSession();
+
+    if (error) {
+      throw new Error(getErrorMessage(error));
+    }
+
+    return session;
+  } catch (error) {
+    throw error;
   }
 };
 
 const authApi = {
   signIn,
-  verifyToken
+  signOut,
+  getCurrentUser,
+  getCurrentSession,
 };
 
 export default authApi;
