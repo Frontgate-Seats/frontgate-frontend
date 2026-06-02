@@ -1,0 +1,1 @@
+import{r as e,u as a,b as u,j as n}from"./index-Cd2DJJc7.js";const c=e.createContext(void 0),x=({children:o})=>{const s=a(),{user:t}=u(r=>r.auth);return e.useEffect(()=>{t&&s("/dashboard")},[t]),n.jsx(c.Provider,{value:null,children:o})};export{x as default};

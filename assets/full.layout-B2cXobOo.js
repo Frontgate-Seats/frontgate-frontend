@@ -1,1 +1,0 @@
-import{j as t,O as e}from"./index-D7zLJ3Ck.js";import{S as o}from"./Stack-D41xLZKO.js";const l=()=>t.jsx(o,{sx:{height:"100vh",width:"100vw",display:"flex",justifyContent:"center",alignItems:"center",flexDirection:"column",bgcolor:"background.default"},children:t.jsx(e,{})});export{l as default};

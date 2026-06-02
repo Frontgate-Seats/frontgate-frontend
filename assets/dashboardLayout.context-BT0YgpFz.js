@@ -1,1 +1,0 @@
-import{r as o}from"./index-D7zLJ3Ck.js";const r=o.createContext(null),e=()=>{const t=o.useContext(r);if(!t)throw new Error("useDashboardLayoutContext must be used within an DashboardLayoutProvider");return t};export{r as D,e as u};
