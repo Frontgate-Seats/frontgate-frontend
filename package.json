@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://mayank-frontgate.github.io/frontgate-frontend",
+  "homepage": "https://aibuying.frontgateseats.com",
   "scripts": {
     "check:cycles": "madge --circular src",
     "dev": "npm run check:cycles && vite",
