@@ -6,25 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Frontgate</title>
     <script>
-      // GitHub Pages SPA redirect restore
-      (function (l) {
-        if (l.search[1] === "/") {
-          var decoded = l.search
-            .slice(1)
-            .split("&")
-            .map(function (s) {
-              return s.replace(/~and~/g, "&");
-            });
-          window.history.replaceState(
-            null,
-            null,
-            l.pathname.slice(0, -1) +
-              (decoded[0] && decoded[0] !== "/"  ? decoded[0] : "") +
-              (decoded[1] ? "?" + decoded[1] : "") +
-              l.hash
-          );
+      // Restore the original path after GitHub Pages 404 redirect
+      (function () {
+        var redirect = sessionStorage.getItem("__spa_redirect");
+        if (redirect) {
+          sessionStorage.removeItem("__spa_redirect");
+          try {
+            var data = JSON.parse(redirect);
+            window.history.replaceState(
+              null,
+              null,
+              data.path + (data.search || "") + (data.hash || "")
+            );
+          } catch (e) {}
         }
-      })(window.location);
+      })();
     </script>
   </head>
   <body>
