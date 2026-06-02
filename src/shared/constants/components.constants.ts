@@ -59,6 +59,7 @@ export const SALES_TRENDS_CHART_CONFIG: ChartConfig = {
 
 // Time Range Options (shared across all charts)
 export const TIME_RANGE_OPTIONS = [
+  { value: "all", label: "All Time" },
   { value: "1h", label: "Last 1 Hour" },
   { value: "3h", label: "Last 3 Hours" },
   { value: "6h", label: "Last 6 Hours" },
@@ -73,6 +74,7 @@ export const TIME_RANGE_OPTIONS = [
 
 // Interval Options Map (shared across all charts)
 export const INTERVAL_OPTIONS_MAP: Record<string, string[]> = {
+  "all": ["1d", "7d", "30d", "90d"],
   "1h": ["5m", "10m", "15m"],
   "3h": ["5m", "10m", "15m", "30m"],
   "6h": ["15m", "30m", "1h"],
@@ -88,6 +90,7 @@ export const INTERVAL_OPTIONS_MAP: Record<string, string[]> = {
 // Helper function to get default interval for a time range
 export const getDefaultInterval = (range: string): string => {
   const defaultMap: Record<string, string> = {
+    "all": "90d",
     "1h": "5m",
     "3h": "5m",
     "6h": "15m",
@@ -101,6 +104,38 @@ export const getDefaultInterval = (range: string): string => {
   };
   return defaultMap[range] || "1h";
 };
+
+/**
+ * Parse an interval string ("1d", "7d", "30d", "90d", "6h", "30m", …) → milliseconds.
+ */
+export function parseIntervalToMs(interval: string): number {
+  if (interval.endsWith("d")) return parseInt(interval) * 24 * 60 * 60 * 1000;
+  if (interval.endsWith("h")) return parseInt(interval) * 60 * 60 * 1000;
+  return parseInt(interval) * 60 * 1000;
+}
+
+/**
+ * Given the actual data span in ms and the list of available interval options
+ * for the current time range, returns the coarsest interval that still produces
+ * a reasonable number of chart points (≤ 500).
+ * Walks from coarsest → finest and returns the coarsest one that fits.
+ * Falls back to the coarsest option if none fit.
+ */
+export function getSmartIntervalForSpan(
+  spanMs: number,
+  options: string[],
+): string {
+  const MAX_POINTS = 500;
+  // Walk from coarsest (last) → finest (first); return the coarsest that fits
+  for (let i = options.length - 1; i >= 0; i--) {
+    const ms = parseIntervalToMs(options[i]);
+    if (ms > 0 && spanMs / ms <= MAX_POINTS) {
+      return options[i];
+    }
+  }
+  // All options produce too many points — use the coarsest one
+  return options[options.length - 1];
+}
 
 // Charts Page Chart Configuration (similar to listings but with different formatting)
 export const CHARTS_PAGE_CHART_CONFIG: ChartConfig = {

@@ -3,6 +3,48 @@ import moment from "moment";
 import { formatDateTime } from "../shared/utils/dateTime.util";
 import type { ChartDataPoint } from "../shared/types/components.types";
 
+/**
+ * Returns the range-start timestamp (ms) for a given timeRange string.
+ * "all" → -1 (sentinel: use earliest data point instead of epoch).
+ * Any unrecognised value also falls back to -1.
+ */
+function getRangeStart(timeRange: string): number {
+  if (timeRange === "all") return -1; // sentinel — caller must use earliest data ts
+  const now = moment.utc();
+  switch (timeRange) {
+    case "1h":  return now.subtract(1, "hour").valueOf();
+    case "3h":  return now.subtract(3, "hours").valueOf();
+    case "6h":  return now.subtract(6, "hours").valueOf();
+    case "12h": return now.subtract(12, "hours").valueOf();
+    case "1d":  return now.subtract(1, "day").valueOf();
+    case "7d":  return now.subtract(7, "days").valueOf();
+    case "30d": return now.subtract(30, "days").valueOf();
+    case "3m":  return now.subtract(3, "months").valueOf();
+    case "6m":  return now.subtract(6, "months").valueOf();
+    case "1y":  return now.subtract(1, "year").valueOf();
+    default:    return -1;
+  }
+}
+
+/** Max chart points we'll ever render — keeps the chart snappy. */
+const MAX_CHART_POINTS = 500;
+
+/**
+ * Given a desired intervalMs and a time span, returns an intervalMs that
+ * produces at most MAX_CHART_POINTS buckets.
+ */
+function clampIntervalMs(intervalMs: number, spanMs: number): number {
+  const minInterval = Math.ceil(spanMs / MAX_CHART_POINTS);
+  return Math.max(intervalMs, minInterval);
+}
+
+/** Parse an interval string like "1d", "6h", "30m" → milliseconds. */
+function parseIntervalMs(interval: string): number {
+  if (interval.endsWith("d")) return parseInt(interval) * 24 * 60 * 60 * 1000;
+  if (interval.endsWith("h")) return parseInt(interval) * 60 * 60 * 1000;
+  return parseInt(interval) * 60 * 1000;
+}
+
 // Hook for building sales meta dataset
 export const useSalesChartData = (
   sales: any[],
@@ -13,55 +55,21 @@ export const useSalesChartData = (
   return React.useMemo(() => {
     if (!sales || sales.length === 0) return [];
 
-    const now = moment.utc();
-    const fromDate = now.clone();
-
-    switch (timeRange) {
-      case "1h":
-        fromDate.subtract(1, "hour");
-        break;
-      case "3h":
-        fromDate.subtract(3, "hours");
-        break;
-      case "6h":
-        fromDate.subtract(6, "hours");
-        break;
-      case "12h":
-        fromDate.subtract(12, "hours");
-        break;
-      case "1d":
-        fromDate.subtract(1, "day");
-        break;
-      case "7d":
-        fromDate.subtract(7, "days");
-        break;
-      case "30d":
-        fromDate.subtract(30, "days");
-        break;
-      case "3m":
-        fromDate.subtract(3, "months");
-        break;
-      case "6m":
-        fromDate.subtract(6, "months");
-        break;
-      case "1y":
-        fromDate.subtract(1, "year");
-        break;
-    }
-
-    const rangeStart = fromDate.valueOf();
-    const rangeEnd = now.valueOf();
-
-    const intervalMs = interval.endsWith("d")
-      ? parseInt(interval) * 24 * 60 * 60 * 1000
-      : interval.endsWith("h")
-      ? parseInt(interval) * 60 * 60 * 1000
-      : parseInt(interval) * 60 * 1000;
+    const rangeEnd = moment.utc().valueOf();
+    const rawRangeStart = getRangeStart(timeRange);
 
     const sorted = [...sales].sort(
       (a, b) =>
         moment.utc(a.purchased_at).valueOf() - moment.utc(b.purchased_at).valueOf()
     );
+
+    // For "all", anchor to the earliest actual data point
+    const rangeStart = rawRangeStart === -1
+      ? (sorted.length > 0 ? moment.utc(sorted[0].purchased_at).valueOf() : rangeEnd)
+      : rawRangeStart;
+
+    const spanMs = rangeEnd - rangeStart;
+    const intervalMs = clampIntervalMs(parseIntervalMs(interval), spanMs);
 
     const rangeData = sorted.filter((item) => {
       const t = moment.utc(item.purchased_at).valueOf();
@@ -189,55 +197,21 @@ export const useListingTrendsChartData = (
     });
 
     // Now apply time range filtering and bucketing
-    const now = moment.utc();
-    const fromDate = now.clone();
-
-    switch (timeRange) {
-      case "1h":
-        fromDate.subtract(1, "hour");
-        break;
-      case "3h":
-        fromDate.subtract(3, "hours");
-        break;
-      case "6h":
-        fromDate.subtract(6, "hours");
-        break;
-      case "12h":
-        fromDate.subtract(12, "hours");
-        break;
-      case "1d":
-        fromDate.subtract(1, "day");
-        break;
-      case "7d":
-        fromDate.subtract(7, "days");
-        break;
-      case "30d":
-        fromDate.subtract(30, "days");
-        break;
-      case "3m":
-        fromDate.subtract(3, "months");
-        break;
-      case "6m":
-        fromDate.subtract(6, "months");
-        break;
-      case "1y":
-        fromDate.subtract(1, "year");
-        break;
-    }
-
-    const rangeStart = fromDate.valueOf();
-    const rangeEnd = now.valueOf();
-
-    const intervalMs = interval.endsWith("d")
-      ? parseInt(interval) * 24 * 60 * 60 * 1000
-      : interval.endsWith("h")
-      ? parseInt(interval) * 60 * 60 * 1000
-      : parseInt(interval) * 60 * 1000;
+    const rangeEnd = moment.utc().valueOf();
+    const rawRangeStart = getRangeStart(timeRange);
 
     const sorted = [...aggregatedData].sort(
       (a, b) =>
         moment.utc(a.created_at).valueOf() - moment.utc(b.created_at).valueOf()
     );
+
+    // For "all", anchor to the earliest actual data point
+    const rangeStart = rawRangeStart === -1
+      ? (sorted.length > 0 ? moment.utc(sorted[0].created_at).valueOf() : rangeEnd)
+      : rawRangeStart;
+
+    const spanMs = rangeEnd - rangeStart;
+    const intervalMs = clampIntervalMs(parseIntervalMs(interval), spanMs);
 
     let lastBefore = null;
     for (let i = sorted.length - 1; i >= 0; i--) {
@@ -358,57 +332,21 @@ export const useAvailabilityCapacityChartData = (
 
     const snapshots = availabilityData.snapshots;
 
-    // Calculate time range
-    const now = moment.utc();
-    const fromDate = now.clone();
-
-    switch (timeRange) {
-      case "1h":
-        fromDate.subtract(1, "hour");
-        break;
-      case "3h":
-        fromDate.subtract(3, "hours");
-        break;
-      case "6h":
-        fromDate.subtract(6, "hours");
-        break;
-      case "12h":
-        fromDate.subtract(12, "hours");
-        break;
-      case "1d":
-        fromDate.subtract(1, "day");
-        break;
-      case "7d":
-        fromDate.subtract(7, "days");
-        break;
-      case "30d":
-        fromDate.subtract(30, "days");
-        break;
-      case "3m":
-        fromDate.subtract(3, "months");
-        break;
-      case "6m":
-        fromDate.subtract(6, "months");
-        break;
-      case "1y":
-        fromDate.subtract(1, "year");
-        break;
-    }
-
-    const rangeStart = fromDate.valueOf();
-    const rangeEnd = now.valueOf();
-
-    // Calculate interval in milliseconds
-    const intervalMs = interval.endsWith("d")
-      ? parseInt(interval) * 24 * 60 * 60 * 1000
-      : interval.endsWith("h")
-      ? parseInt(interval) * 60 * 60 * 1000
-      : parseInt(interval) * 60 * 1000;
+    const rangeEnd = moment.utc().valueOf();
+    const rawRangeStart = getRangeStart(timeRange);
 
     // Sort snapshots by timestamp
     const sortedSnapshots = [...snapshots].sort(
       (a, b) => moment.utc(a.timestamp).valueOf() - moment.utc(b.timestamp).valueOf()
     );
+
+    // For "all", anchor to the earliest actual snapshot
+    const rangeStart = rawRangeStart === -1
+      ? (sortedSnapshots.length > 0 ? moment.utc(sortedSnapshots[0].timestamp).valueOf() : rangeEnd)
+      : rawRangeStart;
+
+    const spanMs = rangeEnd - rangeStart;
+    const intervalMs = clampIntervalMs(parseIntervalMs(interval), spanMs);
 
     // Find last snapshot before the time range
     let lastBefore = null;
@@ -536,57 +474,21 @@ export const useAvailabilityData = (
 
     const snapshots = availabilityData.snapshots;
 
-    // Calculate time range
-    const now = moment.utc();
-    const fromDate = now.clone();
-
-    switch (timeRange) {
-      case "1h":
-        fromDate.subtract(1, "hour");
-        break;
-      case "3h":
-        fromDate.subtract(3, "hours");
-        break;
-      case "6h":
-        fromDate.subtract(6, "hours");
-        break;
-      case "12h":
-        fromDate.subtract(12, "hours");
-        break;
-      case "1d":
-        fromDate.subtract(1, "day");
-        break;
-      case "7d":
-        fromDate.subtract(7, "days");
-        break;
-      case "30d":
-        fromDate.subtract(30, "days");
-        break;
-      case "3m":
-        fromDate.subtract(3, "months");
-        break;
-      case "6m":
-        fromDate.subtract(6, "months");
-        break;
-      case "1y":
-        fromDate.subtract(1, "year");
-        break;
-    }
-
-    const rangeStart = fromDate.valueOf();
-    const rangeEnd = now.valueOf();
-
-    // Calculate interval in milliseconds
-    const intervalMs = interval.endsWith("d")
-      ? parseInt(interval) * 24 * 60 * 60 * 1000
-      : interval.endsWith("h")
-      ? parseInt(interval) * 60 * 60 * 1000
-      : parseInt(interval) * 60 * 1000;
+    const rangeEnd = moment.utc().valueOf();
+    const rawRangeStart = getRangeStart(timeRange);
 
     // Sort snapshots by timestamp
     const sortedSnapshots = [...snapshots].sort(
       (a, b) => moment.utc(a.timestamp).valueOf() - moment.utc(b.timestamp).valueOf()
     );
+
+    // For "all", anchor to the earliest actual snapshot
+    const rangeStart = rawRangeStart === -1
+      ? (sortedSnapshots.length > 0 ? moment.utc(sortedSnapshots[0].timestamp).valueOf() : rangeEnd)
+      : rawRangeStart;
+
+    const spanMs = rangeEnd - rangeStart;
+    const intervalMs = clampIntervalMs(parseIntervalMs(interval), spanMs);
 
     // Find last snapshot before the time range
     let lastBefore = null;
@@ -802,52 +704,19 @@ export const useAvailabilitySectionChartData = (
 
     const snapshots = availabilityData.snapshots;
 
-    // Calculate time range
-    const now = moment.utc();
-    const fromDate = now.clone();
+    const rangeEnd = moment.utc().valueOf();
+    const rawRangeStart = getRangeStart(timeRange);
 
-    switch (timeRange) {
-      case "1h":
-        fromDate.subtract(1, "hour");
-        break;
-      case "3h":
-        fromDate.subtract(3, "hours");
-        break;
-      case "6h":
-        fromDate.subtract(6, "hours");
-        break;
-      case "12h":
-        fromDate.subtract(12, "hours");
-        break;
-      case "1d":
-        fromDate.subtract(1, "day");
-        break;
-      case "7d":
-        fromDate.subtract(7, "days");
-        break;
-      case "30d":
-        fromDate.subtract(30, "days");
-        break;
-      case "3m":
-        fromDate.subtract(3, "months");
-        break;
-      case "6m":
-        fromDate.subtract(6, "months");
-        break;
-      case "1y":
-        fromDate.subtract(1, "year");
-        break;
-    }
+    // Sort snapshots first so we can anchor "all" to earliest
+    const sortedForAnchor = [...snapshots].sort(
+      (a, b) => moment.utc(a.timestamp).valueOf() - moment.utc(b.timestamp).valueOf()
+    );
+    const rangeStart = rawRangeStart === -1
+      ? (sortedForAnchor.length > 0 ? moment.utc(sortedForAnchor[0].timestamp).valueOf() : rangeEnd)
+      : rawRangeStart;
 
-    const rangeStart = fromDate.valueOf();
-    const rangeEnd = now.valueOf();
-
-    // Calculate interval in milliseconds
-    const intervalMs = interval.endsWith("d")
-      ? parseInt(interval) * 24 * 60 * 60 * 1000
-      : interval.endsWith("h")
-      ? parseInt(interval) * 60 * 60 * 1000
-      : parseInt(interval) * 60 * 1000;
+    const spanMs = rangeEnd - rangeStart;
+    const intervalMs = clampIntervalMs(parseIntervalMs(interval), spanMs);
 
     // Get all unique section names from all snapshots within time range
     const allSections = new Set<string>();
@@ -995,52 +864,18 @@ export const useAvailabilityPriceChartData = (
 
     const snapshots = availabilityData.snapshots;
 
-    // Calculate time range
-    const now = moment.utc();
-    const fromDate = now.clone();
+    const rangeEnd = moment.utc().valueOf();
+    const rawRangeStart = getRangeStart(timeRange);
 
-    switch (timeRange) {
-      case "1h":
-        fromDate.subtract(1, "hour");
-        break;
-      case "3h":
-        fromDate.subtract(3, "hours");
-        break;
-      case "6h":
-        fromDate.subtract(6, "hours");
-        break;
-      case "12h":
-        fromDate.subtract(12, "hours");
-        break;
-      case "1d":
-        fromDate.subtract(1, "day");
-        break;
-      case "7d":
-        fromDate.subtract(7, "days");
-        break;
-      case "30d":
-        fromDate.subtract(30, "days");
-        break;
-      case "3m":
-        fromDate.subtract(3, "months");
-        break;
-      case "6m":
-        fromDate.subtract(6, "months");
-        break;
-      case "1y":
-        fromDate.subtract(1, "year");
-        break;
-    }
+    const sortedForAnchor = [...snapshots].sort(
+      (a, b) => moment.utc(a.timestamp).valueOf() - moment.utc(b.timestamp).valueOf()
+    );
+    const rangeStart = rawRangeStart === -1
+      ? (sortedForAnchor.length > 0 ? moment.utc(sortedForAnchor[0].timestamp).valueOf() : rangeEnd)
+      : rawRangeStart;
 
-    const rangeStart = fromDate.valueOf();
-    const rangeEnd = now.valueOf();
-
-    // Calculate interval in milliseconds
-    const intervalMs = interval.endsWith("d")
-      ? parseInt(interval) * 24 * 60 * 60 * 1000
-      : interval.endsWith("h")
-      ? parseInt(interval) * 60 * 60 * 1000
-      : parseInt(interval) * 60 * 1000;
+    const spanMs = rangeEnd - rangeStart;
+    const intervalMs = clampIntervalMs(parseIntervalMs(interval), spanMs);
 
     // Get all unique price points from all snapshots within time range
     const allPrices = new Set<number>();
@@ -1186,50 +1021,21 @@ export const useCombinedSalesChartData = (
   interval: string
 ) => {
   return React.useMemo(() => {
-    const now = moment.utc();
-    const fromDate = now.clone();
+    const rangeEnd = moment.utc().valueOf();
+    const rawRangeStart = getRangeStart(timeRange);
 
-    switch (timeRange) {
-      case "1h":
-        fromDate.subtract(1, "hour");
-        break;
-      case "3h":
-        fromDate.subtract(3, "hours");
-        break;
-      case "6h":
-        fromDate.subtract(6, "hours");
-        break;
-      case "12h":
-        fromDate.subtract(12, "hours");
-        break;
-      case "1d":
-        fromDate.subtract(1, "day");
-        break;
-      case "7d":
-        fromDate.subtract(7, "days");
-        break;
-      case "30d":
-        fromDate.subtract(30, "days");
-        break;
-      case "3m":
-        fromDate.subtract(3, "months");
-        break;
-      case "6m":
-        fromDate.subtract(6, "months");
-        break;
-      case "1y":
-        fromDate.subtract(1, "year");
-        break;
+    // For "all", anchor to the earliest sale across both sources
+    let rangeStart = rawRangeStart;
+    if (rawRangeStart === -1) {
+      const allTs = [
+        ...(seatgeekSales || []).map(i => moment.utc(i.purchased_at).valueOf()),
+        ...(vividSales || []).map(i => moment.utc(i.saleDate).valueOf()),
+      ].filter(t => !isNaN(t));
+      rangeStart = allTs.length > 0 ? Math.min(...allTs) : rangeEnd;
     }
 
-    const rangeStart = fromDate.valueOf();
-    const rangeEnd = now.valueOf();
-
-    const intervalMs = interval.endsWith("d")
-      ? parseInt(interval) * 24 * 60 * 60 * 1000
-      : interval.endsWith("h")
-      ? parseInt(interval) * 60 * 60 * 1000
-      : parseInt(interval) * 60 * 1000;
+    const spanMs = rangeEnd - rangeStart;
+    const intervalMs = clampIntervalMs(parseIntervalMs(interval), spanMs);
 
     // Process SeatGeek sales
     const seatgeekGrouped: Record<number, any[]> = {};
@@ -1336,30 +1142,20 @@ export const useCombinedSalesChartDataFromRows = (
   interval: string
 ) => {
   return React.useMemo(() => {
-    const now = moment.utc();
-    const fromDate = now.clone();
+    const rangeEnd = moment.utc().valueOf();
+    const rawRangeStart = getRangeStart(timeRange);
 
-    switch (timeRange) {
-      case "1h": fromDate.subtract(1, "hour"); break;
-      case "3h": fromDate.subtract(3, "hours"); break;
-      case "6h": fromDate.subtract(6, "hours"); break;
-      case "12h": fromDate.subtract(12, "hours"); break;
-      case "1d": fromDate.subtract(1, "day"); break;
-      case "7d": fromDate.subtract(7, "days"); break;
-      case "30d": fromDate.subtract(30, "days"); break;
-      case "3m": fromDate.subtract(3, "months"); break;
-      case "6m": fromDate.subtract(6, "months"); break;
-      case "1y": fromDate.subtract(1, "year"); break;
+    // For "all", anchor to the earliest row
+    let rangeStart = rawRangeStart;
+    if (rawRangeStart === -1) {
+      const allTs = (combinedRows || [])
+        .map(r => moment.utc(r.purchased_at).valueOf())
+        .filter(t => !isNaN(t));
+      rangeStart = allTs.length > 0 ? Math.min(...allTs) : rangeEnd;
     }
 
-    const rangeStart = fromDate.valueOf();
-    const rangeEnd = now.valueOf();
-
-    const intervalMs = interval.endsWith("d")
-      ? parseInt(interval) * 24 * 60 * 60 * 1000
-      : interval.endsWith("h")
-      ? parseInt(interval) * 60 * 60 * 1000
-      : parseInt(interval) * 60 * 1000;
+    const spanMs = rangeEnd - rangeStart;
+    const intervalMs = clampIntervalMs(parseIntervalMs(interval), spanMs);
 
     const sgGrouped: Record<number, any[]> = {};
     const vividGrouped: Record<number, any[]> = {};

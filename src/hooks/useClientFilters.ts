@@ -167,13 +167,13 @@ export function useClientFilters<T = any>({
             if (!fv.isValid() || !val.isValid()) return false;
 
             if (operator === "onOrAfter")
-              return fv.isSame(val, "day") || fv.isAfter(val, "day");
+              return fv.isSameOrAfter(val);
             if (operator === "onOrBefore")
-              return fv.isSame(val, "day") || fv.isBefore(val, "day");
+              return fv.isSameOrBefore(val);
             if (operator === "is") return fv.isSame(val, "day");
             if (operator === "not") return !fv.isSame(val, "day");
-            if (operator === "after") return fv.isAfter(val, "day");
-            if (operator === "before") return fv.isBefore(val, "day");
+            if (operator === "after") return fv.isAfter(val);
+            if (operator === "before") return fv.isBefore(val);
             if (operator === "isEmpty") return !fv.isValid();
             if (operator === "isNotEmpty") return fv.isValid();
             return true;

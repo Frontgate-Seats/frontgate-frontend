@@ -7,14 +7,13 @@ import {
   CardContent,
   Grid,
   Stack,
-  IconButton,
   Tooltip,
   Link,
   Button,
   Chip,
   Box,
 } from "@mui/material";
-import { Edit, PlayArrow, Stop } from "@mui/icons-material";
+import { PlayArrow, Stop } from "@mui/icons-material";
 import moment from "moment";
 import type {
   GridPaginationModel,
@@ -27,15 +26,14 @@ import { useAppDispatch } from "../store/reducers/root.reducer";
 import type { RootState } from "../store";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
-import { getSuggests, updateSuggest } from "../store/slices/suggests.slice";
+import { getEventAnalysisLogs } from "../store/slices/eventAnalysisLogs.slice";
 import {
   startEventMonitoring,
   stopEventMonitoring,
 } from "../store/slices/events.slice";
 import { getAvailability, clearAvailability } from "../store/slices/availability.slice";
-import type { UpdateSuggestPayload } from "../apis/suggests.api";
 import { useClientFilters } from "../hooks/useClientFilters";
-import { useChartState } from "../hooks/useChartState";
+import { useChartState, type UseChartStateReturn } from "../hooks/useChartState";
 import { useEventData } from "../hooks/useEventData";
 import {
   INTERVAL_OPTIONS_MAP,
@@ -45,6 +43,7 @@ import {
   AVAILABILITY_SECTION_CHART_CONFIG,
   AVAILABILITY_PRICE_CHART_CONFIG,
   TIME_RANGE_OPTIONS,
+  getDefaultInterval,
 } from "../shared/constants/components.constants";
 import {
   generateSectionLineSeriesConfig,
@@ -59,7 +58,6 @@ import {
 import {
   ConfirmDialog,
   StartMonitoringDialog,
-  SuggestionDialog,
   type MonitorLevel,
 } from "../components/common/dialogs";
 
@@ -86,16 +84,100 @@ export default function EventDetailsPage() {
     error,
     refetch,
   } = useEventData(eventId);
-  // Chart states
-  const salesChart = useChartState("1d");
-  const listingShortChart = useChartState("1d");
-  const listingLongChart = useChartState("7d");
-  const pricePointsChart = useChartState("6h"); // Single chart state for all availability data
+  // Each chart has its own default, but once the user changes any one of them
+  // all charts sync to that selection via the shared override state.
+  const salesChartBase        = useChartState("all");
+  const listingShortChartBase = useChartState("1d");
+  const listingLongChartBase  = useChartState("7d");
+  const pricePointsChartBase  = useChartState("7d");
 
-  // Availability state from Redux
+  // Shared override: null = each chart uses its own default independently.
+  // Once the user changes any chart, all charts sync to this value.
+  const [override, setOverride] = React.useState<{ timeRange: string; interval: string } | null>(null);
+
+  // For rendering we need reactive values (not getters), so derive them from state directly
+  const activeTimeRange = override?.timeRange ?? salesChartBase.timeRange;
+
+  const salesChart: UseChartStateReturn = {
+    timeRange:    override?.timeRange ?? salesChartBase.timeRange,
+    interval:     override?.interval  ?? salesChartBase.interval,
+    setTimeRange: (v: string) => { salesChartBase.setTimeRange(v); setOverride({ timeRange: v, interval: getDefaultInterval(v) }); },
+    setInterval:  (v: string) => { salesChartBase.setInterval(v);  setOverride((p) => ({ timeRange: p?.timeRange ?? salesChartBase.timeRange, interval: v })); },
+    _setDataSpanMs: salesChartBase._setDataSpanMs,
+  };
+  const listingShortChart: UseChartStateReturn = {
+    timeRange:    override?.timeRange ?? listingShortChartBase.timeRange,
+    interval:     override?.interval  ?? listingShortChartBase.interval,
+    setTimeRange: (v: string) => { listingShortChartBase.setTimeRange(v); setOverride({ timeRange: v, interval: getDefaultInterval(v) }); },
+    setInterval:  (v: string) => { listingShortChartBase.setInterval(v);  setOverride((p) => ({ timeRange: p?.timeRange ?? listingShortChartBase.timeRange, interval: v })); },
+    _setDataSpanMs: listingShortChartBase._setDataSpanMs,
+  };
+  const listingLongChart: UseChartStateReturn = {
+    timeRange:    override?.timeRange ?? listingLongChartBase.timeRange,
+    interval:     override?.interval  ?? listingLongChartBase.interval,
+    setTimeRange: (v: string) => { listingLongChartBase.setTimeRange(v); setOverride({ timeRange: v, interval: getDefaultInterval(v) }); },
+    setInterval:  (v: string) => { listingLongChartBase.setInterval(v);  setOverride((p) => ({ timeRange: p?.timeRange ?? listingLongChartBase.timeRange, interval: v })); },
+    _setDataSpanMs: listingLongChartBase._setDataSpanMs,
+  };
+  const pricePointsChart: UseChartStateReturn = {
+    timeRange:    override?.timeRange ?? pricePointsChartBase.timeRange,
+    interval:     override?.interval  ?? pricePointsChartBase.interval,
+    setTimeRange: (v: string) => { pricePointsChartBase.setTimeRange(v); setOverride({ timeRange: v, interval: getDefaultInterval(v) }); },
+    setInterval:  (v: string) => { pricePointsChartBase.setInterval(v);  setOverride((p) => ({ timeRange: p?.timeRange ?? pricePointsChartBase.timeRange, interval: v })); },
+    _setDataSpanMs: pricePointsChartBase._setDataSpanMs,
+  };
+
+  // Availability state from Redux — must be declared before the span useEffect below
   const availabilityFromRedux = useSelector(
     (state: RootState) => state.availability,
   );
+
+  // When "all" is selected, compute the actual data span from whichever source
+  // has the widest range and push it into the chart state so the interval
+  // auto-selects the coarsest option that still looks good.
+  React.useEffect(() => {
+    if (activeTimeRange !== "all") return;
+
+    const timestamps: number[] = [];
+
+    // Sales data
+    (sales || []).forEach((s: any) => {
+      const t = s.purchased_at ? moment.utc(s.purchased_at).valueOf() : NaN;
+      if (!isNaN(t)) timestamps.push(t);
+    });
+    (vividSales || []).forEach((s: any) => {
+      const t = s.saleDate ? moment.utc(s.saleDate).valueOf() : NaN;
+      if (!isNaN(t)) timestamps.push(t);
+    });
+
+    // Listing trends
+    (listingTrends || []).forEach((l: any) => {
+      const t = l.created_at ? moment.utc(l.created_at).valueOf() : NaN;
+      if (!isNaN(t)) timestamps.push(t);
+    });
+
+    // Availability snapshots
+    (availabilityFromRedux.data?.snapshots || []).forEach((s: any) => {
+      const t = s.timestamp ? moment.utc(s.timestamp).valueOf() : NaN;
+      if (!isNaN(t)) timestamps.push(t);
+    });
+
+    if (timestamps.length === 0) return;
+
+    const spanMs = moment.utc().valueOf() - Math.min(...timestamps);
+    const smartSpan = spanMs > 0 ? spanMs : null;
+    // Push to all base chart states so each one has the span
+    salesChartBase._setDataSpanMs(smartSpan);
+    listingShortChartBase._setDataSpanMs(smartSpan);
+    listingLongChartBase._setDataSpanMs(smartSpan);
+    pricePointsChartBase._setDataSpanMs(smartSpan);
+  }, [
+    activeTimeRange,
+    sales,
+    vividSales,
+    listingTrends,
+    availabilityFromRedux.data,
+  ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Enhanced chart config showing price, total revenue, and ticket quantity
   const enhancedSalesChartConfig = React.useMemo(() => ({
@@ -200,7 +282,7 @@ export default function EventDetailsPage() {
     });
 
     const sorted = [...keys].sort((a, b) => totals[b] - totals[a]);
-    const topCount = Math.max(1, Math.ceil(sorted.length * 0.2));
+    const topCount = Math.max(1, Math.ceil(sorted.length * 0.05));
     const topKeys = new Set(sorted.slice(0, topCount));
 
     return new Set(keys.filter((k) => !topKeys.has(k)));
@@ -239,21 +321,13 @@ export default function EventDetailsPage() {
       (availabilityData.sectionChart?.length ?? 0) > 0 ||
       (availabilityData.capacityTable?.length ?? 0) > 0
     );
-  const suggestsFromRedux = useSelector((state: RootState) => state.suggests);
-  const [suggestsPaginationModel, setSuggestsPaginationModel] =
+  const analysisLogsFromRedux = useSelector((state: RootState) => state.eventAnalysisLogs);
+  const [analysisLogsPaginationModel, setAnalysisLogsPaginationModel] =
     React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
-  const [suggestsSortModel, setSuggestsSortModel] =
+  const [analysisLogsSortModel, setAnalysisLogsSortModel] =
     React.useState<GridSortModel>([{ field: "created_at", sort: "desc" }]);
-  const [suggestsFilterModel, setSuggestsFilterModel] =
-    React.useState<GridFilterModel>({
-      items: [{ field: "llm_type", operator: "equals", value: "event-signal" }],
-    });
-
-  // Edit Dialog State
-  const [editDialogOpen, setEditDialogOpen] = React.useState(false);
-  const [editingSuggest, setEditingSuggest] = React.useState<any>(null);
-  const [editComment, setEditComment] = React.useState("");
-  const [editScore, setEditScore] = React.useState<number | null>(null);
+  const [analysisLogsFilterModel, setAnalysisLogsFilterModel] =
+    React.useState<GridFilterModel>({ items: [] });
 
   // Monitor Dialog State
   const [confirmStopDialog, setConfirmStopDialog] = React.useState(false);
@@ -262,63 +336,21 @@ export default function EventDetailsPage() {
   const isMonitoring = selectedEvent?.is_monitored || false;
   const monitorLevel = selectedEvent?.monitor_level || "none";
 
-  // Edit Dialog Handlers
-  const handleOpenEditDialog = (suggest: any) => {
-    setEditingSuggest(suggest);
-    setEditComment(suggest.llm_result_comment);
-    setEditScore(suggest.llm_result_score);
-    setEditDialogOpen(true);
-  };
+  // Edit Dialog Handlers — removed (event_analysis_logs is read-only)
 
-  const handleCloseEditDialog = () => {
-    setEditDialogOpen(false);
-    setEditingSuggest(null);
-    setEditComment("");
-    setEditScore(null);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingSuggest || !eventId) return;
-
-    const payload: UpdateSuggestPayload = {
-      id: editingSuggest.id,
-      llm_result_comment: editComment,
-      llm_result_score: editScore,
-    };
-
-    await dispatch(
-      updateSuggest({
-        payload,
-        queryOptions: {
-          page: suggestsPaginationModel.page,
-          pageSize: suggestsPaginationModel.pageSize,
-          sortFields: suggestsSortModel,
-          filters: {
-            items: [
-              { field: "event_id", operator: "equals", value: eventId },
-              ...suggestsFilterModel.items,
-            ],
-          },
-        },
-      }),
-    );
-
-    handleCloseEditDialog();
-  };
-
-  // Fetch suggests with server-side pagination/sorting/filtering
+  // Fetch analysis logs with server-side pagination/sorting/filtering
   React.useEffect(() => {
     if (!eventId) return;
 
     dispatch(
-      getSuggests({
-        page: suggestsPaginationModel.page,
-        pageSize: suggestsPaginationModel.pageSize,
-        sortFields: suggestsSortModel,
+      getEventAnalysisLogs({
+        page: analysisLogsPaginationModel.page,
+        pageSize: analysisLogsPaginationModel.pageSize,
+        sortFields: analysisLogsSortModel,
         filters: {
           items: [
             { field: "event_id", operator: "equals", value: eventId },
-            ...suggestsFilterModel.items,
+            ...analysisLogsFilterModel.items,
           ],
         },
       }),
@@ -326,42 +358,46 @@ export default function EventDetailsPage() {
   }, [
     dispatch,
     eventId,
-    suggestsPaginationModel.page,
-    suggestsPaginationModel.pageSize,
-    suggestsSortModel,
-    suggestsFilterModel,
+    analysisLogsPaginationModel.page,
+    analysisLogsPaginationModel.pageSize,
+    analysisLogsSortModel,
+    analysisLogsFilterModel,
   ]);
 
   // Fetch availability data — clear stale data first so old time range doesn't linger
   React.useEffect(() => {
     if (!eventId) return;
 
-    // Map time range to hours
     const hoursMap: Record<string, number> = {
-      "6h": 6,
-      "12h": 12,
-      "24h": 24,
-      "48h": 48,
-      "7d": 168,
+      "all":  87600, // 10 years — fetch everything
+      "1h":   1,
+      "3h":   3,
+      "6h":   6,
+      "12h":  12,
+      "1d":   24,
+      "7d":   168,
+      "30d":  720,
+      "3m":   2160,
+      "6m":   4380,
+      "1y":   8760,
     };
 
-    const lastHoursCount = hoursMap[pricePointsChart.timeRange] || 24;
+    const lastHoursCount = hoursMap[activeTimeRange] ?? 24;
     dispatch(clearAvailability());
     dispatch(getAvailability({ eventId, lastHoursCount }));
-  }, [dispatch, eventId, pricePointsChart.timeRange]);
+  }, [dispatch, eventId, activeTimeRange]);
 
-  const handleRefreshSuggests = React.useCallback(() => {
+  const handleRefreshAnalysisLogs = React.useCallback(() => {
     if (!eventId) return;
-
     dispatch(
-      getSuggests({
-        page: suggestsPaginationModel.page,
-        pageSize: suggestsPaginationModel.pageSize,
-        sortFields: suggestsSortModel,
+      getEventAnalysisLogs({
+        page: analysisLogsPaginationModel.page,
+        pageSize: analysisLogsPaginationModel.pageSize,
+        sortFields: analysisLogsSortModel,
         filters: {
           items: [
             { field: "event_id", operator: "equals", value: eventId },
-            ...suggestsFilterModel.items,
+            ...analysisLogsFilterModel.items,
           ],
         },
       }),
@@ -369,10 +405,10 @@ export default function EventDetailsPage() {
   }, [
     dispatch,
     eventId,
-    suggestsPaginationModel.page,
-    suggestsPaginationModel.pageSize,
-    suggestsSortModel,
-    suggestsFilterModel,
+    analysisLogsPaginationModel.page,
+    analysisLogsPaginationModel.pageSize,
+    analysisLogsSortModel,
+    analysisLogsFilterModel,
   ]);
 
   // Monitor Handlers
@@ -564,11 +600,11 @@ export default function EventDetailsPage() {
     );
   }, [sales, vividSales]);
 
-  // Derive the "onOrAfter" date from the chart time range so the table stays in sync.
-  // This is recomputed whenever salesChart.timeRange changes.
-  const salesTimeRangeFilterDate = React.useMemo(() => {
+  // Derive a cutoff date from the active time range — null means "all time" (no filter)
+  const timeRangeCutoffDate = React.useMemo(() => {
+    if (activeTimeRange === "all") return null;
     const now = moment.utc();
-    switch (salesChart.timeRange) {
+    switch (activeTimeRange) {
       case "1h":  return now.subtract(1, "hour").toDate();
       case "3h":  return now.subtract(3, "hours").toDate();
       case "6h":  return now.subtract(6, "hours").toDate();
@@ -579,11 +615,11 @@ export default function EventDetailsPage() {
       case "3m":  return now.subtract(3, "months").toDate();
       case "6m":  return now.subtract(6, "months").toDate();
       case "1y":  return now.subtract(1, "year").toDate();
-      default:    return now.subtract(1, "day").toDate();
+      default:    return null;
     }
-  }, [salesChart.timeRange]);
+  }, [activeTimeRange]);
 
-  // Sales Grid State — seeded with the time range filter
+  // Sales Grid State — no default date filter, show all sales from all time
   const {
     paginationModel: salesPaginationModel,
     sortModel: salesSortModel,
@@ -599,36 +635,42 @@ export default function EventDetailsPage() {
     columns: salesColumns,
     initialPaginationModel: { page: 0, pageSize: 25 },
     initialSortModel: [{ field: "purchased_at", sort: "desc" }],
-    initialFilterModel: {
-      items: [
-        {
-          field: "purchased_at",
-          operator: "onOrAfter",
-          value: salesTimeRangeFilterDate,
-        },
-      ],
-    },
+    initialFilterModel: { items: [] },
   });
 
-  // When the chart time range changes, push the new "onOrAfter" date into the table filter.
-  // We preserve any other active filter items (source, section, price, etc.) and only
-  // replace the purchased_at onOrAfter item.
+  // Sync sales table date filter when global time range changes
   React.useEffect(() => {
     setSalesFilterModel((prev) => {
       const otherItems = prev.items.filter((item) => item.field !== "purchased_at");
+      if (!timeRangeCutoffDate) {
+        return { ...prev, items: otherItems };
+      }
       return {
         ...prev,
         items: [
           ...otherItems,
-          {
-            field: "purchased_at",
-            operator: "onOrAfter",
-            value: salesTimeRangeFilterDate,
-          },
+          { field: "purchased_at", operator: "onOrAfter", value: timeRangeCutoffDate.toISOString() },
         ],
       };
     });
-  }, [salesTimeRangeFilterDate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [timeRangeCutoffDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync analysis logs date filter when global time range changes
+  React.useEffect(() => {
+    setAnalysisLogsFilterModel((prev) => {
+      const otherItems = prev.items.filter((item) => item.field !== "created_at");
+      if (!timeRangeCutoffDate) {
+        return { ...prev, items: otherItems };
+      }
+      return {
+        ...prev,
+        items: [
+          ...otherItems,
+          { field: "created_at", operator: "onOrAfter", value: timeRangeCutoffDate.toISOString() },
+        ],
+      };
+    });
+  }, [timeRangeCutoffDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate sales summary statistics — based on filtered rows so header stats match the table
   const salesSummary = React.useMemo(() => {
@@ -670,65 +712,8 @@ export default function EventDetailsPage() {
     initialSortModel: [{ field: "time", sort: "desc" }],
   });
 
-  // Suggests Data Grid Columns (server-side rendering - no valueGetter for nested fields)
-  const suggestsColumns: CustomGridColDef[] = [
-    {
-      field: "action",
-      headerName: "Action",
-      minWidth: 100,
-      flex: 1,
-      type: "string",
-      sortable: false,
-      filterable: false,
-      valueGetter: (_value: any, row: any) => row?.llm_result?.action ?? "-",
-    },
-    {
-      field: "section",
-      headerName: "Section",
-      minWidth: 150,
-      flex: 1,
-      type: "string",
-      sortable: false,
-      filterable: false,
-      valueGetter: (_value: any, row: any) => row?.llm_result?.section ?? "-",
-    },
-    {
-      field: "confidence_level",
-      headerName: "Confidence",
-      minWidth: 120,
-      flex: 1,
-      type: "string",
-      sortable: false,
-      filterable: false,
-      valueGetter: (_value: any, row: any) =>
-        row?.llm_result?.confidence_level ?? "-",
-    },
-    {
-      field: "reasoning",
-      headerName: "Reasoning",
-      minWidth: 300,
-      flex: 2,
-      type: "string",
-      sortable: false,
-      filterable: false,
-      valueGetter: (_value: any, row: any) => row?.llm_result?.reasoning ?? "-",
-    },
-    {
-      field: "llm_result_comment",
-      headerName: "Comment",
-      minWidth: 200,
-      flex: 1,
-      type: "string",
-    },
-    {
-      field: "llm_result_score",
-      headerName: "Score",
-      minWidth: 100,
-      flex: 1,
-      type: "number",
-      valueFormatter: (value: any) =>
-        typeof value === "number" ? value.toString() : "-",
-    },
+  // Analysis Logs Data Grid Columns
+  const analysisLogsColumns: CustomGridColDef[] = [
     {
       field: "created_at",
       headerName: "Date & Time",
@@ -739,24 +724,69 @@ export default function EventDetailsPage() {
       valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
     },
     {
-      field: "actions",
-      headerName: "Actions",
-      headerAlign: "center",
-      align: "center",
-      width: 80,
+      field: "llm_action",
+      headerName: "Action",
+      minWidth: 120,
+      flex: 1,
+      type: "string",
+    },
+    {
+      field: "recommendation_count",
+      headerName: "Recommendations",
+      minWidth: 140,
+      flex: 1,
+      type: "number",
+      valueFormatter: (value: any) =>
+        typeof value === "number" ? value.toString() : "-",
+    },
+    {
+      field: "monitor_level",
+      headerName: "Monitor Level",
+      minWidth: 130,
+      flex: 1,
+      type: "string",
+    },
+    {
+      field: "days_to_event",
+      headerName: "Days to Event",
+      minWidth: 130,
+      flex: 1,
+      type: "number",
+      valueFormatter: (value: any) =>
+        typeof value === "number" ? value.toString() : "-",
+    },
+    {
+      field: "event_assessment_action",
+      headerName: "Assessment",
+      minWidth: 150,
+      flex: 1,
+      type: "string",
       sortable: false,
       filterable: false,
-      renderCell: (params) => {
-        return (
-          <IconButton
-            onClick={() => handleOpenEditDialog(params.row)}
-            size="small"
-            aria-label="Edit suggestion"
-          >
-            <Edit />
-          </IconButton>
-        );
-      },
+      valueGetter: (_value: any, row: any) =>
+        row?.llm_result?.event_assessment?.recommended_action ?? "-",
+    },
+    {
+      field: "demand_signal",
+      headerName: "Demand Signal",
+      minWidth: 140,
+      flex: 1,
+      type: "string",
+      sortable: false,
+      filterable: false,
+      valueGetter: (_value: any, row: any) =>
+        row?.llm_result?.event_assessment?.demand_signal ?? "-",
+    },
+    {
+      field: "reasoning",
+      headerName: "Reasoning",
+      minWidth: 300,
+      flex: 2,
+      type: "string",
+      sortable: false,
+      filterable: false,
+      valueGetter: (_value: any, row: any) =>
+        row?.llm_result?.event_assessment?.reasoning ?? "-",
     },
   ];
 
@@ -843,10 +873,10 @@ export default function EventDetailsPage() {
     </Stack>
   );
 
-  const suggestionsHeaderComponent = (
+  const analysisLogsHeaderComponent = (
     <Stack direction="row" alignItems="center" spacing={1}>
       <Typography variant="h6" fontWeight={600} gutterBottom>
-        Suggestions
+        Buy Recommendations
       </Typography>
     </Stack>
   );
@@ -1228,10 +1258,8 @@ export default function EventDetailsPage() {
           </Card>
         </Grid>
 
-        {/* Primary Market Availability — only shown when data exists */}
-        {hasPmAvailabilityData && (
-          <>
             {/* Price Point Distribution */}
+            {hasPmAvailabilityData && (
             <Grid size={{ xs: 12 }}>
               <DynamicChart
                 title="Price Points - Availability Trends"
@@ -1249,8 +1277,10 @@ export default function EventDetailsPage() {
                 initialHiddenSeries={priceChartInitialHidden}
               />
             </Grid>
+            )}
 
             {/* Capacity Table */}
+            {hasPmAvailabilityData && (
             <Grid size={{ xs: 12, md: 6 }}>
               <CustomDataGrid
                 title="Primary Market Availability - Capacity Trends"
@@ -1269,14 +1299,19 @@ export default function EventDetailsPage() {
                 onRefresh={() => {
                   if (eventId) {
                     const hoursMap: Record<string, number> = {
-                      "6h": 6,
-                      "12h": 12,
-                      "24h": 24,
-                      "48h": 48,
-                      "7d": 168,
+                      "all":  87600,
+                      "1h":   1,
+                      "3h":   3,
+                      "6h":   6,
+                      "12h":  12,
+                      "1d":   24,
+                      "7d":   168,
+                      "30d":  720,
+                      "3m":   2160,
+                      "6m":   4380,
+                      "1y":   8760,
                     };
-                    const lastHoursCount =
-                      hoursMap[pricePointsChart.timeRange] || 24;
+                    const lastHoursCount = hoursMap[activeTimeRange] ?? 24;
                     dispatch(getAvailability({ eventId, lastHoursCount }));
                   }
                 }}
@@ -1285,8 +1320,10 @@ export default function EventDetailsPage() {
                 logo={TJ_LOGO}
               />
             </Grid>
+            )}
 
             {/* Section Breakdown */}
+            {hasPmAvailabilityData && (
             <Grid size={{ xs: 12, md: 6 }}>
               <DynamicChart
                 title="Sections - Availability Trends"
@@ -1304,8 +1341,8 @@ export default function EventDetailsPage() {
                 initialHiddenSeries={sectionChartInitialHidden}
               />
             </Grid>
-          </>
-        )}
+            )}
+          
 
         {/* Listing Trends - Short Term */}
         <Grid size={{ xs: 12, md: 6 }}>
@@ -1419,39 +1456,27 @@ export default function EventDetailsPage() {
           />
         </Grid>
 
-        {/* Suggests Data Grid */}
+        {/* Analysis Logs Data Grid */}
         <Grid size={{ xs: 12 }}>
           <CustomDataGrid
-            title="Suggestions"
-            rows={suggestsFromRedux.rows.data}
-            rowCount={suggestsFromRedux.rows.total}
-            columns={suggestsColumns}
-            isLoading={suggestsFromRedux.loading}
-            error={suggestsFromRedux.error}
-            paginationModel={suggestsPaginationModel}
-            setPaginationModel={setSuggestsPaginationModel}
-            sortingModel={suggestsSortModel}
-            setSortingModel={setSuggestsSortModel}
-            filterModel={suggestsFilterModel}
-            setFilterModel={setSuggestsFilterModel}
-            onRefresh={handleRefreshSuggests}
+            title="Buy Recommendations"
+            rows={analysisLogsFromRedux.rows.data}
+            rowCount={analysisLogsFromRedux.rows.total}
+            columns={analysisLogsColumns}
+            isLoading={analysisLogsFromRedux.loading}
+            error={analysisLogsFromRedux.error}
+            paginationModel={analysisLogsPaginationModel}
+            setPaginationModel={setAnalysisLogsPaginationModel}
+            sortingModel={analysisLogsSortModel}
+            setSortingModel={setAnalysisLogsSortModel}
+            filterModel={analysisLogsFilterModel}
+            setFilterModel={setAnalysisLogsFilterModel}
+            onRefresh={handleRefreshAnalysisLogs}
             height={400}
-            headerComponent={suggestionsHeaderComponent}
+            headerComponent={analysisLogsHeaderComponent}
           />
         </Grid>
       </Grid>
-
-      {/* Edit Suggestion Dialog */}
-      <SuggestionDialog
-        open={editDialogOpen}
-        onClose={handleCloseEditDialog}
-        suggestion={editingSuggest}
-        comment={editComment}
-        score={editScore}
-        onCommentChange={setEditComment}
-        onScoreChange={setEditScore}
-        onSubmit={handleSaveEdit}
-      />
 
       {/* Stop Monitor Confirmation Dialog */}
       <ConfirmDialog

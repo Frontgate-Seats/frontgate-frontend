@@ -1,16 +1,13 @@
 import * as React from "react";
 import { useSelector } from "react-redux";
-import { Stack, Grid, IconButton, Typography, Link } from "@mui/material";
-import { Edit } from "@mui/icons-material";
+import { Stack, Grid, Typography, Link } from "@mui/material";
 
 import type { RootState } from "../store";
 import { formatDateTime } from "../shared/utils/dateTime.util";
-import { getSuggests, updateSuggest } from "../store/slices/suggests.slice";
-import type { UpdateSuggestPayload } from "../apis/suggests.api";
+import { getEventAnalysisLogs } from "../store/slices/eventAnalysisLogs.slice";
 import { useAppDispatch } from "../store/reducers/root.reducer";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
-import { SuggestionDialog } from "../components/common/dialogs";
 import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
 
 export default function SuggestionsPage() {
@@ -18,42 +15,32 @@ export default function SuggestionsPage() {
 
   // Redux Data
   const {
-    rows: { data: suggests, total },
-    loading: suggestsLoading,
-    error: suggestsError,
-  } = useSelector((state: RootState) => state.suggests);
+    rows: { data: logs, total },
+    loading,
+    error,
+  } = useSelector((state: RootState) => state.eventAnalysisLogs);
 
   // Grid State — synced with URL query params
-  const defaultSuggestionsFilter = React.useMemo(() => ({
-    items: [{ field: "llm_type", operator: "equals", value: "event-signal" }],
-  }), []);
-
   const { paginationModel, setPaginationModel, sortModel, setSortModel, filterModel, setFilterModel } =
     useDataGridQueryParams({
       columns: [
         { field: "event_id", type: "number" },
         { field: "event_name", type: "string" },
         { field: "created_at", type: "dateTime" },
-        { field: "llm_result_comment", type: "string" },
-        { field: "llm_result_score", type: "number" },
-        // filterOperator: "equals" ensures the operator is preserved on URL reload
-        { field: "llm_type", type: "string", filterOperator: "equals" },
+        { field: "llm_action", type: "string" },
+        { field: "recommendation_count", type: "number" },
+        { field: "monitor_level", type: "string" },
+        { field: "days_to_event", type: "number" },
       ],
       defaultPaginationModel: { page: 0, pageSize: 25 },
       defaultSortModel: [{ field: "created_at", sort: "desc" }],
-      defaultFilterModel: defaultSuggestionsFilter,
+      defaultFilterModel: { items: [] },
     });
-
-  // Edit Dialog State
-  const [editDialogOpen, setEditDialogOpen] = React.useState(false);
-  const [editingSuggest, setEditingSuggest] = React.useState<any>(null);
-  const [editComment, setEditComment] = React.useState("");
-  const [editScore, setEditScore] = React.useState<number | null>(null);
 
   // Fetch Data
   React.useEffect(() => {
     dispatch(
-      getSuggests({
+      getEventAnalysisLogs({
         page: paginationModel.page,
         pageSize: paginationModel.pageSize,
         sortFields: sortModel,
@@ -70,7 +57,7 @@ export default function SuggestionsPage() {
 
   const handleRefresh = React.useCallback(() => {
     dispatch(
-      getSuggests({
+      getEventAnalysisLogs({
         page: paginationModel.page,
         pageSize: paginationModel.pageSize,
         sortFields: sortModel,
@@ -85,65 +72,24 @@ export default function SuggestionsPage() {
     filterModel,
   ]);
 
-  // Edit Dialog Handlers
-  const handleOpenEditDialog = (suggest: any) => {
-    setEditingSuggest(suggest);
-    setEditComment(suggest.llm_result_comment || "");
-    setEditScore(suggest.llm_result_score ?? null);
-    setEditDialogOpen(true);
-  };
-
-  const handleCloseEditDialog = () => {
-    setEditDialogOpen(false);
-    setEditingSuggest(null);
-    setEditComment("");
-    setEditScore(null);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingSuggest) return;
-
-    const payload: UpdateSuggestPayload = {
-      id: editingSuggest.id,
-      llm_result_comment: editComment,
-      llm_result_score: editScore,
-    };
-
-    await dispatch(
-      updateSuggest({
-        payload,
-        queryOptions: {
-          page: paginationModel.page,
-          pageSize: paginationModel.pageSize,
-          sortFields: sortModel,
-          filters: filterModel,
-        },
-      }),
-    );
-
-    handleCloseEditDialog();
-  };
-
-  // Column Definitions (no valueGetter for nested fields - server-side filtering only)
+  // Column Definitions
   const columns: CustomGridColDef[] = [
     {
       field: "event_id",
       headerName: "Event ID",
       width: 120,
       type: "number",
-      renderCell: (params) => {
-        return (
-          <Link
-            href={`/events/${params.value}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            underline="hover"
-            color="primary"
-          >
-            {params.value}
-          </Link>
-        );
-      },
+      renderCell: (params) => (
+        <Link
+          href={`/events/${params.value}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          underline="hover"
+          color="primary"
+        >
+          {params.value}
+        </Link>
+      ),
     },
     {
       field: "event_name",
@@ -154,39 +100,59 @@ export default function SuggestionsPage() {
     },
     {
       field: "created_at",
-      headerName: "Created At",
+      headerName: "Date & Time",
       width: 180,
       type: "dateTime",
       valueGetter: (value) => (value ? new Date(value) : null),
       valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
     },
     {
-      field: "action",
+      field: "llm_action",
       headerName: "Action",
-      width: 100,
+      width: 130,
       type: "string",
-      sortable: false,
-      filterable: false,
-      valueGetter: (_value: any, row: any) => row?.llm_result?.action ?? "-",
     },
     {
-      field: "section",
-      headerName: "Section",
+      field: "recommendation_count",
+      headerName: "Recommendations",
+      width: 150,
+      type: "number",
+      valueFormatter: (value: any) =>
+        typeof value === "number" ? value.toString() : "-",
+    },
+    {
+      field: "monitor_level",
+      headerName: "Monitor Level",
+      width: 130,
+      type: "string",
+    },
+    {
+      field: "days_to_event",
+      headerName: "Days to Event",
+      width: 130,
+      type: "number",
+      valueFormatter: (value: any) =>
+        typeof value === "number" ? value.toString() : "-",
+    },
+    {
+      field: "event_assessment_action",
+      headerName: "Assessment",
       width: 150,
       type: "string",
       sortable: false,
       filterable: false,
-      valueGetter: (_value: any, row: any) => row?.llm_result?.section ?? "-",
+      valueGetter: (_value: any, row: any) =>
+        row?.llm_result?.event_assessment?.recommended_action ?? "-",
     },
     {
-      field: "confidence_level",
-      headerName: "Confidence",
-      width: 120,
+      field: "demand_signal",
+      headerName: "Demand Signal",
+      width: 140,
       type: "string",
       sortable: false,
       filterable: false,
       valueGetter: (_value: any, row: any) =>
-        row?.llm_result?.confidence_level ?? "-",
+        row?.llm_result?.event_assessment?.demand_signal ?? "-",
     },
     {
       field: "reasoning",
@@ -196,46 +162,11 @@ export default function SuggestionsPage() {
       type: "string",
       sortable: false,
       filterable: false,
-      valueGetter: (_value: any, row: any) => row?.llm_result?.reasoning ?? "-",
-    },
-    {
-      field: "llm_result_comment",
-      headerName: "Comment",
-      flex: 1,
-      minWidth: 200,
-      type: "string",
-    },
-    {
-      field: "llm_result_score",
-      headerName: "Score",
-      width: 100,
-      type: "number",
-      valueFormatter: (value: any) =>
-        typeof value === "number" ? value.toString() : "-",
-    },
-    {
-      field: "actions",
-      headerName: "Actions",
-      headerAlign: "center",
-      align: "center",
-      width: 80,
-      sortable: false,
-      filterable: false,
-      renderCell: (params) => {
-        return (
-          <IconButton
-            onClick={() => handleOpenEditDialog(params.row)}
-            size="small"
-            aria-label="Edit suggestion"
-          >
-            <Edit />
-          </IconButton>
-        );
-      },
+      valueGetter: (_value: any, row: any) =>
+        row?.llm_result?.event_assessment?.reasoning ?? "-",
     },
   ];
 
-  // Render
   return (
     <Stack
       padding={3}
@@ -258,11 +189,11 @@ export default function SuggestionsPage() {
         >
           <CustomDataGrid
             title="Suggestions"
-            rows={suggests}
+            rows={logs}
             rowCount={total}
             columns={columns}
-            isLoading={suggestsLoading}
-            error={suggestsError as any}
+            isLoading={loading}
+            error={error as any}
             paginationModel={paginationModel}
             setPaginationModel={setPaginationModel}
             sortingModel={sortModel}
@@ -272,24 +203,12 @@ export default function SuggestionsPage() {
             onRefresh={handleRefresh}
             headerComponent={
               <Typography variant="h6" fontWeight={600} gutterBottom>
-                Suggestions
+                Buy Recommendations
               </Typography>
             }
           />
         </Grid>
       </Grid>
-
-      {/* Edit Suggestion Dialog */}
-      <SuggestionDialog
-        open={editDialogOpen}
-        onClose={handleCloseEditDialog}
-        suggestion={editingSuggest}
-        comment={editComment}
-        score={editScore}
-        onCommentChange={setEditComment}
-        onScoreChange={setEditScore}
-        onSubmit={handleSaveEdit}
-      />
     </Stack>
   );
 }
