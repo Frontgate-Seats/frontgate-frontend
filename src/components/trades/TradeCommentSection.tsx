@@ -15,6 +15,10 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
+import ThumbUpOutlinedIcon from "@mui/icons-material/ThumbUpOutlined";
+import ThumbUpIcon from "@mui/icons-material/ThumbUp";
+import ThumbDownOutlinedIcon from "@mui/icons-material/ThumbDownOutlined";
+import ThumbDownIcon from "@mui/icons-material/ThumbDown";
 import { useAppDispatch } from "../../store/reducers/root.reducer";
 import { updateTradeComment } from "../../store/slices/trades.slice";
 import type { Trade, LlmResultComment } from "../../shared/types/trade.types";
@@ -30,10 +34,11 @@ interface TradeCommentSectionProps {
 function extractHumanText(comment: LlmResultComment | null | undefined): string {
   if (!comment?.human_comment) return "";
   const hc = comment.human_comment;
+  // Only look for text/comment fields, ignore feedback
   if (typeof hc.text === "string") return hc.text;
   if (typeof hc.comment === "string") return hc.comment;
-  const firstStr = Object.values(hc).find((v) => typeof v === "string");
-  return typeof firstStr === "string" ? firstStr : "";
+  // Don't pick up feedback or other fields
+  return "";
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -48,12 +53,19 @@ export default function TradeCommentSection({ trade }: TradeCommentSectionProps)
 
   const existingComment = trade.llm_result_comment;
   const humanText = extractHumanText(existingComment);
+  const existingFeedback = existingComment?.human_comment?.feedback as "good" | "bad" | undefined;
+
+  // Feedback state
+  const [feedbackSaving, setFeedbackSaving] = React.useState(false);
+  const [currentFeedback, setCurrentFeedback] = React.useState<"good" | "bad" | null>(existingFeedback ?? null);
 
   // Sync draft when trade data changes (e.g. after a save patches Redux state)
   React.useEffect(() => {
     if (!editing) {
       setDraftText(extractHumanText(trade.llm_result_comment));
     }
+    const feedback = trade.llm_result_comment?.human_comment?.feedback as "good" | "bad" | undefined;
+    setCurrentFeedback(feedback ?? null);
   // Only re-sync when the stored comment changes, not on every render
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trade.llm_result_comment]);
@@ -73,7 +85,10 @@ export default function TradeCommentSection({ trade }: TradeCommentSectionProps)
     const updatedComment: LlmResultComment = {
       // Preserve any existing ai_comment so we never wipe it
       ai_comment: existingComment?.ai_comment ?? {},
-      human_comment: trimmed ? { text: trimmed } : {},
+      human_comment: {
+        ...(existingComment?.human_comment ?? {}),
+        text: trimmed || undefined,
+      },
     };
     setSaving(true);
     try {
@@ -81,6 +96,29 @@ export default function TradeCommentSection({ trade }: TradeCommentSectionProps)
       setEditing(false);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleFeedback = async (feedback: "good" | "bad") => {
+    // Toggle off if clicking the same feedback
+    const newFeedback = currentFeedback === feedback ? null : feedback;
+    
+    setFeedbackSaving(true);
+    try {
+      const updatedComment: LlmResultComment = {
+        ai_comment: existingComment?.ai_comment ?? {},
+        human_comment: {
+          ...(existingComment?.human_comment ?? {}),
+          feedback: newFeedback || undefined,
+        },
+      };
+      
+      await dispatch(updateTradeComment({ tradeId: trade.id, comment: updatedComment })).unwrap();
+      setCurrentFeedback(newFeedback);
+    } catch (error) {
+      console.error("Failed to save feedback:", error);
+    } finally {
+      setFeedbackSaving(false);
     }
   };
 
@@ -95,13 +133,44 @@ export default function TradeCommentSection({ trade }: TradeCommentSectionProps)
           </Typography>
         </Stack>
 
-        {!editing && (
-          <Tooltip title={humanText ? "Edit your comment" : "Add a comment"}>
-            <IconButton size="small" onClick={handleEdit} aria-label="Edit comment">
-              <EditOutlinedIcon fontSize="small" />
-            </IconButton>
+        <Stack direction="row" alignItems="center" spacing={0.5}>
+          {/* Thumbs up/down feedback */}
+          <Tooltip title={currentFeedback === "good" ? "Remove good rating" : "Mark as good trade"}>
+            <span>
+              <IconButton
+                size="small"
+                onClick={() => handleFeedback("good")}
+                disabled={feedbackSaving}
+                color={currentFeedback === "good" ? "success" : "default"}
+                sx={{ opacity: feedbackSaving ? 0.5 : 1 }}
+              >
+                {currentFeedback === "good" ? <ThumbUpIcon fontSize="small" /> : <ThumbUpOutlinedIcon fontSize="small" />}
+              </IconButton>
+            </span>
           </Tooltip>
-        )}
+
+          <Tooltip title={currentFeedback === "bad" ? "Remove bad rating" : "Mark as bad trade"}>
+            <span>
+              <IconButton
+                size="small"
+                onClick={() => handleFeedback("bad")}
+                disabled={feedbackSaving}
+                color={currentFeedback === "bad" ? "error" : "default"}
+                sx={{ opacity: feedbackSaving ? 0.5 : 1 }}
+              >
+                {currentFeedback === "bad" ? <ThumbDownIcon fontSize="small" /> : <ThumbDownOutlinedIcon fontSize="small" />}
+              </IconButton>
+            </span>
+          </Tooltip>
+
+          {!editing && (
+            <Tooltip title={humanText ? "Edit your comment" : "Add a comment"}>
+              <IconButton size="small" onClick={handleEdit} aria-label="Edit comment">
+                <EditOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Stack>
       </Stack>
 
       {/* ── Body ────────────────────────────────────────────────────── */}

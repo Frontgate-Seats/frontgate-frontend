@@ -81,7 +81,13 @@ export default function TradesPage() {
     setFilterModel,
   } = useDataGridQueryParams({
     columns: [
+      { field: "event_id", type: "string" },
+      { field: "event_name", type: "string" },
+      { field: "utc_date", type: "dateTime" },
+      { field: "venue_name", type: "string" },
       { field: "vs_section", type: "string" },
+      { field: "row", type: "string" },
+      { field: "quantity", type: "number" },
       { field: "max_buy_price", type: "number" },
       { field: "projected_sell_price", type: "number" },
       { field: "estimated_margin_percent", type: "number" },
@@ -205,8 +211,6 @@ export default function TradesPage() {
       headerName: "Event ID",
       width: 120,
       type: "string",
-      sortable: false,
-      filterable: false,
       renderCell: (params) => {
         if (params.row._rowType === "detail") return null;
         return (
@@ -228,8 +232,6 @@ export default function TradesPage() {
       flex: 1,
       minWidth: 200,
       type: "string",
-      sortable: false,
-      filterable: false,
       renderCell: (params) => {
         if (params.row._rowType === "detail") return null;
         return params.value;
@@ -240,8 +242,6 @@ export default function TradesPage() {
       headerName: "Event Date",
       width: 150,
       type: "dateTime",
-      sortable: false,
-      filterable: false,
       valueGetter: (value: any) => (value ? new Date(value) : null),
       valueFormatter: (value: any) => (value ? formatDateTime(value) : "-"),
       renderCell: (params) => {
@@ -254,8 +254,6 @@ export default function TradesPage() {
       headerName: "Venue",
       width: 150,
       type: "string",
-      sortable: false,
-      filterable: false,
       renderCell: (params) => {
         if (params.row._rowType === "detail") return null;
         return params.value;
@@ -338,7 +336,7 @@ export default function TradesPage() {
       type: "number",
       align: "right",
       headerAlign: "right",
-      min: -100,
+      min: 0,
       max: 500,
       renderCell: (params) => {
         if (params.row._rowType === "detail") return null;
