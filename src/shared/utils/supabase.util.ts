@@ -53,6 +53,7 @@ export const isEmptyFilterValue = (value: FilterValue): boolean => {
 export const applySingleFilter = <T extends SupabaseQuery>(
   query: T,
   filter: GridFilterItem,
+  columnType?: string,
 ): T => {
   const { field, operator, value } = filter;
 
@@ -60,60 +61,155 @@ export const applySingleFilter = <T extends SupabaseQuery>(
     return query;
   }
 
+  // Sanitize and validate the value - remove any URL artifacts
+  let cleanValue = value;
+  if (typeof value === "string") {
+    // Remove URL encoding artifacts like &, ?, = at the start
+    cleanValue = value.replace(/^[&?=]+/, '').trim();
+    
+    // If the value still looks like a URL parameter (contains & or =), extract just the value
+    if (cleanValue.includes('=')) {
+      const parts = cleanValue.split('=');
+      cleanValue = parts[parts.length - 1]; // Get the last part after =
+    }
+    if (cleanValue.includes('&')) {
+      cleanValue = cleanValue.split('&')[0]; // Get the first part before &
+    }
+  }
+
+  // For numeric/date columns, don't use text operators like ilike
+  const isNumericOrDateColumn = 
+    columnType === "number" || 
+    columnType === "dateTime" ||
+    columnType === "date";
+
+  // Convert value to appropriate type
+  let processedValue: any = cleanValue;
+  if (columnType === "number") {
+    if (typeof cleanValue === "string") {
+      const numValue = Number(cleanValue);
+      if (isNaN(numValue)) {
+        console.warn(`Invalid numeric value for field "${field}": "${cleanValue}". Skipping filter.`);
+        return query; // Skip this filter if value is invalid
+      }
+      processedValue = numValue;
+    } else if (typeof cleanValue === "number") {
+      processedValue = cleanValue;
+    }
+  }
+
   switch (operator) {
     case "contains":
-      return query.ilike(field, `%${value}%`) as T;
+      // Only use ilike for text columns
+      return isNumericOrDateColumn 
+        ? query.eq(field, processedValue) as T
+        : query.ilike(field, `%${processedValue}%`) as T;
     case "equals":
-      return query.eq(field, value) as T;
+    case "=":
+      return query.eq(field, processedValue) as T;
     case "startsWith":
-      return query.ilike(field, `${value}%`) as T;
+      return isNumericOrDateColumn
+        ? query.eq(field, processedValue) as T
+        : query.ilike(field, `${processedValue}%`) as T;
     case "endsWith":
-      return query.ilike(field, `%${value}`) as T;
+      return isNumericOrDateColumn
+        ? query.eq(field, processedValue) as T
+        : query.ilike(field, `%${processedValue}`) as T;
     case "isEmpty":
       return query.is(field, null) as T;
     case "isNotEmpty":
       return query.not(field, "is", null) as T;
     case "isAnyOf":
-      return Array.isArray(value) ? (query.in(field, value) as T) : query;
+      if (Array.isArray(processedValue)) {
+        const arrayValue = columnType === "number"
+          ? processedValue.map(v => {
+              if (typeof v === "string") {
+                const num = Number(v);
+                return isNaN(num) ? null : num;
+              }
+              return v;
+            }).filter(v => v !== null)
+          : processedValue;
+        return query.in(field, arrayValue) as T;
+      }
+      return query;
     case ">=":
     case "greaterThanOrEqual":
-      return query.gte(field, value) as T;
+      return query.gte(field, processedValue) as T;
     case "<=":
     case "lessThanOrEqual":
-      return query.lte(field, value) as T;
+      return query.lte(field, processedValue) as T;
     case ">":
     case "greaterThan":
-      return query.gt(field, value) as T;
+      return query.gt(field, processedValue) as T;
     case "<":
     case "lessThan":
-      return query.lt(field, value) as T;
+      return query.lt(field, processedValue) as T;
     case "!=":
     case "notEquals":
-      return query.neq(field, value) as T;
+      return query.neq(field, processedValue) as T;
     case "onOrAfter":
-      return query.gte(field, value) as T;
+      return query.gte(field, processedValue) as T;
     case "onOrBefore":
-      return query.lte(field, value) as T;
+      return query.lte(field, processedValue) as T;
     case "after":
-      return query.gt(field, value) as T;
+      return query.gt(field, processedValue) as T;
     case "before":
-      return query.lt(field, value) as T;
+      return query.lt(field, processedValue) as T;
     case "is":
-      return query.eq(field, value) as T;
+      return query.eq(field, processedValue) as T;
     default:
-      return query.ilike(field, `%${value}%`) as T;
+      // Default to equals for numeric/date columns, ilike for text
+      return isNumericOrDateColumn
+        ? query.eq(field, processedValue) as T
+        : query.ilike(field, `%${processedValue}%`) as T;
   }
 };
 
-// Apply filters
+// Remap filter fields using a field mapping (for joined tables)
+export const remapFilters = (
+  filters?: GridFilterModel,
+  fieldMapping?: Record<string, string>,
+): GridFilterModel | undefined => {
+  if (!filters?.items?.length || !fieldMapping) return filters;
+  
+  return {
+    ...filters,
+    items: filters.items.map((item) => ({
+      ...item,
+      field: fieldMapping[item.field] || item.field,
+    })),
+  };
+};
+
+// Remap sort fields using a field mapping (for joined tables)
+export const remapSortFields = (
+  sortFields?: GridSortModel,
+  fieldMapping?: Record<string, string>,
+): GridSortModel | undefined => {
+  if (!sortFields?.length || !fieldMapping) return sortFields;
+  
+  return sortFields.map((item) => ({
+    ...item,
+    field: fieldMapping[item.field] || item.field,
+  }));
+};
+
+// Apply filters with column type awareness
 export const applyFilters = <T extends SupabaseQuery>(
   query: T,
   filters?: GridFilterModel,
+  columnTypes?: Record<string, string>,
 ): T => {
   if (!filters?.items?.length) return query;
 
   return filters.items.reduce(
-    (acc, filter) => applySingleFilter(acc, filter),
+    (acc, filter) => {
+      // Get the base field name (without joined table prefix)
+      const baseField = filter.field.split('.').pop() || filter.field;
+      const columnType = columnTypes?.[baseField];
+      return applySingleFilter(acc, filter, columnType);
+    },
     query,
   );
 };
@@ -133,7 +229,7 @@ export const applySearch = <T extends SupabaseQuery>(
   return query.or(searchConditions) as T;
 };
 
-// Apply sorting
+// Apply sorting (generic - for simple cases without foreign table sorting)
 export const applySorting = <T extends SupabaseQuery>(
   query: T,
   sortFields?: GridSortModel,
@@ -141,8 +237,7 @@ export const applySorting = <T extends SupabaseQuery>(
   if (!sortFields?.length) return query;
 
   return sortFields.reduce(
-    (acc, sort) =>
-      acc.order(sort.field, { ascending: sort.sort === "asc" }) as T,
+    (acc, sort) => acc.order(sort.field, { ascending: sort.sort === "asc" }) as T,
     query,
   );
 };
