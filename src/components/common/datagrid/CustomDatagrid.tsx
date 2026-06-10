@@ -291,11 +291,11 @@ export default function CustomDataGrid({
                   showFilters && {
                     "& .MuiDataGrid-columnHeader": {
                       padding: 0,
-                      minHeight: 100,
-                      height: 100,
+                      minHeight: 70,
+                      height: 70,
                     },
                     "& .MuiDataGrid-columnHeaders": {
-                      minHeight: 100,
+                      minHeight: 70,
                     },
                   }),
               }}

@@ -28,6 +28,9 @@ const envSchema = z.object({
   VITE_APP_SUPABASE_ANON_KEY: z
     .string()
     .nonempty("Env : VITE_APP_SUPABASE_ANON_KEY is missing."),
+  ENVIRONMENT: z
+    .string()
+    .optional()
 });
 
 const parsedEnv = envSchema.safeParse({
@@ -39,6 +42,7 @@ const parsedEnv = envSchema.safeParse({
   VITE_APP_SUPABASE_SERVICE_ROLE_KEY: import.meta.env
     .VITE_APP_SUPABASE_SERVICE_ROLE_KEY,
   VITE_APP_SUPABASE_ANON_KEY: import.meta.env.VITE_APP_SUPABASE_ANON_KEY,
+  ENVIRONMENT: import.meta.env.VITE_APP_ENVIRONMENT,
 });
 
 if (!parsedEnv.success) {
@@ -52,8 +56,8 @@ if (!parsedEnv.success) {
 }
 
 const envVars = parsedEnv.data;
-
 const envConfigs = {
+  isDevelopment: envVars.ENVIRONMENT === "development",
   server: {
     url: envVars.VITE_APP_SERVER_URL,
   },

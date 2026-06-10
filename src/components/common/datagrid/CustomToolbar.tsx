@@ -9,8 +9,10 @@ import {
   IconButton,
   Collapse,
   Box,
+  Chip,
+  Tooltip,
 } from "@mui/material";
-import { ExpandLess, ExpandMore, FilterAltOutlined } from "@mui/icons-material";
+import { ExpandLess, ExpandMore, FilterList, Clear } from "@mui/icons-material";
 import type { GridFilterModel } from "@mui/x-data-grid";
 import type { CustomGridColDef } from "../../../shared/types/mui.type";
 import { useFilterLogic } from "./hooks/useFilterLogic";
@@ -53,27 +55,29 @@ const FilterRow: React.FC<FilterRowProps> = ({
   });
 
   return (
-    <Paper
-      variant="outlined"
-      sx={{
-        p: 2,
-      }}
-    >
-      <Typography variant="body2" marginBottom={1}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <Typography 
+        variant="body2" 
+        fontWeight={600} 
+        color="text.secondary" 
+        sx={{ mb: 1, minHeight: 20 }}
+      >
         {column.headerName}
       </Typography>
-
-      <FilterInput
-        column={column}
-        value={localValue}
-        onChange={handleChange}
-        onCommit={commitNow}
-        size="small"
-        variant="outlined"
-        fullWidth
-        placeholder="Type to filter..."
-      />
-    </Paper>
+      <Box sx={{ flex: 1, display: "flex", alignItems: "flex-start" }}>
+        <FilterInput
+          column={column}
+          value={localValue}
+          onChange={handleChange}
+          onCommit={commitNow}
+          size="small"
+          variant="outlined"
+          fullWidth
+          placeholder="Type to filter..."
+          compact={false}
+        />
+      </Box>
+    </Box>
   );
 };
 
@@ -96,6 +100,20 @@ const DynamicFiltersToolbar: React.FC<DynamicFiltersToolbarProps> = ({
       col.type !== "actions"
   );
 
+  // Count active filters
+  const activeFilterCount = filterModel?.items?.filter((item) => {
+    if (Array.isArray(item.value)) {
+      return item.value.some((v) => v != null && v !== "");
+    }
+    return item.value != null && item.value !== "";
+  }).length || 0;
+
+  // Clear all filters
+  const handleClearAll = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFilterModel({ items: [] });
+  };
+
   return (
     <Paper
       sx={{
@@ -110,28 +128,43 @@ const DynamicFiltersToolbar: React.FC<DynamicFiltersToolbarProps> = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          borderRadius: 1,
-          mb: open ? 1 : 0,
           cursor: "pointer",
+          mb: open ? 2 : 0,
         }}
         onClick={() => setOpen((prev) => !prev)}
       >
         <Stack direction="row" alignItems="center" spacing={1.5}>
-          <FilterAltOutlined color="primary" />
-          <Typography variant="subtitle1" fontWeight="bold">
+          <FilterList color="primary" />
+          <Typography variant="subtitle1" fontWeight={600}>
             Filters
           </Typography>
+          {activeFilterCount > 0 && (
+            <Chip
+              label={activeFilterCount}
+              size="small"
+              color="primary"
+            />
+          )}
         </Stack>
-        <IconButton size="small">
-          {open ? <ExpandLess /> : <ExpandMore />}
-        </IconButton>
+        <Stack direction="row" alignItems="center" spacing={0.5}>
+          {activeFilterCount > 0 && (
+            <Tooltip title="Clear all filters">
+              <IconButton size="small" onClick={handleClearAll}>
+                <Clear />
+              </IconButton>
+            </Tooltip>
+          )}
+          <IconButton size="small">
+            {open ? <ExpandLess /> : <ExpandMore />}
+          </IconButton>
+        </Stack>
       </Box>
 
       <Collapse in={open} unmountOnExit>
         <Divider sx={{ mb: 2 }} />
         <Grid container spacing={2}>
           {validColumns.map((col) => (
-            <Grid key={col.field} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
+            <Grid key={col.field} size={{ xs: 12, sm: 6, md: 4, lg: 3, xl: 2 }}>
               <FilterRow
                 column={col}
                 filterModel={filterModel}

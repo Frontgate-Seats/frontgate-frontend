@@ -263,6 +263,9 @@ export default function TradeDetailPanel({
 
   return (
     <Box
+      onKeyDown={(e) => e.stopPropagation()}
+      onKeyUp={(e) => e.stopPropagation()}
+      onKeyPress={(e) => e.stopPropagation()}
       sx={{
         width: "100%",
         px: 3,
@@ -320,7 +323,7 @@ export default function TradeDetailPanel({
             sortingMode="client"
             paginationModel={paginationModel}
             setPaginationModel={setPaginationModel}
-            height={420}
+            height={560}
             headerComponent={
               <Typography variant="subtitle1" fontWeight={600}>
                 Available Listings for This Event
