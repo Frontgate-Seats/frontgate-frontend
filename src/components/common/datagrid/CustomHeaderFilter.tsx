@@ -69,13 +69,13 @@ export default function CustomHeaderFilter({
   };
 
   return (
-    <Box sx={{ p: 1, height: "100%", display: "flex", flexDirection: "column" }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1, flexShrink: 0 }}>
-        <Box sx={{ fontWeight: 600, fontSize: "0.875rem" }}>
+    <Box sx={{ p: 0.25, height: "100%", display: "flex", flexDirection: "column", gap: 0.25 }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ flexShrink: 0, minHeight: 20 }}>
+        <Box sx={{ fontWeight: 600, fontSize: "0.75rem", lineHeight: 1.1 }}>
           {column.headerName}
         </Box>
         {setSortingModel && (
-          <IconButton size="small" onClick={handleSort} sx={{ p: 0.5 }}>
+          <IconButton size="small" onClick={handleSort} sx={{ p: 0.2, ml: 0.25 }}>
             {getSortIcon()}
           </IconButton>
         )}

@@ -5,6 +5,16 @@ import envConfigs from "../configs/env.configs";
 const supabaseClient = createClient(
   envConfigs.supabase.url,
   envConfigs.supabase.anonKey,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: window.localStorage,
+      storageKey: "frontgate-auth",
+      flowType: "pkce",
+    },
+  }
 );
 
 export default supabaseClient;

@@ -1,11 +1,21 @@
+import * as React from "react";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import MuiCard from "@mui/material/Card";
 import CircularProgress from "@mui/material/CircularProgress";
+import TextField from "@mui/material/TextField";
+import Divider from "@mui/material/Divider";
+import Typography from "@mui/material/Typography";
+import InputAdornment from "@mui/material/InputAdornment";
+import IconButton from "@mui/material/IconButton";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { styled, useColorScheme } from "@mui/material/styles";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import type { AppDispatch, RootState } from "../../store";
-import { signInWithGoogle } from "../../store/slices/auth.slice";
+import { signInWithGoogle, signIn } from "../../store/slices/auth.slice";
+import envConfigs from "../../configs/env.configs";
 import FrontGateLogoBlack from "../../assets/img/frontgate_logo_black.png";
 import FrontGateLogoWhite from "../../assets/img/frontgate_logo_white.png";
 
@@ -68,11 +78,77 @@ const PageContainer = styled(Stack)(({ theme }) => ({
 
 const SignInAuthPage = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
   const { loading } = useSelector((state: RootState) => state.auth);
   const { mode } = useColorScheme();
 
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [emailError, setEmailError] = React.useState("");
+  const [passwordError, setPasswordError] = React.useState("");
+
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setEmail(value);
+    if (emailError && value) {
+      setEmailError("");
+    }
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setPassword(value);
+    if (passwordError && value) {
+      setPasswordError("");
+    }
+  };
+
+  const handleEmailPasswordSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Reset errors
+    setEmailError("");
+    setPasswordError("");
+
+    // Validate
+    let hasError = false;
+    if (!email) {
+      setEmailError("Email is required");
+      hasError = true;
+    } else if (!validateEmail(email)) {
+      setEmailError("Invalid email format");
+      hasError = true;
+    }
+
+    if (!password) {
+      setPasswordError("Password is required");
+      hasError = true;
+    } else if (password.length < 6) {
+      setPasswordError("Password must be at least 6 characters");
+      hasError = true;
+    }
+
+    if (hasError) return;
+
+    // Sign in
+    const result = await dispatch(signIn({ email, password }));
+    if (signIn.fulfilled.match(result)) {
+      navigate("/");
+    }
+  };
+
   const handleGoogleSignIn = () => {
     dispatch(signInWithGoogle());
+  };
+
+  const handleTogglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
@@ -84,6 +160,72 @@ const SignInAuthPage = () => {
             alt="Frontgate Logo"
           />
         </LogoContainer>
+
+        {envConfigs.isDevelopment && (
+          <>
+            <form onSubmit={handleEmailPasswordSignIn}>
+              <Stack spacing={2}>
+                <TextField
+                  fullWidth
+                  label="Email"
+                  type="email"
+                  value={email}
+                  onChange={handleEmailChange}
+                  error={!!emailError}
+                  helperText={emailError}
+                  disabled={loading}
+                  autoComplete="email"
+                  placeholder="your@email.com"
+                />
+
+                <TextField
+                  fullWidth
+                  label="Password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={handlePasswordChange}
+                  error={!!passwordError}
+                  helperText={passwordError}
+                  disabled={loading}
+                  autoComplete="current-password"
+                  placeholder="Enter your password"
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="toggle password visibility"
+                          onClick={handleTogglePasswordVisibility}
+                          edge="end"
+                          disabled={loading}
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+
+                <Button
+                  fullWidth
+                  variant="contained"
+                  size="large"
+                  type="submit"
+                  disabled={loading}
+                  startIcon={loading ? <CircularProgress size={18} /> : null}
+                  sx={{ textTransform: "none", fontWeight: 600 }}
+                >
+                  {loading ? "Signing in..." : "Sign in"}
+                </Button>
+              </Stack>
+            </form>
+
+            <Divider sx={{ my: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                OR
+              </Typography>
+            </Divider>
+          </>
+        )}
 
         <Button
           fullWidth
@@ -100,7 +242,7 @@ const SignInAuthPage = () => {
             "&:hover": { borderColor: "text.secondary", bgcolor: "action.hover" },
           }}
         >
-          Sign in with Google
+          {loading ? "Signing in..." : "Sign in with Google"}
         </Button>
       </Card>
     </PageContainer>

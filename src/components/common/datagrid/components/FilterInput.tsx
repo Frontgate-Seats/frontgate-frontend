@@ -67,17 +67,24 @@ const safeMoment = (v: any): moment.Moment | null => {
   return m.isValid() ? m : null;
 };
 
+// Standard input height for consistency
+const STANDARD_INPUT_HEIGHT = 40;
+// Compact input height to match compact text/select fields
+const COMPACT_INPUT_HEIGHT = 28;
+
 // Compact Date Range Component
 const CompactDateRange = ({
   value,
   onChange,
   size,
   variant,
+  compact,
 }: {
   value: any;
   onChange: (value: any) => void;
   size: "small" | "medium";
   variant: "outlined" | "filled" | "standard";
+  compact?: boolean;
 }) => {
   const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
 
@@ -92,6 +99,8 @@ const CompactDateRange = ({
 
   const open = Boolean(anchorEl);
 
+  const inputHeight = compact ? COMPACT_INPUT_HEIGHT : STANDARD_INPUT_HEIGHT;
+
   return (
     <>
       <TextField
@@ -103,10 +112,21 @@ const CompactDateRange = ({
         slotProps={{
           input: {
             readOnly: true,
-            endAdornment: <CalendarTodayIcon fontSize="small" />,
+            endAdornment: <CalendarTodayIcon sx={{ fontSize: compact ? 14 : 18 }} />,
           },
         }}
-        sx={{ cursor: "pointer" }}
+        sx={{ 
+          cursor: "pointer",
+          "& .MuiOutlinedInput-root": {
+            height: inputHeight,
+            ...(compact && { fontSize: "0.75rem" }),
+          },
+          ...(compact && {
+            "& .MuiOutlinedInput-input": {
+              padding: "3px 6px",
+            },
+          }),
+        }}
       />
       <Popover
         open={open}
@@ -121,9 +141,9 @@ const CompactDateRange = ({
           horizontal: "left",
         }}
       >
-        <Box sx={{ p: 2, minWidth: 400 }}>
+        <Box sx={{ p: 1.5, minWidth: 320 }}>
           <LocalizationProvider dateAdapter={AdapterMoment}>
-            <Stack spacing={2}>
+            <Stack spacing={1.5}>
               <Stack direction="row" spacing={1}>
                 <DatePicker
                   label="From"
@@ -170,6 +190,7 @@ const CompactNumberRange = ({
   column,
   size,
   variant,
+  compact,
 }: {
   value: any;
   onChange: (value: any) => void;
@@ -177,10 +198,17 @@ const CompactNumberRange = ({
   column: CustomGridColDef;
   size: "small" | "medium";
   variant: "outlined" | "filled" | "standard";
+  compact?: boolean;
 }) => {
   const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
   const min = column.min as number;
   const max = column.max as number;
+  
+  // Normalize value to always have both start and end
+  const normalizedValue = value ?? [min, max];
+  const startValue = normalizedValue[0] ?? min;
+  const endValue = normalizedValue[1] ?? max;
+  const areEqual = startValue === endValue;
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     event.stopPropagation(); // Prevent sorting when clicking on number range
@@ -193,6 +221,8 @@ const CompactNumberRange = ({
 
   const open = Boolean(anchorEl);
 
+  const inputHeight = compact ? COMPACT_INPUT_HEIGHT : STANDARD_INPUT_HEIGHT;
+
   return (
     <>
       <TextField
@@ -201,7 +231,18 @@ const CompactNumberRange = ({
         variant={variant}
         value={formatNumberRange(value, min, max)}
         onClick={handleClick}
-        sx={{ cursor: "pointer" }}
+        sx={{ 
+          cursor: "pointer",
+          "& .MuiOutlinedInput-root": {
+            height: inputHeight,
+            ...(compact && { fontSize: "0.75rem" }),
+          },
+          ...(compact && {
+            "& .MuiOutlinedInput-input": {
+              padding: "3px 6px",
+            },
+          }),
+        }}
       />
       <Popover
         open={open}
@@ -216,24 +257,24 @@ const CompactNumberRange = ({
           horizontal: "left",
         }}
       >
-        <Box sx={{ p: 2, minWidth: 350 }}>
-          <Typography variant="body2" sx={{ mb: 2 }}>
+        <Box sx={{ p: 1.5, minWidth: 280 }}>
+          <Typography variant="caption" sx={{ mb: 1, display: "block" }}>
             Range: {min} - {max}
           </Typography>
-          <Stack spacing={2}>
+          <Stack spacing={1.5}>
             <Stack direction="row" spacing={1} alignItems="center">
               <TextField
                 size="small"
                 type="number"
-                value={value?.[0] ?? min}
+                value={startValue}
                 onChange={(e) =>
-                  onChange([Number(e.target.value), value?.[1] ?? max])
+                  onChange([Number(e.target.value), endValue])
                 }
-                sx={{ width: 90 }}
+                sx={{ width: 70 }}
                 variant="outlined"
               />
               <Slider
-                value={value ?? [min, max]}
+                value={[startValue, endValue]}
                 onChange={(_, newVal) => {
                   if (Array.isArray(newVal)) {
                     onChange(newVal);
@@ -248,16 +289,50 @@ const CompactNumberRange = ({
                 max={max}
                 step={1}
                 valueLabelDisplay="auto"
-                sx={{ flex: 1 }}
+                sx={{ 
+                  flex: 1,
+                  // Style the thumb handles with different colors
+                  '& .MuiSlider-thumb': {
+                    '&:nth-of-type(1)': {
+                      backgroundColor: 'primary.main',
+                      border: '2px solid',
+                      borderColor: 'primary.dark',
+                      '&:hover, &.Mui-focusVisible': {
+                        boxShadow: '0 0 0 8px rgba(25, 118, 210, 0.16)',
+                      },
+                    },
+                    '&:nth-of-type(2)': {
+                      backgroundColor: 'secondary.main',
+                      border: '2px solid',
+                      borderColor: 'secondary.dark',
+                      '&:hover, &.Mui-focusVisible': {
+                        boxShadow: '0 0 0 8px rgba(220, 0, 78, 0.16)',
+                      },
+                    },
+                  },
+                  // Slightly offset thumbs when they overlap
+                  '& .MuiSlider-thumb:nth-of-type(1)': {
+                    zIndex: areEqual ? 2 : 1,
+                    transform: areEqual 
+                      ? 'translate(-50%, -50%) translateX(-2px)' 
+                      : 'translate(-50%, -50%)',
+                  },
+                  '& .MuiSlider-thumb:nth-of-type(2)': {
+                    zIndex: areEqual ? 1 : 1,
+                    transform: areEqual 
+                      ? 'translate(-50%, -50%) translateX(2px)' 
+                      : 'translate(-50%, -50%)',
+                  },
+                }}
               />
               <TextField
                 size="small"
                 type="number"
-                value={value?.[1] ?? max}
+                value={endValue}
                 onChange={(e) =>
-                  onChange([value?.[0] ?? min, Number(e.target.value)])
+                  onChange([startValue, Number(e.target.value)])
                 }
-                sx={{ width: 90 }}
+                sx={{ width: 70 }}
                 variant="outlined"
               />
             </Stack>
@@ -293,63 +368,47 @@ export default function FilterInput({
     onFocus: handleFocus,
   };
 
+  // Standard styling for consistent height across all input types
+  const standardInputSx = {
+    "& .MuiOutlinedInput-root": {
+      height: STANDARD_INPUT_HEIGHT,
+    },
+  };
+
+  // Compact styling for all text fields
+  const compactTextFieldSx = compact
+    ? ({
+        "& .MuiOutlinedInput-root": {
+          minHeight: 28,
+          fontSize: "0.75rem",
+        },
+        "& .MuiOutlinedInput-input": {
+          padding: "3px 6px",
+        },
+        "& .MuiInputLabel-root": {
+          fontSize: "0.75rem",
+        },
+        "& .MuiSelect-select": {
+          padding: "3px 6px",
+        },
+      } as const)
+    : standardInputSx;
+
   switch (column.type) {
     case "number":
       // Check if it's a range slider (has min/max defined)
       if (typeof column.min === "number" && typeof column.max === "number") {
-        if (compact) {
-          return (
-            <CompactNumberRange
-              value={value}
-              onChange={onChange}
-              onCommit={onCommit}
-              column={column}
-              size={size}
-              variant={variant}
-            />
-          );
-        }
+        // Always use compact for ranges
         return (
-          <Stack direction="row" spacing={1} alignItems="center">
-            <TextField
-              size={size}
-              type="number"
-              value={value?.[0] ?? column.min}
-              onChange={(e) =>
-                onChange([Number(e.target.value), value?.[1] ?? column.max])
-              }
-              sx={{ width: 90 }}
-              variant={variant}
-            />
-            <Slider
-              value={value ?? [column.min, column.max]}
-              onChange={(_, newVal) => {
-                if (Array.isArray(newVal)) {
-                  onChange(newVal);
-                }
-              }}
-              onChangeCommitted={(_, newVal) => {
-                if (Array.isArray(newVal) && onCommit) {
-                  onCommit(newVal);
-                }
-              }}
-              min={column.min}
-              max={column.max}
-              step={1}
-              valueLabelDisplay="auto"
-              sx={{ flex: 1 }}
-            />
-            <TextField
-              size={size}
-              type="number"
-              value={value?.[1] ?? column.max}
-              onChange={(e) =>
-                onChange([value?.[0] ?? column.min, Number(e.target.value)])
-              }
-              sx={{ width: 90 }}
-              variant={variant}
-            />
-          </Stack>
+          <CompactNumberRange
+            value={value}
+            onChange={onChange}
+            onCommit={onCommit}
+            column={column}
+            size={size}
+            variant={variant}
+            compact={compact}
+          />
         );
       } else {
         return (
@@ -361,6 +420,7 @@ export default function FilterInput({
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder || "Enter number..."}
             variant={variant}
+            sx={compactTextFieldSx}
             {...commonProps}
           />
         );
@@ -368,49 +428,15 @@ export default function FilterInput({
 
     case "date":
     case "dateTime":
-      if (compact) {
-        return (
-          <CompactDateRange
-            value={value}
-            onChange={onChange}
-            size={size}
-            variant={variant}
-          />
-        );
-      }
+      // Always use compact for dates
       return (
-        <LocalizationProvider dateAdapter={AdapterMoment}>
-          <Stack direction="row" spacing={1}>
-            <DatePicker
-              label="From"
-              value={value?.[0] ? safeMoment(value?.[0]) : null}
-              onChange={(v) =>
-                onChange([v ? v.toISOString() : null, value?.[1]])
-              }
-              slotProps={{
-                textField: {
-                  size,
-                  fullWidth: true,
-                  variant,
-                },
-              }}
-            />
-            <DatePicker
-              label="To"
-              value={safeMoment(value?.[1])}
-              onChange={(v) =>
-                onChange([value?.[0], v ? v.toISOString() : null])
-              }
-              slotProps={{
-                textField: {
-                  size,
-                  fullWidth: true,
-                  variant,
-                },
-              }}
-            />
-          </Stack>
-        </LocalizationProvider>
+        <CompactDateRange
+          value={value}
+          onChange={onChange}
+          size={size}
+          variant={variant}
+          compact={compact}
+        />
       );
 
     case "singleSelect":
@@ -428,6 +454,7 @@ export default function FilterInput({
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value)}
           variant={variant}
+          sx={compactTextFieldSx}
           {...commonProps}
         >
           <MenuItem value="">All</MenuItem>
@@ -451,6 +478,7 @@ export default function FilterInput({
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value)}
           variant={variant}
+          sx={compactTextFieldSx}
           {...commonProps}
         />
       );

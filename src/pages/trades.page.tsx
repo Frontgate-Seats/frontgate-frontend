@@ -31,7 +31,7 @@ type ParentRow = Trade & { _rowType: "parent" };
 type DetailRow = { id: string; _rowType: "detail"; _parentRow: Trade };
 type DisplayRow = ParentRow | DetailRow;
 
-const DETAIL_ROW_HEIGHT_WITH_LISTINGS = 680;
+const DETAIL_ROW_HEIGHT_WITH_LISTINGS = 800;
 const DETAIL_ROW_HEIGHT_NO_LISTINGS = 240;
 
 export default function TradesPage() {
@@ -143,6 +143,15 @@ export default function TradesPage() {
     });
     return rows;
   }, [trades, expanded]);
+
+  // ── When sort changes, close all expanded rows to prevent visual inconsistencies ────
+  const prevSortModel = React.useRef(sortModel);
+  React.useEffect(() => {
+    if (JSON.stringify(prevSortModel.current) !== JSON.stringify(sortModel)) {
+      setExpanded({});
+      prevSortModel.current = sortModel;
+    }
+  }, [sortModel]);
 
   // ── Columns ───────────────────────────────────────────────────────────────
   const columns: CustomGridColDef[] = [

@@ -2,11 +2,7 @@ import type { DataGridQueryOptions } from "../shared/types/mui.type";
 import type { LlmResultComment } from "../shared/types/trade.types";
 import supabaseClient from "../clients/supabase.client";
 import { getErrorMessage } from "../shared/utils/error.util";
-import {
-  applyFilters,
-  applyPagination,
-  remapFilters,
-} from "../shared/utils/supabase.util";
+import { applyPagination } from "../shared/utils/supabase.util";
 
 export type { LlmResultComment as TradeComment };
 
@@ -74,6 +70,34 @@ const tradesApi = {
   fetchTrades: async (options: DataGridQueryOptions = {}) => {
     const { page = 0, pageSize = 25, sortFields, filters } = options;
 
+    // Separate joined table sorts from main table sorts
+    const mainTableSorts: Array<{ field: string; sort: 'asc' | 'desc' }> = [];
+    const joinedTableSorts: Array<{ field: string; sort: 'asc' | 'desc' }> = [];
+    
+    sortFields?.forEach(sortItem => {
+      // Skip items where sort direction is null or undefined
+      if (!sortItem.sort) return;
+      
+      const mappedField = TRADES_FIELD_MAPPING[sortItem.field] || sortItem.field;
+      const sort = { field: sortItem.field, sort: sortItem.sort };
+      
+      if (mappedField.includes('.')) {
+        joinedTableSorts.push(sort);
+      } else {
+        mainTableSorts.push(sort);
+      }
+    });
+
+    const hasJoinedTableSort = joinedTableSorts.length > 0;
+    
+    // If sorting by joined table fields, we need to fetch more data and sort client-side
+    // WARNING: This fetches up to 1000 rows. If your table exceeds this, consider:
+    // 1. Increasing the limit
+    // 2. Denormalizing joined fields into the main table
+    // 3. Creating a database view with the joined fields
+    const fetchPageSize = hasJoinedTableSort ? 1000 : pageSize;
+    const fetchPage = hasJoinedTableSort ? 0 : page;
+
     try {
       let query = supabaseClient
         .from("event_buy_listings_logs")
@@ -106,41 +130,162 @@ const tradesApi = {
           { count: "exact" },
         );
 
-      // Remap filter fields to include joined table paths
-      const remappedFilters = remapFilters(filters, TRADES_FIELD_MAPPING);
-      query = applyFilters(query as any, remappedFilters, TRADES_COLUMN_TYPES) as typeof query;
-
-      // Handle sorting - separate local and joined table fields
-      if (sortFields?.length) {
-        for (const sort of sortFields) {
-          const mappedField = TRADES_FIELD_MAPPING[sort.field] || sort.field;
+      // Apply filters - handling both main table and joined table fields
+      if (filters?.items?.length) {
+        for (const filter of filters.items) {
+          const { field, operator, value } = filter;
           
+          // Skip empty values
+          if (value == null || value === "" || (Array.isArray(value) && value.length === 0)) {
+            continue;
+          }
+
+          const mappedField = TRADES_FIELD_MAPPING[field] || field;
+          const columnType = TRADES_COLUMN_TYPES[field];
+          
+          // For joined table fields, we need to use the special syntax
           if (mappedField.includes('.')) {
-            // For joined table columns, use the special syntax
+            // Supabase syntax for filtering joined tables: relation.column.operator.value
             const [relation, column] = mappedField.split('.');
-            query = query.order(column, {
-              ascending: sort.sort === "asc",
-              foreignTable: relation,
-            }) as typeof query;
+            
+            // Apply the appropriate filter based on operator and type
+            if (columnType === "dateTime" || columnType === "number") {
+              // For numeric/date comparisons
+              switch (operator) {
+                case "equals":
+                case "=":
+                  query = query.filter(`${relation}.${column}`, 'eq', value);
+                  break;
+                case ">=":
+                case "greaterThanOrEqual":
+                  query = query.filter(`${relation}.${column}`, 'gte', value);
+                  break;
+                case "<=":
+                case "lessThanOrEqual":
+                  query = query.filter(`${relation}.${column}`, 'lte', value);
+                  break;
+                case ">":
+                case "greaterThan":
+                  query = query.filter(`${relation}.${column}`, 'gt', value);
+                  break;
+                case "<":
+                case "lessThan":
+                  query = query.filter(`${relation}.${column}`, 'lt', value);
+                  break;
+                default:
+                  query = query.filter(`${relation}.${column}`, 'eq', value);
+              }
+            } else {
+              // For text columns
+              switch (operator) {
+                case "contains":
+                  query = query.filter(`${relation}.${column}`, 'ilike', `%${value}%`);
+                  break;
+                case "equals":
+                case "=":
+                  query = query.filter(`${relation}.${column}`, 'eq', value);
+                  break;
+                case "startsWith":
+                  query = query.filter(`${relation}.${column}`, 'ilike', `${value}%`);
+                  break;
+                case "endsWith":
+                  query = query.filter(`${relation}.${column}`, 'ilike', `%${value}`);
+                  break;
+                case "isAnyOf":
+                  if (Array.isArray(value)) {
+                    query = query.filter(`${relation}.${column}`, 'in', `(${value.join(',')})`);
+                  }
+                  break;
+                default:
+                  query = query.filter(`${relation}.${column}`, 'ilike', `%${value}%`);
+              }
+            }
           } else {
-            // For main table columns, use normal ordering
-            query = query.order(mappedField, {
-              ascending: sort.sort === "asc",
-            }) as typeof query;
+            // For main table fields, apply directly
+            if (columnType === "dateTime" || columnType === "number") {
+              switch (operator) {
+                case "equals":
+                case "=":
+                  query = query.eq(mappedField, value);
+                  break;
+                case ">=":
+                case "greaterThanOrEqual":
+                  query = query.gte(mappedField, value);
+                  break;
+                case "<=":
+                case "lessThanOrEqual":
+                  query = query.lte(mappedField, value);
+                  break;
+                case ">":
+                case "greaterThan":
+                  query = query.gt(mappedField, value);
+                  break;
+                case "<":
+                case "lessThan":
+                  query = query.lt(mappedField, value);
+                  break;
+                default:
+                  query = query.eq(mappedField, value);
+              }
+            } else {
+              switch (operator) {
+                case "contains":
+                  query = query.ilike(mappedField, `%${value}%`);
+                  break;
+                case "equals":
+                case "=":
+                  query = query.eq(mappedField, value);
+                  break;
+                case "startsWith":
+                  query = query.ilike(mappedField, `${value}%`);
+                  break;
+                case "endsWith":
+                  query = query.ilike(mappedField, `%${value}`);
+                  break;
+                case "isAnyOf":
+                  if (Array.isArray(value)) {
+                    query = query.in(mappedField, value);
+                  }
+                  break;
+                default:
+                  query = query.ilike(mappedField, `%${value}%`);
+              }
+            }
           }
         }
       }
 
-      query = applyPagination(query as any, page, pageSize) as typeof query;
+      // Handle sorting - only apply main table sorts to the query
+      // Joined table sorts will be handled client-side after data fetch
+      if (mainTableSorts?.length) {
+        for (const sort of mainTableSorts) {
+          const mappedField = TRADES_FIELD_MAPPING[sort.field] || sort.field;
+          query = query.order(mappedField, {
+            ascending: sort.sort === "asc",
+          }) as typeof query;
+        }
+        
+        // Add secondary sort on created_at for consistency
+        const hasCreatedAtSort = mainTableSorts.some(s => s.field === 'created_at');
+        if (!hasCreatedAtSort) {
+          query = query.order('created_at', { ascending: false }) as typeof query;
+        }
+      } else if (!hasJoinedTableSort) {
+        // Default sort by created_at descending when no sort is specified
+        query = query.order('created_at', { ascending: false }) as typeof query;
+      }
+
+      query = applyPagination(query as any, fetchPage, fetchPageSize) as typeof query;
 
       const { data, error, count } = await query;
 
       if (error) {
+        console.error("Supabase query error:", error);
         throw new Error(getErrorMessage(error));
       }
 
       // Flatten event_analysis_logs fields to top level for DataGrid
-      const flattenedData = (data || []).map((row: any) => ({
+      let flattenedData = (data || []).map((row: any) => ({
         ...row,
         event_name: row.event_analysis_logs?.event_name ?? "-",
         utc_date: row.event_analysis_logs?.utc_date ?? null,
@@ -150,6 +295,90 @@ const tradesApi = {
         vs_web_path: row.events?.web_path ?? null,
         llm_result_comment: row.llm_result_comment ?? null,
       }));
+
+      // Warn if we're doing client-side sorting but hit the fetch limit
+      if (hasJoinedTableSort && count && count > fetchPageSize) {
+        console.warn(
+          `Sorting by joined table fields with ${count} total records but only fetched ${fetchPageSize}. ` +
+          `Results may be incomplete. Consider increasing fetchPageSize or denormalizing these fields.`
+        );
+      }
+
+      // Client-side sorting for joined table fields
+      if (hasJoinedTableSort && joinedTableSorts.length > 0) {
+        flattenedData.sort((a: any, b: any) => {
+          // Apply joined table sorts first
+          for (const sort of joinedTableSorts) {
+            const aVal = a[sort.field];
+            const bVal = b[sort.field];
+            
+            // Handle null/undefined
+            if (aVal == null && bVal == null) continue;
+            if (aVal == null) return 1;
+            if (bVal == null) return -1;
+            
+            // Compare values
+            let comparison = 0;
+            if (typeof aVal === 'string' && typeof bVal === 'string') {
+              // For date strings, try parsing as dates first
+              if (sort.field === 'utc_date' || TRADES_COLUMN_TYPES[sort.field] === 'dateTime') {
+                const aDate = new Date(aVal);
+                const bDate = new Date(bVal);
+                if (!isNaN(aDate.getTime()) && !isNaN(bDate.getTime())) {
+                  comparison = aDate.getTime() - bDate.getTime();
+                } else {
+                  comparison = aVal.localeCompare(bVal);
+                }
+              } else {
+                comparison = aVal.localeCompare(bVal);
+              }
+            } else if (aVal instanceof Date && bVal instanceof Date) {
+              comparison = aVal.getTime() - bVal.getTime();
+            } else if (typeof aVal === 'number' && typeof bVal === 'number') {
+              comparison = aVal - bVal;
+            } else {
+              comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+            }
+            
+            if (comparison !== 0) {
+              return sort.sort === 'asc' ? comparison : -comparison;
+            }
+          }
+          
+          // Apply main table sorts as secondary sorts
+          for (const sort of mainTableSorts) {
+            const aVal = a[sort.field];
+            const bVal = b[sort.field];
+            
+            if (aVal == null && bVal == null) continue;
+            if (aVal == null) return 1;
+            if (bVal == null) return -1;
+            
+            let comparison = 0;
+            if (typeof aVal === 'string' && typeof bVal === 'string') {
+              comparison = aVal.localeCompare(bVal);
+            } else if (aVal instanceof Date && bVal instanceof Date) {
+              comparison = aVal.getTime() - bVal.getTime();
+            } else if (typeof aVal === 'number' && typeof bVal === 'number') {
+              comparison = aVal - bVal;
+            } else {
+              comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+            }
+            
+            if (comparison !== 0) {
+              return sort.sort === 'asc' ? comparison : -comparison;
+            }
+          }
+          
+          // Final fallback: sort by id descending for consistency
+          return (b.id || 0) - (a.id || 0);
+        });
+
+        // Apply client-side pagination after sorting
+        const startIdx = page * pageSize;
+        const endIdx = startIdx + pageSize;
+        flattenedData = flattenedData.slice(startIdx, endIdx);
+      }
 
       return {
         data: flattenedData,

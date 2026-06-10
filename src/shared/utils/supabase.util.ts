@@ -205,9 +205,13 @@ export const applyFilters = <T extends SupabaseQuery>(
 
   return filters.items.reduce(
     (acc, filter) => {
-      // Get the base field name (without joined table prefix)
-      const baseField = filter.field.split('.').pop() || filter.field;
-      const columnType = columnTypes?.[baseField];
+      // For joined table fields (containing '.'), use the full path
+      // For regular fields, use the field name as-is
+      const fieldForTypeCheck = filter.field.includes('.') 
+        ? filter.field.split('.').pop() || filter.field
+        : filter.field;
+      
+      const columnType = columnTypes?.[fieldForTypeCheck];
       return applySingleFilter(acc, filter, columnType);
     },
     query,
