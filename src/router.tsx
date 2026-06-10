@@ -29,6 +29,9 @@ const TradesPage = Loadable(lazy(() => import("./pages/trades.page")));
 const SignInAuthPage = Loadable(
   lazy(() => import("./pages/auth/signIn.auth.page"))
 );
+const AuthCallbackPage = Loadable(
+  lazy(() => import("./pages/auth/callback.auth.page"))
+);
 
 export const route: RouteObject[] = [
   {
@@ -86,6 +89,11 @@ export const route: RouteObject[] = [
         element: <Navigate to="/events" replace />,
       },
     ],
+  },
+  // Standalone — no auth wrapper so NoAuthProvider doesn't interfere
+  {
+    path: "/auth/callback",
+    element: <AuthCallbackPage />,
   },
   {
     path: "/auth",

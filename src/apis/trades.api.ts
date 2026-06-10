@@ -54,11 +54,15 @@ const TRADES_COLUMN_TYPES: Record<string, string> = {
 
 const tradesApi = {
   updateTradeComment: async (tradeId: number | string, comment: LlmResultComment) => {
+    // When the user sets feedback to "bad", flip bad_rec = true so the pipeline
+    // excludes this listing from future buy prompts. Clear it for any other state.
+    const isBadFeedback = comment.human_comment?.feedback === "bad";
+
     const { data, error } = await supabaseClient
       .from("event_buy_listings_logs")
-      .update({ llm_result_comment: comment })
+      .update({ llm_result_comment: comment, bad_rec: isBadFeedback })
       .eq("id", tradeId)
-      .select("id, llm_result_comment")
+      .select("id, llm_result_comment, bad_rec")
       .single();
 
     if (error) {

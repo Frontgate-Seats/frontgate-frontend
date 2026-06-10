@@ -22,6 +22,19 @@ export const signIn = async (payload: SignInProps) => {
   }
 };
 
+export const signInWithGoogle = async () => {
+  const { error } = await supabaseClient.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback`,
+    },
+  });
+
+  if (error) {
+    throw new Error(getErrorMessage(error));
+  }
+};
+
 export const signOut = async () => {
   try {
     const { error } = await supabaseClient.auth.signOut();
@@ -72,6 +85,7 @@ export const getCurrentSession = async () => {
 
 const authApi = {
   signIn,
+  signInWithGoogle,
   signOut,
   getCurrentUser,
   getCurrentSession,

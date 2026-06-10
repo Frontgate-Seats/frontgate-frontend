@@ -14,6 +14,25 @@ const initialState: UserStateSlice = {
 
 const name: string = "auth";
 
+export const signInWithGoogle = createAsyncThunk(
+  `${name}/auth/signInWithGoogle`,
+  async (_, { rejectWithValue, dispatch }) => {
+    try {
+      // Triggers browser redirect to Google — no return value needed.
+      await authApi.signInWithGoogle();
+    } catch (error: any) {
+      const message = getErrorMessage(error);
+      dispatch(
+        setSnackbar({
+          message: `[Sign In] ${message}`,
+          severity: "error",
+        }),
+      );
+      return rejectWithValue(error);
+    }
+  },
+);
+
 export const signIn = createAsyncThunk(
   `${name}/auth/signIn`,
   async (data: SignInProps, { rejectWithValue, dispatch }) => {
