@@ -7,12 +7,9 @@ import { ThemeProvider, CssBaseline, Snackbar, Alert } from "@mui/material";
 import { RouterProvider } from "react-router-dom";
 import { createBrowserRouter } from "react-router-dom";
 
-// REDUXX
+// REDUX
 import { useSelector, useDispatch } from "react-redux";
 import { closeSnackbar } from "./store/slices/snackbar.slice";
-
-// AUTH
-import { AuthProvider } from "./contexts/auth.context";
 
 // UTILS
 import { getTheme } from "./shared/utils/theme.util";
@@ -22,10 +19,8 @@ import type { AppDispatch, RootState } from "./store";
 const App: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
 
-  // THEME
   const theme = useMemo(() => getTheme(), []);
 
-  // SNACKBAR
   const snackbar = useSelector((state: RootState) => state.snackbar);
 
   const handleCloseSnackbar = () => {
@@ -37,23 +32,21 @@ const App: React.FC = () => {
   return (
     <ThemeProvider theme={theme} defaultMode="system">
       <CssBaseline />
-      <AuthProvider>
-        <Snackbar
-          open={snackbar.open}
-          autoHideDuration={snackbar.duration}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={snackbar.duration}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={snackbar.anchorOrigin}
+      >
+        <Alert
           onClose={handleCloseSnackbar}
-          anchorOrigin={snackbar.anchorOrigin}
+          severity={snackbar.severity}
+          variant={snackbar.variant}
         >
-          <Alert
-            onClose={handleCloseSnackbar}
-            severity={snackbar.severity}
-            variant={snackbar.variant}
-          >
-            {snackbar.message}
-          </Alert>
-        </Snackbar>
-        <RouterProvider router={router} />
-      </AuthProvider>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+      <RouterProvider router={router} />
     </ThemeProvider>
   );
 };

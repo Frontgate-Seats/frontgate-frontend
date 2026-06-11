@@ -1,4 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { REHYDRATE } from "redux-persist";
 import { setSnackbar } from "./snackbar.slice";
 import type { SignInProps, UserStateSlice } from "./types";
 import authApi from "../../apis/auth.api";
@@ -151,6 +152,13 @@ export const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // On rehydration from localStorage, always reset loading to true.
+      // This forces the AuthProvider spinner until initializeAuth completes
+      // and verifies the session with Supabase — prevents stale persisted
+      // user from bypassing the redirect to /auth/signin.
+      .addCase(REHYDRATE, (state) => {
+        state.loading = true;
+      })
       // Initialize auth
       .addCase(initializeAuth.pending, (state) => {
         state.loading = true;
@@ -160,6 +168,10 @@ export const authSlice = createSlice({
         if (action.payload) {
           state.user = action.payload.user;
           state.token = action.payload.token;
+        } else {
+          // No active Supabase session — clear any stale persisted user
+          state.user = null;
+          state.token = null;
         }
       })
       .addCase(initializeAuth.rejected, (state) => {

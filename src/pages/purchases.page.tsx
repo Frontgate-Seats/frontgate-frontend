@@ -19,7 +19,7 @@ const PurchasesPage: React.FC = () => {
   const { paginationModel, setPaginationModel, sortModel, setSortModel, filterModel, setFilterModel } =
     useDataGridQueryParams({
       columns: [
-        { field: "event_id", type: "string" },
+        { field: "event_id", type: "number" },
         { field: "event_name", type: "string" },
         { field: "event_utc_date", type: "dateTime" },
         { field: "created_at", type: "dateTime" },
@@ -66,7 +66,7 @@ const columns: CustomGridColDef[] = [
     field: "event_id",
     headerName: "Event ID",
     width: 140,
-    type: "string",
+    type: "number",
     renderCell: (params) => (
       <Link
         href={`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${params.value}`}
