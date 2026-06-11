@@ -10,6 +10,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: write  # required for gh cache delete
 
 concurrency:
   group: pages
@@ -56,3 +57,24 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+
+      # After a successful deploy, clear all Actions caches on the main branch.
+      # This prevents stale npm/node_modules caches from being used in future
+      # builds and ensures the next run always resolves fresh dependencies.
+      - name: Clear GitHub Actions caches for this branch
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          echo "Fetching cache keys for branch: ${{ github.ref }}"
+          CACHE_IDS=$(gh cache list --ref ${{ github.ref }} --limit 100 --json id --jq '.[].id')
+          if [ -z "$CACHE_IDS" ]; then
+            echo "No caches found for this branch."
+          else
+            echo "Deleting caches..."
+            for CACHE_ID in $CACHE_IDS; do
+              gh cache delete "$CACHE_ID" && echo "Deleted: $CACHE_ID" || echo "Failed to delete: $CACHE_ID"
+            done
+            echo "Cache cleanup complete."
+          fi
