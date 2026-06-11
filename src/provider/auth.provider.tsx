@@ -10,60 +10,54 @@ import {
   logout,
 } from "../store/slices/auth.slice";
 import supabaseClient from "../clients/supabase.client";
+import { Box, CircularProgress } from "@mui/material";
 
 const AuthProvider: React.FC<ReactNodeProps> = ({ children }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const { user, loading } = useSelector((state: RootState) => state.auth);
 
-  // Initialize auth on mount
+  // Initialize auth on mount — checks persisted session
   useEffect(() => {
     dispatch(initializeAuth());
   }, [dispatch]);
 
-  // Set up auth state listener
+  // Real-time auth state listener — covers token expiry, sign-out from another tab, etc.
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    } = supabaseClient.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
-        dispatch(
-          setAuthState({
-            user: session.user,
-            token: session.access_token,
-          }),
-        );
+        dispatch(setAuthState({ user: session.user, token: session.access_token }));
+      } else if (event === "TOKEN_REFRESHED" && session) {
+        dispatch(setAuthState({ user: session.user, token: session.access_token }));
       } else if (event === "SIGNED_OUT") {
         dispatch(logout());
-        navigate("/auth/signin");
-      } else if (event === "TOKEN_REFRESHED" && session) {
-        dispatch(
-          setAuthState({
-            user: session.user,
-            token: session.access_token,
-          }),
-        );
+        navigate("/auth/signin", { replace: true });
       }
     });
 
     return () => subscription.unsubscribe();
   }, [dispatch, navigate]);
 
-  // Redirect to login if not authenticated
+  // Redirect unauthenticated users once the session check is complete
   useEffect(() => {
     if (!loading && !user) {
-      navigate("/auth/signin");
+      navigate("/auth/signin", { replace: true });
     }
-  }, [navigate, user, loading]);
+  }, [loading, user, navigate]);
 
-  // Show loading while checking auth
+  // Block rendering until we know whether the user is authenticated
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh" }}>
+        <CircularProgress />
+      </Box>
     );
   }
+
+  // Don't render children if there's no user — the redirect effect will fire
+  if (!user) return null;
 
   return <AuthContext.Provider value={null}>{children}</AuthContext.Provider>;
 };

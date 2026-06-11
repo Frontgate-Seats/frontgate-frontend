@@ -11,7 +11,7 @@ const NoAuthProvider: React.FC<ReactNodeProps> = ({ children }) => {
 
   useEffect(() => {
     if (user) {
-      navigate("/dashboard");
+      navigate("/events");
     }
   }, [user]);
 

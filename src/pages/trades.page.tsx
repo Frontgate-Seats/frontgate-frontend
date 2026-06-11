@@ -81,7 +81,7 @@ export default function TradesPage() {
     setFilterModel,
   } = useDataGridQueryParams({
     columns: [
-      { field: "event_id", type: "string" },
+    { field: "event_id", type: "number" },
       { field: "event_name", type: "string" },
       { field: "utc_date", type: "dateTime" },
       { field: "venue_name", type: "string" },
@@ -219,7 +219,7 @@ export default function TradesPage() {
       field: "event_id",
       headerName: "Event ID",
       width: 120,
-      type: "string",
+      type: "number",
       renderCell: (params) => {
         if (params.row._rowType === "detail") return null;
         return (

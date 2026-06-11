@@ -1,37 +1,25 @@
-import { lazy } from "react";
 import { Navigate, type RouteObject } from "react-router";
-import Loadable from "./shared/loadable/index.loadable";
+import Loadable, { lazyWithRetry } from "./shared/loadable/index.loadable";
 
-//
-const AuthProvider = Loadable(lazy(() => import("./provider/auth.provider")));
-const NoAuthProvider = Loadable(
-  lazy(() => import("./provider/noAuth.provider"))
-);
-const DashboardProvider = Loadable(
-  lazy(() => import("./provider/dashboardLayout.provider"))
-);
+const AuthProvider = Loadable(lazyWithRetry(() => import("./provider/auth.provider")));
+const NoAuthProvider = Loadable(lazyWithRetry(() => import("./provider/noAuth.provider")));
+const DashboardProvider = Loadable(lazyWithRetry(() => import("./provider/dashboardLayout.provider")));
 
 /* ***Layouts**** */
-const FullLayout = Loadable(lazy(() => import("./layouts/full.layout")));
-const DashboardLayout = Loadable(
-  lazy(() => import("./layouts/dashboard.layout"))
-);
+const FullLayout = Loadable(lazyWithRetry(() => import("./layouts/full.layout")));
+const DashboardLayout = Loadable(lazyWithRetry(() => import("./layouts/dashboard.layout")));
 
 /* ****Pages**** */
-const EventsPage = Loadable(lazy(() => import("./pages/events.page")));
-const EventDetailsPage = Loadable(lazy(() => import("./pages/eventDetails.page")));
-const ListingsPage = Loadable(lazy(() => import("./pages/listings.page")));
-const SalesPage = Loadable(lazy(() => import("./pages/sales.page")));
-const PurchasesPage = Loadable(lazy(() => import("./pages/purchases.page")));
-const SuggestionsPage = Loadable(lazy(() => import("./pages/suggestions.page")));
-const TradesPage = Loadable(lazy(() => import("./pages/trades.page")));
+const EventsPage = Loadable(lazyWithRetry(() => import("./pages/events.page")));
+const EventDetailsPage = Loadable(lazyWithRetry(() => import("./pages/eventDetails.page")));
+const ListingsPage = Loadable(lazyWithRetry(() => import("./pages/listings.page")));
+const SalesPage = Loadable(lazyWithRetry(() => import("./pages/sales.page")));
+const PurchasesPage = Loadable(lazyWithRetry(() => import("./pages/purchases.page")));
+const SuggestionsPage = Loadable(lazyWithRetry(() => import("./pages/suggestions.page")));
+const TradesPage = Loadable(lazyWithRetry(() => import("./pages/trades.page")));
 
-const SignInAuthPage = Loadable(
-  lazy(() => import("./pages/auth/signIn.auth.page"))
-);
-const AuthCallbackPage = Loadable(
-  lazy(() => import("./pages/auth/callback.auth.page"))
-);
+const SignInAuthPage = Loadable(lazyWithRetry(() => import("./pages/auth/signIn.auth.page")));
+const AuthCallbackPage = Loadable(lazyWithRetry(() => import("./pages/auth/callback.auth.page")));
 
 export const route: RouteObject[] = [
   {
@@ -105,7 +93,7 @@ export const route: RouteObject[] = [
     children: [
       {
         index: true,
-        element: <Navigate to="/dashboard" replace />,
+        element: <Navigate to="/events" replace />,
       },
       {
         path: "/auth/signin",
@@ -113,7 +101,7 @@ export const route: RouteObject[] = [
       },
       {
         path: "*",
-        element: <Navigate to="/dashboard" replace />,
+        element: <Navigate to="/events" replace />,
       },
     ],
   },

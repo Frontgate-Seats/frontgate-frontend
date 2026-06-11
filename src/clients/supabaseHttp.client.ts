@@ -1,5 +1,8 @@
 import axios from "axios";
 import envConfigs from "../configs/env.configs";
+import { store } from "../store";
+import { logout } from "../store/slices/auth.slice";
+import supabaseClient from "./supabase.client";
 import { getErrorMessage } from "../shared/utils/error.util";
 
 const supabaseHttpClient = axios.create({
@@ -7,22 +10,28 @@ const supabaseHttpClient = axios.create({
 });
 
 supabaseHttpClient.interceptors.request.use((config) => {
-  config.headers.authorization = `Bearer ${envConfigs.supabase.anonKey}`;
+  // Use the live session token if available, fall back to anon key
+  const token = store.getState().auth.token;
+  config.headers.authorization = `Bearer ${token ?? envConfigs.supabase.anonKey}`;
   config.headers.apikey = envConfigs.supabase.anonKey;
-  config.headers['Content-Type'] = 'application/json';
+  config.headers["Content-Type"] = "application/json";
   return config;
 });
 
 supabaseHttpClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    // Token expired or invalid — sign out and let AuthProvider redirect to /auth/signin
+    if (error?.response?.status === 401) {
+      store.dispatch(logout());
+      await supabaseClient.auth.signOut();
+    }
+
     const message = getErrorMessage(error);
-    // Create a new error with the extracted message for better handling
     const formattedError = error || new Error(message);
-    // Ensure the error has the message property set correctly
     formattedError.message = message;
     return Promise.reject(formattedError);
-  }
+  },
 );
 
 export default supabaseHttpClient;
