@@ -5,6 +5,11 @@
     <link rel="icon" type="image/svg+xml" href="/frontgate_logo_black.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Frontgate</title>
+    <!-- Prevent browsers from caching index.html so users always get the
+         latest asset hashes after a new deployment to GitHub Pages. -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <script>
       // Restore the original path after GitHub Pages 404 redirect
       (function () {
