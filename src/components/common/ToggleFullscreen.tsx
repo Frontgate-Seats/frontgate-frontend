@@ -5,11 +5,13 @@ import { Fullscreen, Close } from "@mui/icons-material";
 interface ToggleFullscreenProps {
   children: React.ReactNode;
   onFullscreenChange?: (isFullscreen: boolean) => void;
+  fillHeight?: boolean;
 }
 
 const ToggleFullscreen: React.FC<ToggleFullscreenProps> = ({
   children,
   onFullscreenChange,
+  fillHeight = false,
 }) => {
   const [open, setOpen] = React.useState(false);
 
@@ -21,7 +23,10 @@ const ToggleFullscreen: React.FC<ToggleFullscreenProps> = ({
   return (
     <>
       {/* Normal View */}
-      <Box sx={{ position: "relative" }}>
+      <Box sx={{
+        position: "relative",
+        ...(fillHeight && { height: "100%", minHeight: 0, display: "flex", flexDirection: "column" }),
+      }}>
         <IconButton
           size="large"
           onClick={() => handleFullscreenToggle(true)}

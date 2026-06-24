@@ -10,9 +10,10 @@ export type { LlmResultComment as TradeComment };
 const TRADES_FIELD_MAPPING: Record<string, string> = {
   // Fields from event_analysis_logs (joined table)
   event_name: "event_analysis_logs.event_name",
-  utc_date: "event_analysis_logs.utc_date",
   venue_name: "event_analysis_logs.venue_name",
   primary_performer_name: "event_analysis_logs.primary_performer_name",
+  // Fields from events (joined table)
+  local_date: "events.local_date",
   // Fields from event_buy_listings_logs (main table) - no mapping needed
   // but explicitly listed for clarity
   id: "id",
@@ -39,7 +40,7 @@ const TRADES_COLUMN_TYPES: Record<string, string> = {
   projected_sell_price: "number",
   estimated_margin_percent: "number",
   created_at: "dateTime",
-  utc_date: "dateTime",
+  local_date: "dateTime",
   event_name: "string",
   venue_name: "string",
   primary_performer_name: "string",
@@ -118,13 +119,13 @@ const tradesApi = {
           llm_result_comment,
           event_analysis_logs!inner (
             event_name,
-            utc_date,
             venue_name,
             primary_performer_name,
             llm_result
           ),
           events (
-            web_path
+            web_path,
+            local_date
           )
         `,
           { count: "exact" },
@@ -288,7 +289,7 @@ const tradesApi = {
       let flattenedData = (data || []).map((row: any) => ({
         ...row,
         event_name: row.event_analysis_logs?.event_name ?? "-",
-        utc_date: row.event_analysis_logs?.utc_date ?? null,
+        local_date: row.events?.local_date ?? null,
         venue_name: row.event_analysis_logs?.venue_name ?? "-",
         primary_performer_name: row.event_analysis_logs?.primary_performer_name ?? "-",
         llm_result: row.event_analysis_logs?.llm_result ?? null,
@@ -321,7 +322,7 @@ const tradesApi = {
             let comparison = 0;
             if (typeof aVal === 'string' && typeof bVal === 'string') {
               // For date strings, try parsing as dates first
-              if (sort.field === 'utc_date' || TRADES_COLUMN_TYPES[sort.field] === 'dateTime') {
+              if (sort.field === 'local_date' || TRADES_COLUMN_TYPES[sort.field] === 'dateTime') {
                 const aDate = new Date(aVal);
                 const bDate = new Date(bVal);
                 if (!isNaN(aDate.getTime()) && !isNaN(bDate.getTime())) {

@@ -534,6 +534,16 @@ export default function ListingsPage() {
                 filterModel={filterModel}
                 setFilterModel={setFilterModel}
                 onRefresh={handleRefresh}
+                headerComponent={
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => navigate(`/listings-map/${event_id}`)}
+                    sx={{ textTransform: "none", borderRadius: 2 }}
+                  >
+                    Map View
+                  </Button>
+                }
               />
             </Grid>
           </>

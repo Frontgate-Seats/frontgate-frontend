@@ -17,6 +17,7 @@ const SalesPage = Loadable(lazyWithRetry(() => import("./pages/sales.page")));
 const PurchasesPage = Loadable(lazyWithRetry(() => import("./pages/purchases.page")));
 const SuggestionsPage = Loadable(lazyWithRetry(() => import("./pages/suggestions.page")));
 const TradesPage = Loadable(lazyWithRetry(() => import("./pages/trades.page")));
+const ListingsMapViewPage = Loadable(lazyWithRetry(() => import("./pages/listingsMapView.page")));
 
 const SignInAuthPage = Loadable(lazyWithRetry(() => import("./pages/auth/signIn.auth.page")));
 const AuthCallbackPage = Loadable(lazyWithRetry(() => import("./pages/auth/callback.auth.page")));
@@ -50,7 +51,11 @@ export const route: RouteObject[] = [
       },
       {
         path: "/listings/:event_id",
-        element: <ListingsPage />,
+        element: <ListingsMapViewPage />,
+      },
+      {
+        path: "/listings-map/:event_id",
+        element: <ListingsMapViewPage />,
       },
       {
         path: "/sales",

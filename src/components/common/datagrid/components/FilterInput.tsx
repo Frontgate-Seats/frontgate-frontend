@@ -454,7 +454,7 @@ export default function FilterInput({
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value)}
           variant={variant}
-          sx={compactTextFieldSx}
+          sx={{ ...compactTextFieldSx, width: "100%" }}
           {...commonProps}
         >
           <MenuItem value="">All</MenuItem>
