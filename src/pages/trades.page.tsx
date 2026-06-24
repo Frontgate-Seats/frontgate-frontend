@@ -164,7 +164,7 @@ export default function TradesPage() {
     {
       field: "__expand",
       headerName: "",
-      width: 155,
+      width: 120,
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
@@ -240,7 +240,7 @@ export default function TradesPage() {
                 <BarChart fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Map View">
+            <Tooltip title="View Listings">
               <IconButton
                 size="small"
                 onClick={(e) => {

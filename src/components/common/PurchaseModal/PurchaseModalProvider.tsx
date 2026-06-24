@@ -7,6 +7,11 @@ import {
   Card,
   CardContent,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Divider,
   Link,
   MenuItem,
@@ -57,6 +62,7 @@ export default function PurchaseModalProvider({ children }: { children: React.Re
   const [activeStep, setActiveStep] = React.useState(0);
   const [completed, setCompleted] = React.useState(false);
   const [purchasing, setPurchasing] = React.useState(false);
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
 
   // Redux state
   const {
@@ -150,7 +156,15 @@ export default function PurchaseModalProvider({ children }: { children: React.Re
     }
   }, [dispatch, eventData, selectedListing, deliveryId, quantity, listingsDetailsDataObj]);
 
-  // Steps — simplified to 2
+  // Computed values for display
+  const pricePerTicket = listingsDetailsDataObj?.listing?.pricePer ?? selectedListing?.price ?? 0;
+  const deliveryCost = listingsDetailsDataObj?.deliveryOptions?.find(
+    (x: any) => String(x.id) === String(deliveryId),
+  )?.cost ?? 0;
+  const subtotal = pricePerTicket * quantity;
+  const total = subtotal + deliveryCost;
+
+  // Steps — single step with confirmation dialog before purchase
   const steps: StepData[] = [
     {
       label: "Select Quantity & Delivery",
@@ -176,7 +190,7 @@ export default function PurchaseModalProvider({ children }: { children: React.Re
               <Box>
                 <Typography variant="caption" color="text.secondary">Price per ticket</Typography>
                 <Typography variant="body2" fontWeight={600} color="primary.main">
-                  ${listingsDetailsDataObj?.listing?.pricePer ?? selectedListing?.price}
+                  ${pricePerTicket}
                 </Typography>
               </Box>
             </Stack>
@@ -224,18 +238,14 @@ export default function PurchaseModalProvider({ children }: { children: React.Re
               <Stack direction="row" justifyContent="space-between">
                 <Typography variant="body2" color="text.secondary">Subtotal</Typography>
                 <Typography variant="body2" fontWeight={500}>
-                  {quantity
-                    ? `$${((listingsDetailsDataObj?.listing?.pricePer ?? selectedListing?.price ?? 0) * quantity).toFixed(2)}`
-                    : "—"}
+                  {quantity ? `$${subtotal.toFixed(2)}` : "—"}
                 </Typography>
               </Stack>
               {deliveryId && (
                 <Stack direction="row" justifyContent="space-between">
                   <Typography variant="body2" color="text.secondary">Delivery</Typography>
                   <Typography variant="body2" fontWeight={500}>
-                    ${listingsDetailsDataObj?.deliveryOptions
-                      ?.find((x: any) => String(x.id) === String(deliveryId))
-                      ?.cost?.toFixed(2) ?? "0.00"}
+                    ${deliveryCost.toFixed(2)}
                   </Typography>
                 </Stack>
               )}
@@ -245,12 +255,7 @@ export default function PurchaseModalProvider({ children }: { children: React.Re
                   <Stack direction="row" justifyContent="space-between">
                     <Typography variant="subtitle2" fontWeight={700}>Total</Typography>
                     <Typography variant="subtitle2" fontWeight={700} color="primary.main">
-                      ${(
-                        (listingsDetailsDataObj?.listing?.pricePer ?? selectedListing?.price ?? 0) * quantity +
-                        (listingsDetailsDataObj?.deliveryOptions?.find(
-                          (x: any) => String(x.id) === String(deliveryId),
-                        )?.cost ?? 0)
-                      ).toFixed(2)}
+                      ${total.toFixed(2)}
                     </Typography>
                   </Stack>
                 </>
@@ -262,7 +267,7 @@ export default function PurchaseModalProvider({ children }: { children: React.Re
       nextButton: (
         <Button
           variant="contained"
-          onClick={handlePurchase}
+          onClick={() => setConfirmOpen(true)}
           disabled={!quantity || !deliveryId || listingsDetailsLoading}
           loading={purchasing || purchasesLoading}
           sx={{ borderRadius: 2 }}
@@ -475,6 +480,33 @@ export default function PurchaseModalProvider({ children }: { children: React.Re
         }
         layout="vertical"
       />
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        aria-labelledby="confirm-purchase-dialog-title"
+      >
+        <DialogTitle id="confirm-purchase-dialog-title">Confirm Purchase</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to purchase {quantity} ticket{quantity > 1 ? "s" : ""} for <strong>${total.toFixed(2)}</strong>?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={() => {
+              setConfirmOpen(false);
+              handlePurchase();
+            }}
+            autoFocus
+          >
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </PurchaseModalContext.Provider>
   );
 }
