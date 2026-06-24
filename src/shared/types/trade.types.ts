@@ -35,10 +35,10 @@ export interface Trade {
   llm_result_comment: LlmResultComment | null;
   // Flattened from event_analysis_logs join
   event_name: string;
-  utc_date: string | null;
   venue_name: string;
   primary_performer_name: string;
   llm_result: Record<string, unknown> | null;
   // Flattened from events join
   vs_web_path: string | null;
+  local_date: string | null;
 }

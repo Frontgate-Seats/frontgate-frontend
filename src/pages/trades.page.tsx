@@ -14,6 +14,7 @@ import {
   BarChart,
   KeyboardArrowDown,
   KeyboardArrowRight,
+  Map as MapIcon,
 } from "@mui/icons-material";
 import type { RootState } from "../store";
 import { getTrades } from "../store/slices/trades.slice";
@@ -24,7 +25,10 @@ import { formatDateTime } from "../shared/utils/dateTime.util";
 import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
 import TradeDetailPanel from "../components/trades/TradeDetailPanel";
 import type { ListingsCache, ListingsCacheEntry } from "../components/trades/TradeDetailPanel";
+import TradeInfoButton from "../components/trades/TradeInfoButton";
 import type { Trade } from "../shared/types/trade.types";
+import { usePurchaseModal } from "../components/common/PurchaseModal";
+import moment from "moment";
 
 // ── Display row types ─────────────────────────────────────────────────────────
 type ParentRow = Trade & { _rowType: "parent" };
@@ -36,6 +40,7 @@ const DETAIL_ROW_HEIGHT_NO_LISTINGS = 240;
 
 export default function TradesPage() {
   const dispatch = useAppDispatch();
+  const { openPurchaseModal } = usePurchaseModal();
 
   const {
     rows: { data: trades, total },
@@ -83,7 +88,7 @@ export default function TradesPage() {
     columns: [
     { field: "event_id", type: "number" },
       { field: "event_name", type: "string" },
-      { field: "utc_date", type: "dateTime" },
+      { field: "local_date", type: "dateTime" },
       { field: "venue_name", type: "string" },
       { field: "vs_section", type: "string" },
       { field: "row", type: "string" },
@@ -127,7 +132,7 @@ export default function TradesPage() {
   }, [handleRefresh]);
 
   // ── Build display rows: inject a detail row after each expanded parent ────
-  const totalColumns = 14; // single expand+view col + 13 data cols
+  const totalColumns = 14; // expand+view+info col + 13 data cols
 
   const displayRows = React.useMemo<DisplayRow[]>(() => {
     const rows: DisplayRow[] = [];
@@ -155,11 +160,11 @@ export default function TradesPage() {
 
   // ── Columns ───────────────────────────────────────────────────────────────
   const columns: CustomGridColDef[] = [
-    // Expand toggle + view event — spans ALL columns on detail rows via colSpan
+    // Expand + info + chart + map — spans ALL columns on detail rows via colSpan
     {
       field: "__expand",
       headerName: "",
-      width: 80,
+      width: 155,
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
@@ -167,12 +172,35 @@ export default function TradesPage() {
         row._rowType === "detail" ? totalColumns : 1,
       renderCell: (params) => {
         if (params.row._rowType === "detail") {
+          const parentTrade = params.row._parentRow;
           return (
             <Box sx={{ width: "100%", height: "100%", overflow: "auto" }}>
               <TradeDetailPanel
-                trade={params.row._parentRow}
+                trade={parentTrade}
                 listingsCache={listingsCache}
                 onCacheUpdate={handleCacheUpdate}
+                onBuyClick={(listing) => {
+                  openPurchaseModal(
+                    {
+                      id: listing.id,
+                      row: listing.row,
+                      section_name: listing.section_name,
+                      price: listing.price,
+                      quantity: listing.quantity,
+                      splits: listing.splits || [listing.quantity],
+                    },
+                    {
+                      id: String(parentTrade.event_id),
+                      name: parentTrade.event_name || "",
+                      local_date: parentTrade.local_date || undefined,
+                      venue_name: parentTrade.venue_name || "",
+                      primary_performer_name: parentTrade.primary_performer_name || "",
+                      event_url: parentTrade.vs_web_path
+                        ? `https://www.vividseats.com${parentTrade.vs_web_path}`
+                        : undefined,
+                    },
+                  );
+                }}
               />
             </Box>
           );
@@ -194,6 +222,7 @@ export default function TradesPage() {
                 <KeyboardArrowRight fontSize="small" />
               )}
             </IconButton>
+            <TradeInfoButton trade={params.row} />
             <Tooltip title="View Event Details">
               <IconButton
                 size="small"
@@ -209,6 +238,22 @@ export default function TradesPage() {
                 sx={{ display: params.row.event_id ? undefined : "none" }}
               >
                 <BarChart fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Map View">
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(
+                    `/listings/${params.row.event_id}`,
+                    "_blank",
+                  );
+                }}
+                disabled={!params.row.event_id}
+                sx={{ display: params.row.event_id ? undefined : "none" }}
+              >
+                <MapIcon fontSize="small" />
               </IconButton>
             </Tooltip>
           </Stack>
@@ -247,12 +292,12 @@ export default function TradesPage() {
       },
     },
     {
-      field: "utc_date",
+      field: "local_date",
       headerName: "Event Date",
       width: 150,
       type: "dateTime",
       valueGetter: (value: any) => (value ? new Date(value) : null),
-      valueFormatter: (value: any) => (value ? formatDateTime(value) : "-"),
+      valueFormatter: (value: any) => (value ? formatDateTime(moment.parseZone(value)) : "-"),
       renderCell: (params) => {
         if (params.row._rowType === "detail") return null;
         return params.formattedValue ?? "-";
@@ -401,19 +446,38 @@ export default function TradesPage() {
       align: "center",
       renderCell: (params) => {
         if (params.row._rowType === "detail") return null;
-        const eventId = params.row.event_id;
-        const listingId = params.row.listing_id;
-        if (!eventId) return null;
+        const trade = params.row as Trade;
+        if (!trade.event_id || !trade.listing_id) return null;
         return (
           <Button
-            component={Link}
-            href={`/listings/${eventId}?listing_id=${listingId}`}
             variant="contained"
             size="small"
-            target="_blank"
+            onClick={(e: any) => {
+              e.stopPropagation();
+              openPurchaseModal(
+                {
+                  id: trade.listing_id!,
+                  row: trade.row || "",
+                  section_name: trade.vs_section || "",
+                  price: trade.max_buy_price || 0,
+                  quantity: trade.quantity || 1,
+                  splits: trade.quantity ? [trade.quantity] : [1],
+                },
+                {
+                  id: String(trade.event_id),
+                  name: trade.event_name || "",
+                  local_date: trade.local_date || undefined,
+                  venue_name: trade.venue_name || "",
+                  primary_performer_name: trade.primary_performer_name || "",
+                  event_url: trade.vs_web_path
+                    ? `https://www.vividseats.com${trade.vs_web_path}`
+                    : undefined,
+                },
+              );
+            }}
             sx={{ textTransform: "none", borderRadius: 2 }}
           >
-            Make Trade
+            Buy
           </Button>
         );
       },

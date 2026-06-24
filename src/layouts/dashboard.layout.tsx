@@ -12,6 +12,7 @@ import { useColorScheme, useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
 import { DRAWER_WIDTH, MINI_DRAWER_WIDTH } from "../shared/constants/layout.constant";
+import { PurchaseModalProvider } from "../components/common/PurchaseModal";
 
 export default function DashboardLayout() {
   const { dashboardLayoutRef, mini } = useDashboardLayoutContext();
@@ -69,7 +70,9 @@ export default function DashboardLayout() {
           }}
         >
           <Toolbar sx={{ displayPrint: "none" }} />
-          <Outlet />
+          <PurchaseModalProvider>
+            <Outlet />
+          </PurchaseModalProvider>
         </Box>
       </Box>
     </Stack>

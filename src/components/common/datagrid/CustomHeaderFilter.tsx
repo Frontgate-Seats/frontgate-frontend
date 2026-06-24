@@ -69,7 +69,7 @@ export default function CustomHeaderFilter({
   };
 
   return (
-    <Box sx={{ p: 0.25, height: "100%", display: "flex", flexDirection: "column", gap: 0.25 }}>
+    <Box sx={{ p: 0.25, width: "100%", height: "100%", display: "flex", flexDirection: "column", gap: 0.25 }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ flexShrink: 0, minHeight: 20 }}>
         <Box sx={{ fontWeight: 600, fontSize: "0.75rem", lineHeight: 1.1 }}>
           {column.headerName}
@@ -80,7 +80,7 @@ export default function CustomHeaderFilter({
           </IconButton>
         )}
       </Stack>
-      <Box onClick={handleFilterClick}>
+      <Box onClick={handleFilterClick} sx={{ width: "100%" }}>
         <FilterInput
           column={column}
           value={localValue}

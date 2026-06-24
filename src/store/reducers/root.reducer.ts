@@ -16,6 +16,7 @@ import availabilityReducer from "../slices/availability.slice";
 import vividSalesReducer from "../slices/vividSales.slice";
 import tradesReducer from "../slices/trades.slice";
 import eventAnalysisLogsReducer from "../slices/eventAnalysisLogs.slice";
+import listingsMapViewReducer from "../slices/listingsMapView.slice";
 
 import type { store } from "..";
 import { useDispatch } from "react-redux";
@@ -38,6 +39,7 @@ const rootReducer = combineReducers({
   availability: availabilityReducer,
   trades: tradesReducer,
   eventAnalysisLogs: eventAnalysisLogsReducer,
+  listingsMapView: listingsMapViewReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>; // <--- optional, for selector typing

@@ -14,9 +14,9 @@ import {
 import {
   BarChart,
   MoreVert,
-  Visibility,
   PlayArrow,
   Stop,
+  Map as MapIcon,
 } from "@mui/icons-material";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -425,7 +425,7 @@ export default function EventsPage() {
             >
               <MenuItem onClick={handleViewListings}>
                 <ListItemIcon>
-                  <Visibility fontSize="small" />
+                  <MapIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>View Listings</ListItemText>
               </MenuItem>
