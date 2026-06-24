@@ -46,16 +46,12 @@ export default function ZoneLegend({
 
   return (
     <Box sx={{ p: 1.5, width: "100%" }}>
-      <Typography
-        variant="caption"
-        fontWeight={600}
-        color="text.secondary"
-        gutterBottom
-        display="block"
-      >
-        Zones
-      </Typography>
       <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ width: "100%" }}>
+        <Typography
+        variant="h6"
+      >
+        Zones :
+      </Typography>
         {activeGroups.map((group) => (
           <Chip
             key={group.id}
