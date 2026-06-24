@@ -317,21 +317,64 @@ export default function PurchaseModalProvider({ children }: { children: React.Re
             <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 480, mb: 3 }}>
               Your order has been successfully processed.
             </Typography>
-            <Card variant="outlined" sx={{ p: 3, width: "100%", maxWidth: 520, borderRadius: 3 }}>
-              <Stack spacing={1.5}>
+            <Card variant="outlined" sx={{ p: 3, width: "100%", maxWidth: 560, borderRadius: 3 }}>
+              <Stack spacing={0}>
+                {/* Event Info */}
+                <Typography variant="overline" color="text.secondary" sx={{ mb: 1 }}>
+                  Event Information
+                </Typography>
                 {[
                   ["Event", eventData?.name || "—"],
-                  ["Section", selectedListing?.section_name],
-                  ["Row", selectedListing?.row],
-                  ["Tickets", `${quantity || 0} × $${(listingsDetailsDataObj?.listing?.pricePer ?? selectedListing?.price)?.toFixed?.(2) || "0.00"}`],
-                  ["Order ID", purchasesDataObj?.id || "-"],
-                  ["Total", `$${purchasesDataObj?.payment?.paid?.toFixed(2) || "0.00"}`],
+                  ["Performer", eventData?.primary_performer_name || "—"],
+                  ["Venue", eventData?.venue_name || "—"],
+                  ["Event Date", (eventData?.local_date || eventData?.utc_date) ? formatDateTime(moment.parseZone(eventData?.local_date || eventData?.utc_date)) : "—"],
                 ].map(([label, value]) => (
-                  <Box key={label} display="flex" justifyContent="space-between">
-                    <Typography color="text.secondary">{label}</Typography>
-                    <Typography fontWeight={500}>{value}</Typography>
+                  <Box key={label} display="flex" justifyContent="space-between" py={0.75}>
+                    <Typography variant="body2" color="text.secondary">{label}</Typography>
+                    <Typography variant="body2" fontWeight={600}>{value}</Typography>
                   </Box>
                 ))}
+
+                <Divider sx={{ my: 1.5 }} />
+
+                {/* Ticket Info */}
+                <Typography variant="overline" color="text.secondary" sx={{ mb: 1 }}>
+                  Ticket Details
+                </Typography>
+                {[
+                  ["Section", selectedListing?.section_name || "—"],
+                  ["Row", selectedListing?.row || "—"],
+                  ["Quantity", String(quantity || 0)],
+                  ["Price per Ticket", `$${(listingsDetailsDataObj?.listing?.pricePer ?? selectedListing?.price)?.toFixed?.(2) || "0.00"}`],
+                  ["Delivery", listingsDetailsDataObj?.deliveryOptions?.find((x: any) => String(x.id) === String(deliveryId))?.description || "—"],
+                ].map(([label, value]) => (
+                  <Box key={label} display="flex" justifyContent="space-between" py={0.75}>
+                    <Typography variant="body2" color="text.secondary">{label}</Typography>
+                    <Typography variant="body2" fontWeight={600}>{value}</Typography>
+                  </Box>
+                ))}
+
+                <Divider sx={{ my: 1.5 }} />
+
+                {/* Payment Info */}
+                <Typography variant="overline" color="text.secondary" sx={{ mb: 1 }}>
+                  Payment
+                </Typography>
+                {[
+                  ["Delivery Cost", `$${listingsDetailsDataObj?.deliveryOptions?.find((x: any) => String(x.id) === String(deliveryId))?.cost?.toFixed(2) || "0.00"}`],
+                  ["Order ID", purchasesDataObj?.id || "—"],
+                ].map(([label, value]) => (
+                  <Box key={label} display="flex" justifyContent="space-between" py={0.75}>
+                    <Typography variant="body2" color="text.secondary">{label}</Typography>
+                    <Typography variant="body2" fontWeight={600}>{value}</Typography>
+                  </Box>
+                ))}
+                <Box display="flex" justifyContent="space-between" py={1} mt={0.5} sx={{ borderTop: "1px solid", borderColor: "divider" }}>
+                  <Typography variant="subtitle1" fontWeight={700}>Total</Typography>
+                  <Typography variant="subtitle1" fontWeight={700} color="success.main">
+                    ${purchasesDataObj?.payment?.paid?.toFixed(2) || purchasesDataObj?.totalCharge?.toFixed(2) || "0.00"}
+                  </Typography>
+                </Box>
               </Stack>
             </Card>
             <Button
@@ -365,8 +408,8 @@ export default function PurchaseModalProvider({ children }: { children: React.Re
             <Typography variant="h4" fontWeight={700} color="error.main">
               Error
             </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 480, mb: 3 }}>
-              Something went wrong during the transaction. Please retry.
+            <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 480, mb: 1 }}>
+              {listingsDetailsError || purchaseError || "Something went wrong during the transaction."}
             </Typography>
             <Button
               variant="contained"
