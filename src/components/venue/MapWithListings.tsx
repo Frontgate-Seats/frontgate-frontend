@@ -24,6 +24,7 @@ import { useClientFilters } from "../../hooks/useClientFilters";
 import type { VenueMapData } from "../../store/slices/listingsMapView.slice";
 import { getMergedColumns } from "../../pages/listingsMapView.columns";
 import type { Trade } from "../../shared/types/trade.types";
+import supabaseClient from "../../clients/supabase.client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,9 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  // All recommendations for this event (not just the expanded trade)
+  const [allTrades, setAllTrades] = React.useState<Trade[]>([]);
+
   const [selectedSections, setSelectedSections] = React.useState<Set<string>>(new Set());
   const [selectedSectionIds, setSelectedSectionIds] = React.useState<Set<number>>(new Set());
   const [highlightedGroup, setHighlightedGroup] = React.useState<Set<number>>(new Set());
@@ -63,16 +67,43 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
     setLoading(true);
     setError(null);
 
-    listingsApi
+    const listingsPromise = listingsApi
       .fetchListingsWithMap(event_id)
       .then((res) => {
-        const rawListings = res.listings ?? [];
-        setListings(rawListings);
+        setListings(res.listings ?? []);
         setMapData(res.map ?? null);
-      })
-      .catch((err) => {
-        setError(err?.message ?? "Failed to load listings");
-      })
+      });
+
+    const tradesPromise = supabaseClient
+      .from("event_buy_listings_logs")
+      .select(`
+        id, event_id, listing_id, vs_section, row, quantity,
+        max_buy_price, projected_sell_price, estimated_margin_percent,
+        confidence_level, created_at,
+        llm_result_comment,
+        event_analysis_logs!inner (event_name, venue_name, primary_performer_name, llm_result),
+        events (web_path, local_date)
+      `)
+      .eq("event_id", event_id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        const flat = (data ?? []).map((r: any) => ({
+          ...r,
+          event_name: r.event_analysis_logs?.event_name ?? "-",
+          venue_name: r.event_analysis_logs?.venue_name ?? "-",
+          primary_performer_name: r.event_analysis_logs?.primary_performer_name ?? "-",
+          llm_result: r.event_analysis_logs?.llm_result ?? null,
+          vs_web_path: r.events?.web_path ?? null,
+          local_date: r.events?.local_date ?? null,
+          sell_source: null,
+          buy_source: null,
+          llm_matched_section: null,
+        }));
+        setAllTrades(flat as Trade[]);
+      });
+
+    Promise.all([listingsPromise, tradesPromise])
+      .catch((err) => setError(err?.message ?? "Failed to load listings"))
       .finally(() => setLoading(false));
   }, [event_id]);
 
@@ -80,11 +111,11 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
     fetchListingsWithMap();
   }, [fetchListingsWithMap]);
 
-  // Pre-select the trade's section on mount once map data is loaded
+  // Pre-select all recommendation sections once map data is loaded
   React.useEffect(() => {
-    if (!mapData || !trade?.vs_section) return;
+    if (!mapData || allTrades.length === 0) return;
     handleShowRecommendedChange(true);
-  }, [mapData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mapData, allTrades.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sectionToZone = React.useMemo(() => {
     const lookup: Record<number, string> = {};
@@ -136,42 +167,42 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
       if (l.id) availableListingIds.add(String(l.id));
     });
 
-    let tradeRow: any = null;
-    if (trade?.listing_id) {
-      tradeRow = {
-        id: `trade-${trade.id}`,
-        listingId: trade.listing_id || "",
-        section_name: trade.vs_section || "—",
-        row: trade.row || "—",
-        quantity: trade.quantity || 1,
-        price: trade.max_buy_price || 0,
-        isRecommendation: true,
-        isInRecommendedSection: true,
-        isListingAvailable: availableListingIds.has(trade.listing_id),
-        projected_sell_price: trade.projected_sell_price,
-        confidence_level: trade.confidence_level,
-        recommendation_date: trade.created_at,
-        estimated_margin_percent: trade.estimated_margin_percent,
-        _trade: trade,
-      };
-    }
+    // All recommendations for this event as pinned rows at the top
+    const tradeRows = allTrades.map((t) => ({
+      id: `trade-${t.id}`,
+      listingId: t.listing_id || "",
+      section_name: t.vs_section || "—",
+      row: t.row || "—",
+      quantity: t.quantity || 1,
+      price: t.max_buy_price || 0,
+      isRecommendation: true,
+      isInRecommendedSection: true,
+      isListingAvailable: t.listing_id ? availableListingIds.has(t.listing_id) : false,
+      projected_sell_price: t.projected_sell_price,
+      confidence_level: t.confidence_level,
+      recommendation_date: t.created_at,
+      estimated_margin_percent: t.estimated_margin_percent,
+      _trade: t,
+      // highlight the currently expanded trade
+      _isCurrentTrade: t.id === trade?.id,
+    }));
 
-    const recSection = trade?.vs_section ? (trade.vs_section || "").toLowerCase() : null;
+    const recSections = new Set(allTrades.map((t) => (t.vs_section || "").toLowerCase()).filter(Boolean));
     const listingRows = filteredListings.map((l: any) => ({
       ...l,
       id: l.id || `listing-${Math.random()}`,
       listingId: l.id || "",
       price: l.pricePerTicket ?? l.price ?? l.listPrice ?? null,
       isRecommendation: false,
-      isInRecommendedSection: recSection
-        ? (l.section_name || l.section?.name || "").toLowerCase() === recSection
+      isInRecommendedSection: recSections.size > 0
+        ? recSections.has((l.section_name || l.section?.name || "").toLowerCase())
         : false,
       isListingAvailable: true,
       _trade: null,
     }));
 
-    return tradeRow ? [tradeRow, ...listingRows] : listingRows;
-  }, [filteredListings, trade]);
+    return [...tradeRows, ...listingRows];
+  }, [filteredListings, allTrades, trade?.id]);
 
   // Use listingId as the real VS listing ID — if missing, button shouldn't be shown
   const handleBuyClick = React.useCallback((row: any) => {
@@ -188,7 +219,9 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
     const weekStart = new Date(todayStart);
     weekStart.setDate(weekStart.getDate() - weekStart.getDay());
     return mergedRows.filter((row) => {
-      if (!row.isRecommendation || !row.recommendation_date) return false;
+      // Always keep listing rows
+      if (!row.isRecommendation) return true;
+      if (!row.recommendation_date) return false;
       const recDate = new Date(row.recommendation_date);
       if (recommendationTime === "today") return recDate >= todayStart;
       if (recommendationTime === "thisWeek") return recDate >= weekStart;
@@ -196,7 +229,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
     });
   }, [mergedRows, recommendationTime]);
 
-  const activeRows = showRecommendedOnly && trade ? filteredRowsByTime : mergedRows;
+  const activeRows = showRecommendedOnly && allTrades.length > 0 ? filteredRowsByTime : mergedRows;
 
   const {
     paginationModel,
@@ -245,17 +278,19 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
 
   const handleShowRecommendedChange = React.useCallback((checked: boolean) => {
     setShowRecommendedOnly(checked);
-    if (checked && mapData && trade?.vs_section) {
-      const recSectionNames = new Set<string>();
-      recSectionNames.add(trade.vs_section.toLowerCase());
+    if (checked && mapData && allTrades.length > 0) {
+      // Collect all unique sections across all recommendations
+      const recSectionNames = new Set(
+        allTrades.map((t) => (t.vs_section || "").toLowerCase()).filter(Boolean)
+      );
       setSelectedSections(new Set());
       const sectionIds = new Set<number>();
-      mapData.sections.forEach((s) => {
-        if (recSectionNames.has(s.name.toLowerCase())) sectionIds.add(s.id);
-      });
       const groupIds = new Set<number>();
       mapData.sections.forEach((s) => {
-        if (recSectionNames.has(s.name.toLowerCase()) && s.groupId != null) groupIds.add(s.groupId);
+        if (recSectionNames.has(s.name.toLowerCase())) {
+          sectionIds.add(s.id);
+          if (s.groupId != null) groupIds.add(s.groupId);
+        }
       });
       setSelectedSectionIds(sectionIds);
       setHighlightedGroup(groupIds);
@@ -264,7 +299,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
       setSelectedSectionIds(new Set());
       setHighlightedGroup(new Set());
     }
-  }, [mapData, trade]);
+  }, [mapData, allTrades]);
 
   return (
     <Box sx={{ height: height, width: "100%" }}>
@@ -280,7 +315,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
                 <Checkbox
                   checked={showRecommendedOnly}
                   onChange={(e) => handleShowRecommendedChange(e.target.checked)}
-                  disabled={!trade}
+                  disabled={allTrades.length === 0}
                   size="small"
                   color="success"
                 />
@@ -309,7 +344,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
                   textTransform: "none",
                 },
               }}
-              disabled={!trade}
+              disabled={allTrades.length === 0}
             >
               <ToggleButton value="all">All</ToggleButton>
               <ToggleButton value="today">Today</ToggleButton>
@@ -318,7 +353,9 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
 
             <Box sx={{ ml: "auto" }}>
               <Typography variant="caption" color="text.secondary">
-                Section: {trade?.vs_section || "—"} {trade?.row && `/ Row ${trade.row}`}
+                {allTrades.length > 0
+                  ? `${allTrades.length} recommendation${allTrades.length > 1 ? "s" : ""} · ${[...new Set(allTrades.map(t => t.vs_section).filter(Boolean))].join(", ")}`
+                  : "No recommendations"}
               </Typography>
             </Box>
           </Stack>
@@ -373,7 +410,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
               sx={{ height: "100%", borderRadius: 1, overflow: "hidden", padding: 1.5, display: "flex", flexDirection: "column" }}
             >
               <CustomDataGrid
-                title={showRecommendedOnly && trade ? "Recommended Sections" : "Listings & Recommendations"}
+                title={showRecommendedOnly && allTrades.length > 0 ? "Recommended Sections" : "Listings & Recommendations"}
                 rows={paginatedRows}
                 rowCount={totalFilteredRows}
                 isLoading={loading}
@@ -391,21 +428,22 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
                 sortingMode="client"
                 defaultFilterType="header"
                 getRowClassName={(params: unknown) => {
-                  const row = (params as { row?: { isRecommendation?: boolean; isListingAvailable?: boolean } })?.row;
-                  if (row?.isRecommendation && row?.isListingAvailable === false) {
-                    return "recommendation-row-unavailable";
-                  }
-                  if (row?.isRecommendation && row?.isListingAvailable) {
+                  const row = (params as { row?: any })?.row;
+                  if (!row) return "";
+                  if (row.isRecommendation) {
+                    // Current trade gets a stronger highlight
+                    if (row._isCurrentTrade) return "recommendation-row-current";
+                    if (row.isListingAvailable === false) return "recommendation-row-unavailable";
                     return "recommendation-row-available";
                   }
                   return "";
                 }}
                 headerComponent={
                   <Typography variant="subtitle1" fontWeight={600}>
-                    {showRecommendedOnly && trade ? "Recommended Sections" : "Listings & Recommendations"}
+                    {showRecommendedOnly && allTrades.length > 0 ? "Recommended Sections" : "Listings & Recommendations"}
                     <Typography component="span" variant="caption" color="text.secondary" ml={1}>
                       ({totalFilteredRows} of {activeRows.length}
-                      {trade ? `, 1 recommendation` : ""})
+                      {allTrades.length > 0 ? `, ${allTrades.length} recommendation${allTrades.length > 1 ? "s" : ""}` : ""})
                     </Typography>
                   </Typography>
                 }

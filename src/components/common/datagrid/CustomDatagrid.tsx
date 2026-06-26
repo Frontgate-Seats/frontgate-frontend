@@ -276,6 +276,10 @@ export default function CustomDataGrid({
                   "& .recommendation-row-unavailable": {
                     backgroundColor: "rgba(244, 67, 54, 0.12) !important",
                   },
+                  "& .recommendation-row-current": {
+                    backgroundColor: "rgba(25, 118, 210, 0.18) !important",
+                    fontWeight: 700,
+                  },
                   "& .MuiDataGrid-cell": {
                     whiteSpace: "nowrap !important",
                     overflow: "hidden !important",
