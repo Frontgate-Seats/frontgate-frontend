@@ -12,13 +12,14 @@ import {
   Skeleton,
   Stack,
   Typography,
+  FormControlLabel,
+  Checkbox,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import { useParams } from "react-router-dom";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import MapIcon from "@mui/icons-material/Map";
-
-import { useAppDispatch } from "../store/reducers/root.reducer";
-import { getTrades } from "../store/slices/trades.slice";
 
 import VenueMap from "../components/venue/VenueMap";
 import ZoneLegend from "../components/venue/ZoneLegend";
@@ -27,12 +28,27 @@ import { useClientFilters } from "../hooks/useClientFilters";
 import { useListingsMapState } from "../hooks/useListingsMapState";
 import { usePurchaseModal } from "../components/common/PurchaseModal";
 import { formatDateTime } from "../shared/utils/dateTime.util";
-import { getListingColumns, getTradeColumns } from "./listingsMapView.columns";
+import { getListingColumns, getTradeColumns, getMergedColumns } from "./listingsMapView.columns";
+import type { Trade } from "../shared/types/trade.types";
+import moment from "moment";
+
+// ── Filter state for merged view ─────────────────────────────────────────────
+interface FilterState {
+  showRecommendedOnly: boolean;
+  daysRange: [number, number]; // [minDays, maxDays]
+  recommendationTime: "all" | "today" | "thisWeek";
+}
 
 export default function ListingsMapViewPage() {
-  const dispatch = useAppDispatch();
   const { event_id } = useParams<{ event_id: string }>();
   const { openPurchaseModal } = usePurchaseModal();
+
+  // ── Filter state ───────────────────────────────────────────────────────────
+  const [filters, setFilters] = React.useState<FilterState>({
+    showRecommendedOnly: false,
+    daysRange: [7, 30],
+    recommendationTime: "all",
+  });
 
   const {
     loading,
@@ -42,10 +58,15 @@ export default function ListingsMapViewPage() {
     effectiveMap,
     filteredListings,
     filteredTrades,
+    allTrades,
     availableSectionIds,
     zoneOptions,
     selectedSections,
+    selectedSectionIds,
     highlightedGroup,
+    setSelectedSections,
+    setSelectedSectionIds,
+    setHighlightedGroup,
     handleSectionClick,
     handleGroupClick,
     handleRefresh,
@@ -55,9 +76,11 @@ export default function ListingsMapViewPage() {
   // ── Buy handler ─────────────────────────────────────────────────────────────
   const handleBuyClick = React.useCallback(
     (listing: any) => {
+      // For recommendation rows, use the trade's listing_id
+      const listingId = listing.listingId || listing._trade?.listing_id || listing.id;
       openPurchaseModal(
         {
-          id: listing.id || listing.listing_id,
+          id: listingId,
           row: listing.row || "",
           section_name: listing.section_name || listing.vs_section || "",
           price: listing.price || listing.max_buy_price || 0,
@@ -81,6 +104,157 @@ export default function ListingsMapViewPage() {
     [openPurchaseModal, eventInfo, event_id],
   );
 
+  // ── Filter handlers ─────────────────────────────────────────────────────────
+  const handleShowRecommendedChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const showOnly = event.target.checked;
+    setFilters((prev) => ({ ...prev, showRecommendedOnly: showOnly }));
+    
+    // When checkbox is checked, clear existing selections and highlight recommended sections on the map
+    if (showOnly && effectiveMap) {
+      const recSectionNames = new Set<string>();
+      allTrades.forEach((t: Trade) => {
+        if (t.vs_section) {
+          recSectionNames.add(t.vs_section.toLowerCase());
+        }
+      });
+      
+      // Clear any existing manual section selections first
+      setSelectedSections(new Set());
+      
+      // Find section IDs that match recommended sections
+      const sectionIds = new Set<number>();
+      effectiveMap.sections.forEach((s) => {
+        if (recSectionNames.has(s.name.toLowerCase())) {
+          sectionIds.add(s.id);
+        }
+      });
+      
+      // Also find group IDs for those sections
+      const groupIds = new Set<number>();
+      effectiveMap.sections.forEach((s) => {
+        if (recSectionNames.has(s.name.toLowerCase()) && s.groupId != null) {
+          groupIds.add(s.groupId);
+        }
+      });
+      
+      setSelectedSectionIds(sectionIds);
+      setHighlightedGroup(groupIds);
+    } else if (!showOnly) {
+      // Clear all selections when unchecked
+      setSelectedSections(new Set());
+      setSelectedSectionIds(new Set());
+      setHighlightedGroup(new Set());
+    }
+  };
+
+  const handleDaysRangeChange = (_event: React.MouseEvent<HTMLElement>, newRange: string | null) => {
+    if (newRange) {
+      const [min, max] = newRange.split("-").map(Number);
+      setFilters((prev) => ({ ...prev, daysRange: [min, max] as [number, number] }));
+    }
+  };
+
+  const handleRecommendationTimeChange = (_event: React.MouseEvent<HTMLElement>, newTime: "all" | "today" | "thisWeek" | null) => {
+    if (newTime) {
+      setFilters((prev) => ({ ...prev, recommendationTime: newTime }));
+    }
+  };
+
+  // ── Filter trades by recommendation time ─────────────────────────────────
+  const filteredTradesByTime = React.useMemo(() => {
+    let result = filteredTrades;
+    
+    // Filter by recommendation time
+    if (filters.recommendationTime === "today") {
+      const todayStart = moment().startOf("day");
+      result = result.filter((t: Trade) => {
+        if (!t.created_at) return false;
+        return moment(t.created_at).isAfter(todayStart);
+      });
+    } else if (filters.recommendationTime === "thisWeek") {
+      const weekStart = moment().startOf("week");
+      result = result.filter((t: Trade) => {
+        if (!t.created_at) return false;
+        return moment(t.created_at).isAfter(weekStart);
+      });
+    }
+
+    return result;
+  }, [filteredTrades, filters.recommendationTime]);
+
+  // ── Get recommended section names ──────────────────────────────────────────
+  const recommendedSections = React.useMemo(() => {
+    const sections = new Set<string>();
+    filteredTrades.forEach((t: Trade) => {
+      if (t.vs_section) {
+        sections.add(t.vs_section.toLowerCase());
+      }
+    });
+    return sections;
+  }, [filteredTrades]);
+
+  // ── Merge listings and trades into unified view ───────────────────────────
+  const mergedRows = React.useMemo(() => {
+    // Build set of currently available listing IDs from enrichedListings (unfiltered by map)
+    const availableListingIds = new Set<string>();
+    filteredListings.forEach((l: any) => {
+      if (l.id) availableListingIds.add(String(l.id));
+    });
+
+    // Get sections that have recommendations
+    const recSections = new Set<string>();
+    filteredTradesByTime.forEach((t: Trade) => {
+      if (t.vs_section) {
+        recSections.add(t.vs_section.toLowerCase());
+      }
+    });
+
+    // Convert trades to listing-like format
+    const tradeRows = filteredTradesByTime.map((t: Trade) => {
+      const isAvailable = !!(t.listing_id && availableListingIds.has(t.listing_id));
+      return {
+        id: `trade-${t.id}`,
+        listingId: t.listing_id || "",
+        section_name: t.vs_section || "—",
+        row: t.row || "—",
+        quantity: t.quantity || 1,
+        price: t.max_buy_price || 0,
+        isRecommendation: true,
+        isInRecommendedSection: true,
+        isListingAvailable: isAvailable,
+        projected_sell_price: t.projected_sell_price,
+        confidence_level: t.confidence_level,
+        recommendation_date: t.created_at,
+        estimated_margin_percent: t.estimated_margin_percent,
+        // Keep trade-specific fields
+        _trade: t,
+      };
+    });
+
+    // Add non-recommended listings
+    const listingRows = filteredListings
+      .map((l: any) => ({
+        ...l,
+        isRecommendation: false,
+        isInRecommendedSection: recSections.has((l.section_name || "").toLowerCase()),
+        isListingAvailable: true,
+        _trade: null,
+      }));
+
+    // Combine and sort by price (natural Vivid Seats order)
+    const combined = [...tradeRows, ...listingRows];
+    
+    // If show recommended only, filter to show only sections WITH recommendations
+    // (but still show all listings in those sections)
+    if (filters.showRecommendedOnly) {
+      return combined.filter((r) => 
+        r.isRecommendation || r.isInRecommendedSection || recSections.has((r.section_name || "").toLowerCase())
+      );
+    }
+
+    return combined;
+  }, [filteredListings, filteredTradesByTime, filters.showRecommendedOnly]);
+
   // ── Column definitions ──────────────────────────────────────────────────────
   const mapListingColumns = React.useMemo(
     () => getListingColumns(handleBuyClick),
@@ -88,6 +262,10 @@ export default function ListingsMapViewPage() {
   );
   const tradeColumns = React.useMemo(
     () => getTradeColumns(handleBuyClick),
+    [handleBuyClick],
+  );
+  const mergedColumns = React.useMemo(
+    () => getMergedColumns(handleBuyClick),
     [handleBuyClick],
   );
 
@@ -108,16 +286,9 @@ export default function ListingsMapViewPage() {
     initialSortModel: [{ field: "price", sort: "asc" }],
   });
 
-  // ── Client-side filtering — trades ─────────────────────────────────────────
+  // ── Client-side filtering — trades (kept for URL row filter functionality) ──
   const {
-    paginationModel: tradesPaginationModel,
-    sortModel: tradesSortModel,
-    filterModel: tradesFilterModel,
-    setPaginationModel: setTradesPaginationModel,
-    setSortModel: setTradesSortModel,
     setFilterModel: setTradesFilterModel,
-    paginatedRows: tradesPaginatedRows,
-    totalFilteredRows: tradesTotalFilteredRows,
   } = useClientFilters({
     data: filteredTrades,
     columns: tradeColumns,
@@ -130,13 +301,13 @@ export default function ListingsMapViewPage() {
   React.useEffect(() => {
     if (urlRowFilter && !urlRowApplied.current) {
       urlRowApplied.current = true;
-      setFilterModel((prev: any) => {
-        const items = (prev?.items || []).filter((i: any) => i.field !== "row");
+      setFilterModel((prev) => {
+        const items = (prev?.items || []).filter((i) => i.field !== "row");
         items.push({ field: "row", operator: "contains", value: urlRowFilter });
         return { ...prev, items };
       });
-      setTradesFilterModel((prev: any) => {
-        const items = (prev?.items || []).filter((i: any) => i.field !== "row");
+      setTradesFilterModel((prev) => {
+        const items = (prev?.items || []).filter((i) => i.field !== "row");
         items.push({ field: "row", operator: "contains", value: urlRowFilter });
         return { ...prev, items };
       });
@@ -204,7 +375,7 @@ export default function ListingsMapViewPage() {
       {/* Main Content: Map + Listings */}
       <Grid container spacing={2} sx={{ flex: 1, minHeight: 0 }}>
         {/* Left: Venue Map */}
-        <Grid size={{ xs: 12, md: 7, lg: 7 }} sx={{ height: "100%" }}>
+        <Grid size={{ xs: 12, lg: 5 }} sx={{ height: "100%" }}>
           <Card
             variant="outlined"
             sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}
@@ -246,20 +417,60 @@ export default function ListingsMapViewPage() {
         </Grid>
 
         {/* Right: Listings + Recommendations */}
-        <Grid size={{ xs: 12, md: 5, lg: 5 }} sx={{ height: "100%" }}>
+        <Grid size={{ xs: 12, lg: 7 }} sx={{ height: "100%" }}>
+          {/* Filter Controls - above the chart */}
+    
           <Stack spacing={1} sx={{ height: "100%" }}>
-            {/* Listings */}
+              <Box sx={{ mb: 1.5 }}>
+                <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={filters.showRecommendedOnly}
+                        onChange={handleShowRecommendedChange}
+                        size="small"
+                        color="success"
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" fontWeight={500}>
+                        Show Recommended Sections
+                      </Typography>
+                    }
+                  />
+                  <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+                  <ToggleButtonGroup
+                    value={filters.recommendationTime}
+                    exclusive
+                    onChange={handleRecommendationTimeChange}
+                    size="small"
+                    sx={{
+                      "& .MuiToggleButton-root": {
+                        px: 1.5,
+                        py: 0.5,
+                        fontSize: "0.75rem",
+                        textTransform: "none",
+                      },
+                    }}
+                  >
+                    <ToggleButton value="today">Today</ToggleButton>
+                    <ToggleButton value="thisWeek">This Week</ToggleButton>
+                    <ToggleButton value="all">All</ToggleButton>
+                  </ToggleButtonGroup>
+                </Stack>
+              </Box>
+            {/* Unified Table: Listings + Recommendations merged */}
             <Paper
               variant="outlined"
-              sx={{ height: "50%", borderRadius: 1, overflow: "hidden", padding: 2, display: "flex", flexDirection: "column" }}
+              sx={{ height: "100%", borderRadius: 1, overflow: "hidden", padding: 2, display: "flex", flexDirection: "column" }}
             >
               <CustomDataGrid
-                title="Listings"
-                rows={paginatedRows}
-                rowCount={totalFilteredRows}
-                isLoading={loading}
+                title={filters.showRecommendedOnly ? "Recommended Sections" : "Listings & Recommendations"}
+                rows={mergedRows}
+                rowCount={mergedRows.length}
+                isLoading={loading || tradesLoading}
                 error={null}
-                columns={mapListingColumns}
+                columns={mergedColumns}
                 paginationModel={paginationModel}
                 setPaginationModel={setPaginationModel}
                 sortingModel={sortModel}
@@ -267,47 +478,29 @@ export default function ListingsMapViewPage() {
                 filterModel={filterModel}
                 setFilterModel={setFilterModel}
                 onRefresh={handleRefresh}
-                defaultFilterType="header"
-                isFullHeight
-              />
-            </Paper>
-
-            {/* Recommendations */}
-            <Paper
-              variant="outlined"
-              sx={{ height: "50%", borderRadius: 1, overflow: "hidden", padding: 2, display: "flex", flexDirection: "column" }}
-            >
-              <CustomDataGrid
-                title="Recommendations"
-                rows={tradesPaginatedRows}
-                rowCount={tradesTotalFilteredRows}
-                isLoading={tradesLoading}
-                error={null}
-                columns={tradeColumns}
-                paginationModel={tradesPaginationModel}
-                setPaginationModel={setTradesPaginationModel}
-                sortingModel={tradesSortModel}
-                setSortingModel={setTradesSortModel}
-                filterModel={tradesFilterModel}
-                setFilterModel={setTradesFilterModel}
-                defaultFilterType="header"
-                onRefresh={() => {
-                  if (event_id) {
-                    dispatch(
-                      getTrades({
-                        page: 0,
-                        pageSize: 50,
-                        filters: {
-                          items: [{ field: "event_id", operator: "equals", value: event_id }],
-                        },
-                        sortFields: [{ field: "created_at", sort: "desc" }],
-                      }),
-                    );
-                  }
-                }}
                 isFullHeight
                 paginationMode="client"
                 sortingMode="client"
+                defaultFilterType="header"
+                getRowClassName={(params: unknown) => {
+                  const row = (params as { row?: { isRecommendation?: boolean; isListingAvailable?: boolean } })?.row;
+                  if (row?.isRecommendation && row?.isListingAvailable === false) {
+                    return "recommendation-row-unavailable";
+                  }
+                  if (row?.isRecommendation && row?.isListingAvailable) {
+                    return "recommendation-row-available";
+                  }
+                  return "";
+                }}
+                headerComponent={
+                  <Typography variant="subtitle1" fontWeight={600}>
+                    {filters.showRecommendedOnly ? "Recommended Sections" : "Listings & Recommendations"}
+                    <Typography component="span" variant="caption" color="text.secondary" ml={1}>
+                      ({mergedRows.length} total
+                      {filteredTrades.length > 0 ? `, ${filteredTrades.length} recommendations` : ""})
+                    </Typography>
+                  </Typography>
+                }
               />
             </Paper>
           </Stack>

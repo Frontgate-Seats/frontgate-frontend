@@ -1,9 +1,44 @@
 import moment from "moment";
 
-// Date format constants
-const DATE_FORMAT = "M/D/YY";
-const TIME_FORMAT = "h:mm A";
+// Fallback value for invalid/missing dates
 const FALLBACK_VALUE = "-";
+
+// Intl formatters (reused for performance)
+const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+  month: "numeric",
+  day: "numeric",
+  year: "2-digit",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+});
+
+const dateOnlyFormatter = new Intl.DateTimeFormat(undefined, {
+  month: "numeric",
+  day: "numeric",
+  year: "2-digit",
+});
+
+const timeOnlyFormatter = new Intl.DateTimeFormat(undefined, {
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+});
+
+/**
+ * Convert input to a native Date object.
+ * Accepts string, Date, or moment instance.
+ */
+function toDate(date: string | Date | moment.Moment): Date | null {
+  if (moment.isMoment(date)) {
+    return date.toDate();
+  }
+  if (date instanceof Date) {
+    return isNaN(date.getTime()) ? null : date;
+  }
+  const parsed = new Date(date);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
 
 export const formatDateTime = (
   date: string | Date | moment.Moment | null | undefined,
@@ -13,22 +48,17 @@ export const formatDateTime = (
   if (!date) return FALLBACK_VALUE;
 
   try {
-    const momentDate = moment.isMoment(date) ? date : moment(date);
-
-    if (!momentDate.isValid()) {
-      return FALLBACK_VALUE;
-    }
+    const d = toDate(date);
+    if (!d) return FALLBACK_VALUE;
 
     if (includeDate && includeTime) {
-      return `${momentDate.format(DATE_FORMAT)} ${momentDate.format(
-        TIME_FORMAT
-      )}`;
+      return dateTimeFormatter.format(d);
     }
     if (includeDate) {
-      return momentDate.format(DATE_FORMAT);
+      return dateOnlyFormatter.format(d);
     }
     if (includeTime) {
-      return momentDate.format(TIME_FORMAT);
+      return timeOnlyFormatter.format(d);
     }
 
     return FALLBACK_VALUE;
@@ -58,7 +88,18 @@ export const formatChartAxis = (
       return FALLBACK_VALUE;
     }
 
-    return timeRange?.endsWith("h") ? date.format("h:mm A") : date.format("M/D");
+    if (timeRange?.endsWith("h")) {
+      return new Intl.DateTimeFormat(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }).format(date.toDate());
+    }
+
+    return new Intl.DateTimeFormat(undefined, {
+      month: "numeric",
+      day: "numeric",
+    }).format(date.toDate());
   } catch {
     return FALLBACK_VALUE;
   }

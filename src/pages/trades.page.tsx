@@ -9,6 +9,7 @@ import {
   Tooltip,
   IconButton,
   Box,
+  GlobalStyles,
 } from "@mui/material";
 import {
   BarChart,
@@ -23,8 +24,7 @@ import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { formatDateTime } from "../shared/utils/dateTime.util";
 import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
-import TradeDetailPanel from "../components/trades/TradeDetailPanel";
-import type { ListingsCache, ListingsCacheEntry } from "../components/trades/TradeDetailPanel";
+import TradeDetailPanel, { TRADE_DETAIL_PANEL_HEIGHT } from "../components/trades/TradeDetailPanel";
 import TradeInfoButton from "../components/trades/TradeInfoButton";
 import type { Trade } from "../shared/types/trade.types";
 import { usePurchaseModal } from "../components/common/PurchaseModal";
@@ -35,7 +35,7 @@ type ParentRow = Trade & { _rowType: "parent" };
 type DetailRow = { id: string; _rowType: "detail"; _parentRow: Trade };
 type DisplayRow = ParentRow | DetailRow;
 
-const DETAIL_ROW_HEIGHT_WITH_LISTINGS = 800;
+const DETAIL_ROW_HEIGHT_WITH_LISTINGS = TRADE_DETAIL_PANEL_HEIGHT;
 const DETAIL_ROW_HEIGHT_NO_LISTINGS = 240;
 
 export default function TradesPage() {
@@ -48,31 +48,15 @@ export default function TradesPage() {
     error: tradesError,
   } = useSelector((state: RootState) => state.trades);
 
-  // ── Listings cache — survives DataGrid row virtualisation ─────────────────
-  // Declared before toggleRow so the callback closure can reference it safely.
-  const listingsCache = React.useRef<ListingsCache>({});
-  const handleCacheUpdate = React.useCallback(
-    (eventId: string, entry: ListingsCacheEntry) => {
-      listingsCache.current[eventId] = entry;
-    },
-    [],
-  );
-
   // ── Expanded rows ─────────────────────────────────────────────────────────
   const [expanded, setExpanded] = React.useState<Record<string | number, boolean>>({});
   const toggleRow = React.useCallback((id: string | number) => {
     setExpanded((prev) => {
-      const isCurrentlyOpen = !!prev[id];
-      // Clear the listings cache when collapsing so re-open triggers a fresh fetch
-      if (isCurrentlyOpen) {
-        const trade = trades.find((t) => t.id === id);
-        if (trade?.event_id) {
-          delete listingsCache.current[String(trade.event_id)];
-        }
-      }
-      return { ...prev, [id]: !isCurrentlyOpen };
+      const isOpen = !!prev[id];
+      // Close all, then toggle the clicked one — only one open at a time
+      return isOpen ? {} : { [id]: true };
     });
-  }, [trades]);
+  }, []);
 
   // ── Filter / sort / pagination ────────────────────────────────────────────
   const defaultTradesFilter = React.useMemo(() => ({ items: [] }), []);
@@ -174,11 +158,9 @@ export default function TradesPage() {
         if (params.row._rowType === "detail") {
           const parentTrade = params.row._parentRow;
           return (
-            <Box sx={{ width: "100%", height: "100%", overflow: "auto" }}>
+            <Box sx={{ width: "100%", height: "100%" }}>
               <TradeDetailPanel
                 trade={parentTrade}
-                listingsCache={listingsCache}
-                onCacheUpdate={handleCacheUpdate}
                 onBuyClick={(listing) => {
                   openPurchaseModal(
                     {
@@ -485,10 +467,20 @@ export default function TradesPage() {
   ];
 
   return (
-    <Stack
-      padding={3}
-      sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}
-    >
+    <>
+      <GlobalStyles styles={{
+        ".trade-row-expanded": {
+          backgroundColor: "rgba(25, 118, 210, 0.08) !important",
+          borderLeft: "3px solid #1976d2",
+          "&:hover": {
+            backgroundColor: "rgba(25, 118, 210, 0.13) !important",
+          },
+        },
+      }} />
+      <Stack
+        padding={3}
+        sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}
+      >
       <Grid container spacing={3}>
         <Grid
           size={{ xs: 12 }}
@@ -514,17 +506,21 @@ export default function TradesPage() {
                 ? DETAIL_ROW_HEIGHT_WITH_LISTINGS
                 : DETAIL_ROW_HEIGHT_NO_LISTINGS;
             }}
-            getRowClassName={(params: any) =>
-              params.row._rowType === "detail" ? "trade-detail-row" : ""
-            }
+            getRowClassName={(params: any) => {
+              if (params.row._rowType === "detail") return "trade-detail-row";
+              if (expanded[params.row.id]) return "trade-row-expanded";
+              return "";
+            }}
             headerComponent={
               <Typography variant="h6" fontWeight={600}>
                 Ticket Trades
               </Typography>
             }
+            isFullHeight={true}
           />
         </Grid>
       </Grid>
     </Stack>
+    </>
   );
 }

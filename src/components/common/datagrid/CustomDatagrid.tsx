@@ -45,6 +45,7 @@ interface CustomDataGridProps {
   logo?: string;
   getRowHeight?: (params: GridRowHeightParams) => number | null | undefined;
   getRowClassName?: (params: any) => string;
+  getRowStyle?: (params: any) => React.CSSProperties | null;
   paginationMode?: "client" | "server";
   sortingMode?: "client" | "server";
   isFullHeight?: boolean;
@@ -72,6 +73,7 @@ export default function CustomDataGrid({
   logo,
   getRowHeight,
   getRowClassName,
+  getRowStyle,
   paginationMode = "server",
   sortingMode = "server",
   isFullHeight = false,
@@ -264,8 +266,16 @@ export default function CustomDataGrid({
                   ((params) =>
                     params.row._rowType === "detail" ? "trade-detail-row" : "")
                 }
+                {...(getRowStyle ? { getRowStyle } : {})}
                 sx={{
                   height: "100%",
+                  // Row background styles via className
+                  "& .recommendation-row-available": {
+                    backgroundColor: "rgba(76, 175, 80, 0.15) !important",
+                  },
+                  "& .recommendation-row-unavailable": {
+                    backgroundColor: "rgba(244, 67, 54, 0.12) !important",
+                  },
                   "& .MuiDataGrid-cell": {
                     whiteSpace: "nowrap !important",
                     overflow: "hidden !important",

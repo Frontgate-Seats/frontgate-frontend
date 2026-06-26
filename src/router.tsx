@@ -15,7 +15,7 @@ const EventDetailsPage = Loadable(lazyWithRetry(() => import("./pages/eventDetai
 const ListingsPage = Loadable(lazyWithRetry(() => import("./pages/listings.page")));
 const SalesPage = Loadable(lazyWithRetry(() => import("./pages/sales.page")));
 const PurchasesPage = Loadable(lazyWithRetry(() => import("./pages/purchases.page")));
-const SuggestionsPage = Loadable(lazyWithRetry(() => import("./pages/suggestions.page")));
+// const SuggestionsPage = Loadable(lazyWithRetry(() => import("./pages/suggestions.page")));
 const TradesPage = Loadable(lazyWithRetry(() => import("./pages/trades.page")));
 const ListingsMapViewPage = Loadable(lazyWithRetry(() => import("./pages/listingsMapView.page")));
 
@@ -69,10 +69,11 @@ export const route: RouteObject[] = [
         path: "/purchases",
         element: <PurchasesPage />,
       },
-      {
-        path: "/suggestions",
-        element: <SuggestionsPage />,
-      },
+      // Suggestions page removed per meeting - June 24, 2026
+      // {
+      //   path: "/suggestions",
+      //   element: <SuggestionsPage />,
+      // },
       {
         path: "/trades",
         element: <TradesPage />,

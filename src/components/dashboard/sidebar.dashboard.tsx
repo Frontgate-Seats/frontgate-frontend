@@ -6,7 +6,7 @@ import Toolbar from "@mui/material/Toolbar";
 import { matchPath, useLocation } from "react-router";
 import EventIcon from "@mui/icons-material/Event";
 import StoreIcon from "@mui/icons-material/Store";
-import LightbulbIcon from "@mui/icons-material/Lightbulb";
+// import LightbulbIcon from "@mui/icons-material/Lightbulb";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 
 import {
@@ -109,6 +109,7 @@ export default function DashboardSidebar() {
                 pathname === "/purchases"
               }
             />
+            {/* Suggestions tab removed per meeting - June 24, 2026 
             <DashboardSidebarPageItem
               id="suggestions"
               title="Suggestions"
@@ -119,6 +120,7 @@ export default function DashboardSidebar() {
                 pathname === "/suggestions"
               }
             />
+            */}
             <DashboardSidebarPageItem
               id="trades"
               title="Trades"

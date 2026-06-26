@@ -115,6 +115,8 @@ const tradesApi = {
           projected_sell_price,
           estimated_margin_percent,
           confidence_level,
+          sell_source,
+          buy_source,
           created_at,
           llm_result_comment,
           event_analysis_logs!inner (
@@ -295,6 +297,9 @@ const tradesApi = {
         llm_result: row.event_analysis_logs?.llm_result ?? null,
         vs_web_path: row.events?.web_path ?? null,
         llm_result_comment: row.llm_result_comment ?? null,
+        sell_source: row.sell_source ?? null,
+        buy_source: row.buy_source ?? null,
+        llm_matched_section: null,
       }));
 
       // Warn if we're doing client-side sorting but hit the fetch limit

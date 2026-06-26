@@ -243,7 +243,7 @@ export default function EventDetailsPage() {
       ...AVAILABILITY_SECTION_CHART_CONFIG,
       lineSeries: generateSectionLineSeriesConfig(
         availabilityData.sectionChart,
-      ),
+      ).series,
     }),
     [availabilityData.sectionChart],
   );
@@ -253,7 +253,7 @@ export default function EventDetailsPage() {
       ...AVAILABILITY_PRICE_CHART_CONFIG,
       lineSeries: generatePricePointLineSeriesConfig(
         availabilityData.priceChart,
-      ),
+      ).series,
     }),
     [availabilityData.priceChart],
   );
