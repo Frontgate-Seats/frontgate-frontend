@@ -93,7 +93,7 @@ export default function CustomDataGrid({
         <Tooltip
           title={
             logo.includes("tj-logo")
-              ? "Ticket Jokey"
+              ? "TicketJockey"
               : logo.includes("vivid-logo")
                 ? "Vivid Seats"
                 : logo.includes("seatgeek-logo")
