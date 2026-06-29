@@ -3,7 +3,6 @@ import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import { useAppDispatch } from "../store/reducers/root.reducer";
 import { getEvents } from "../store/slices/events.slice";
-import { getSGEvent } from "../store/slices/sgevents.slice";
 import { getEventsExternalMappings } from "../store/slices/eventsExternalMappings.slice";
 import { getSales } from "../store/slices/sales.slice";
 import { getListingTrends } from "../store/slices/listingTrends.slice";
@@ -40,8 +39,6 @@ export function useUnifiedEventData(eventId: string | undefined) {
 
   const fetchEvent = React.useCallback(() => {
     if (!eventId) return;
-    
-    // Try to fetch from events table first
     dispatch(
       getEvents({
         page: 0,
@@ -52,12 +49,6 @@ export function useUnifiedEventData(eventId: string | undefined) {
         },
       })
     );
-    
-    // Also try to fetch from sgevents table
-    // Note: This assumes eventId is numeric for sgevents
-    if (!isNaN(Number(eventId))) {
-      dispatch(getSGEvent(eventId));
-    }
   }, [dispatch, eventId]);
 
   const fetchExternalMappings = React.useCallback(() => {
@@ -103,18 +94,8 @@ export function useUnifiedEventData(eventId: string | undefined) {
     }
   }, [eventsExternalMappings.rows.data, fetchSales]);
 
-  // Auto-refresh
-  React.useEffect(() => {
-    if (!eventsExternalMappings.rows.data?.length) return;
-    const intervalId = setInterval(fetchSales, 600000);
-    return () => clearInterval(intervalId);
-  }, [eventsExternalMappings.rows.data?.length, fetchSales]);
-
-  React.useEffect(() => {
-    if (!eventId) return;
-    const intervalId = setInterval(fetchListingTrends, 600000);
-    return () => clearInterval(intervalId);
-  }, [eventId, fetchListingTrends]);
+  // Auto-refresh removed — sales and listing trends are historical data
+  // and do not change frequently enough to warrant background polling.
 
   return {
     selectedEvent,

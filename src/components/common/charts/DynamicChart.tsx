@@ -15,6 +15,7 @@ import {
   ListItemText,
   OutlinedInput,
 } from "@mui/material";
+import BarChartIcon from "@mui/icons-material/BarChart";
 import {
   ChartDataProvider,
   ChartsSurface,
@@ -58,7 +59,7 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
     setHiddenSeries(initialHiddenSeries ?? new Set());
   }, [initialHiddenSeries]);
 
-  const { lineSeries, barSeries, leftAxisLabel, rightAxisLabel } = chartConfig;
+  const { lineSeries = [], barSeries = [], leftAxisLabel, rightAxisLabel } = chartConfig ?? {};
 
   const handleFullscreenChange = (fullscreenMode: boolean) => {
     setIsFullscreen(fullscreenMode);
@@ -103,6 +104,70 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
     (series) => series.id && !hiddenSeries.has(series.id as string),
   );
 
+  // ── Empty / no-data state ─────────────────────────────────────────────────
+  const hasData = dataset && dataset.length > 0;
+  const showEmptyState = !loading && !hasData;
+
+  if (showEmptyState) {
+    return (
+      <ToggleFullscreen onFullscreenChange={handleFullscreenChange}>
+        <Card
+          variant="outlined"
+          sx={{
+            height: isFullscreen ? "100%" : `${height}px`,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <CardContent
+            sx={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {/* Title row */}
+            <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }} flexWrap="wrap">
+              <Stack direction="row" alignItems="center" spacing={1}>
+                {customLogoComponent ? (
+                  customLogoComponent
+                ) : logo ? (
+                  <Box
+                    component="img"
+                    src={logo}
+                    alt="Logo"
+                    sx={{ width: 24, height: 24, objectFit: "contain" }}
+                  />
+                ) : null}
+                <Typography variant="h6" fontWeight={600}>
+                  {title}
+                </Typography>
+              </Stack>
+            </Stack>
+
+            {/* Centered prompt */}
+            <Box
+              sx={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 1,
+                color: "text.disabled",
+              }}
+            >
+              <BarChartIcon sx={{ fontSize: 40, opacity: 0.35 }} />
+              <Typography variant="body2" color="text.disabled">
+                No availability data
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
+      </ToggleFullscreen>
+    );
+  }
+
   return (
     <ToggleFullscreen onFullscreenChange={handleFullscreenChange}>
       <Card
@@ -119,12 +184,14 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
             flex: 1,
             display: "flex",
             flexDirection: "column",
+            p: height < 250 ? 1 : 2,
+            "&:last-child": { pb: height < 250 ? 1 : 2 },
           }}
         >
           <Stack
             direction="row"
             justifyContent="space-between"
-            sx={{ mb: 3, gap: 2 }}
+            sx={{ mb: height < 250 ? 0.5 : 1.5, gap: 1 }}
             flexWrap="wrap"
           >
             <Stack direction="row" alignItems="center" spacing={1}>
@@ -154,23 +221,23 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                   />
                 </Tooltip>
               ) : null}
-              <Typography variant="h6" fontWeight={600} gutterBottom>
+              <Typography variant="subtitle2" fontWeight={600}>
                 {title}
               </Typography>
             </Stack>
 
-            <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
               {/* Series Selector */}
               {allSeries.length > 0 && (
                 <FormControl size="small">
-                  <InputLabel>Series</InputLabel>
+                  <InputLabel sx={{ fontSize: "0.72rem" }}>Series</InputLabel>
                   <Select
                     multiple
                     value={visibleSeriesIds}
                     onChange={handleSeriesToggle}
                     input={<OutlinedInput label="Series" />}
                     renderValue={(selected) => `${selected.length} selected`}
-                    sx={{ minWidth: 140 }}
+                    sx={{ minWidth: 110, fontSize: "0.72rem", "& .MuiSelect-select": { py: "4px" } }}
                   >
                     {allSeries.map((series) => {
                       const seriesId = String(series.id || "");
@@ -185,18 +252,13 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                             checked={visibleSeriesIds.includes(seriesId)}
                             sx={{
                               color: series.color,
-                              "&.Mui-checked": {
-                                color: series.color,
-                              },
+                              "&.Mui-checked": { color: series.color },
+                              p: 0.5,
                             }}
                           />
                           <ListItemText
                             primary={label}
-                            sx={{
-                              "& .MuiListItemText-primary": {
-                                fontSize: "0.875rem",
-                              },
-                            }}
+                            sx={{ "& .MuiListItemText-primary": { fontSize: "0.8rem" } }}
                           />
                         </MenuItem>
                       );
@@ -207,15 +269,15 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
 
               {timeRangeOptions.length > 0 && (
                 <FormControl size="small">
-                  <InputLabel>Time Range</InputLabel>
+                  <InputLabel sx={{ fontSize: "0.72rem" }}>Time Range</InputLabel>
                   <Select
                     value={timeRange}
                     label="Time Range"
                     onChange={(e) => onTimeRangeChange(e.target.value)}
-                    sx={{ minWidth: 150 }}
+                    sx={{ minWidth: 110, fontSize: "0.72rem", "& .MuiSelect-select": { py: "4px" } }}
                   >
                     {timeRangeOptions.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
+                      <MenuItem key={option.value} value={option.value} sx={{ fontSize: "0.8rem" }}>
                         {option.label}
                       </MenuItem>
                     ))}
@@ -225,15 +287,15 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
 
               {intervalOptionsMap[timeRange]?.length > 0 && (
                 <FormControl size="small">
-                  <InputLabel>Interval</InputLabel>
+                  <InputLabel sx={{ fontSize: "0.72rem" }}>Interval</InputLabel>
                   <Select
                     value={interval}
                     label="Interval"
                     onChange={(e) => onIntervalChange(e.target.value)}
-                    sx={{ minWidth: 120 }}
+                    sx={{ minWidth: 80, fontSize: "0.72rem", "& .MuiSelect-select": { py: "4px" } }}
                   >
                     {intervalOptionsMap[timeRange]?.map((intervalOption) => (
-                      <MenuItem key={intervalOption} value={intervalOption}>
+                      <MenuItem key={intervalOption} value={intervalOption} sx={{ fontSize: "0.8rem" }}>
                         {intervalOption}
                       </MenuItem>
                     ))}
@@ -287,7 +349,7 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                   display: "flex",
                   justifyContent: "center",
                   alignItems: "flex-start",
-                  paddingBottom: 2,
+                  paddingBottom: height < 250 ? 0.5 : 1.5,
                   flexShrink: 0,
                   width: "100%",
                   "& .MuiChartsLegend-root": {
@@ -295,7 +357,7 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                     flexWrap: "wrap",
                     justifyContent: "center",
                     maxWidth: "100%",
-                    gap: "8px",
+                    gap: "4px",
                   },
                   "& .MuiChartsLegend-series": {
                     flexShrink: 0,

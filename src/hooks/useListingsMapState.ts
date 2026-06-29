@@ -22,9 +22,9 @@ export interface ListingsMapState {
   // Derived / computed
   eventInfo: any;
   effectiveMap: VenueMapData | null;
-  enrichedListings: any[];
   filteredListings: any[];
   filteredTrades: any[];
+  allTrades: any[];
   availableSectionIds: Set<number>;
   zoneOptions: string[];
 
@@ -32,6 +32,9 @@ export interface ListingsMapState {
   selectedSections: Set<string>;
   selectedSectionIds: Set<number>;
   highlightedGroup: Set<number>;
+  setSelectedSections: React.Dispatch<React.SetStateAction<Set<string>>>;
+  setSelectedSectionIds: React.Dispatch<React.SetStateAction<Set<number>>>;
+  setHighlightedGroup: React.Dispatch<React.SetStateAction<Set<number>>>;
 
   // Handlers
   handleSectionClick: (sectionName: string, sectionId: number) => void;
@@ -320,14 +323,17 @@ export function useListingsMapState(): ListingsMapState {
     tradesLoading,
     eventInfo,
     effectiveMap,
-    enrichedListings,
     filteredListings,
     filteredTrades,
+    allTrades: trades || [],
     availableSectionIds,
     zoneOptions,
     selectedSections,
     selectedSectionIds,
     highlightedGroup,
+    setSelectedSections,
+    setSelectedSectionIds,
+    setHighlightedGroup,
     handleSectionClick,
     handleGroupClick,
     handleRefresh,

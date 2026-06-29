@@ -12,11 +12,13 @@ export interface PurchaseListingData {
 export interface PurchaseEventData {
   id: string;
   name: string;
+  /** Local venue date — used for all UI display */
+  local_date?: string;
+  /** UTC date — used only for the backend order record (event_utc_date) */
   utc_date?: string;
   venue_id?: string;
   venue_name?: string;
   primary_performer_name?: string;
-  local_date?: string;
   /** External event URL (e.g. VividSeats event page) */
   event_url?: string;
 }

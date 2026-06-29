@@ -214,6 +214,51 @@ export function useClientFilters<T = any>({
     if (!sortModel?.length) return filteredRows;
 
     const { field, sort } = sortModel[0];
+
+    // For fields that only exist on recommendation rows (e.g. recommendation_date,
+    // projected_sell_price, estimated_margin_percent, confidence_level),
+    // keep recommendations at the top sorted by the field, listings below sorted by price.
+    const recOnlyFields = new Set([
+      "recommendation_date", "projected_sell_price",
+      "estimated_margin_percent", "confidence_level",
+    ]);
+
+    if (recOnlyFields.has(field)) {
+      const recs = filteredRows.filter((r: any) => r.isRecommendation === true);
+      const listings = filteredRows.filter((r: any) => r.isRecommendation !== true);
+
+      const sortGroup = (rows: T[]) => [...rows].sort((a, b) => {
+        const aValue = a[field as keyof T];
+        const bValue = b[field as keyof T];
+        if (aValue == null && bValue == null) return 0;
+        if (aValue == null) return 1;
+        if (bValue == null) return -1;
+        const col = columns.find((c) => c.field === field);
+        const colType = col?.type || "string";
+        let comparison = 0;
+        if (colType === "number") {
+          comparison = Number(aValue) - Number(bValue);
+        } else if (colType === "date" || colType === "dateTime") {
+          const dA = moment(aValue as any); const dB = moment(bValue as any);
+          comparison = dA.isValid() && dB.isValid()
+            ? (dA.isBefore(dB) ? -1 : dA.isAfter(dB) ? 1 : 0)
+            : String(aValue).localeCompare(String(bValue));
+        } else {
+          comparison = String(aValue).localeCompare(String(bValue));
+        }
+        return sort === "asc" ? comparison : -comparison;
+      });
+
+      // Listings always sorted by price asc below recs
+      const sortedListings = [...listings].sort((a: any, b: any) => {
+        const aPrice = a.price ?? a.max_buy_price ?? Infinity;
+        const bPrice = b.price ?? b.max_buy_price ?? Infinity;
+        return aPrice - bPrice;
+      });
+
+      return [...sortGroup(recs), ...sortedListings] as T[];
+    }
+
     return [...filteredRows].sort((a, b) => {
       const aValue = a[field as keyof T];
       const bValue = b[field as keyof T];

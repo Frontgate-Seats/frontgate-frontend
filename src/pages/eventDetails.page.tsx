@@ -12,6 +12,8 @@ import {
   Button,
   Chip,
   Box,
+  Divider,
+  Skeleton,
 } from "@mui/material";
 import { PlayArrow, Stop } from "@mui/icons-material";
 import moment from "moment";
@@ -60,6 +62,28 @@ import {
   StartMonitoringDialog,
   type MonitorLevel,
 } from "../components/common/dialogs";
+
+// ─── Compact labelled field — mirrors EventMappingCard's Field component ─────
+function EventField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Box sx={{ minWidth: 0 }}>
+      <Typography
+        variant="caption"
+        color="text.disabled"
+        display="block"
+        sx={{ fontSize: "0.65rem", lineHeight: 1.2, mb: 0.1, whiteSpace: "nowrap" }}
+      >
+        {label}
+      </Typography>
+      <Typography
+        variant="body2"
+        sx={{ fontSize: "0.78rem", lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+      >
+        {children ?? <Box component="span" sx={{ color: "text.disabled" }}>—</Box>}
+      </Typography>
+    </Box>
+  );
+}
 
 export default function EventDetailsPage() {
   const dispatch = useAppDispatch();
@@ -243,7 +267,7 @@ export default function EventDetailsPage() {
       ...AVAILABILITY_SECTION_CHART_CONFIG,
       lineSeries: generateSectionLineSeriesConfig(
         availabilityData.sectionChart,
-      ),
+      ).series,
     }),
     [availabilityData.sectionChart],
   );
@@ -253,7 +277,7 @@ export default function EventDetailsPage() {
       ...AVAILABILITY_PRICE_CHART_CONFIG,
       lineSeries: generatePricePointLineSeriesConfig(
         availabilityData.priceChart,
-      ),
+      ).series,
     }),
     [availabilityData.priceChart],
   );
@@ -309,15 +333,6 @@ export default function EventDetailsPage() {
     return new Set(keys.filter((k) => !topKeys.has(k)));
   }, [availabilityData.sectionChart]);
 
-  // Whether PM availability data exists (not just loading)
-  const hasPmAvailabilityData =
-    !availabilityFromRedux.loading &&
-    availabilityFromRedux.data !== null &&
-    (
-      (availabilityData.priceChart?.length ?? 0) > 0 ||
-      (availabilityData.sectionChart?.length ?? 0) > 0 ||
-      (availabilityData.capacityTable?.length ?? 0) > 0
-    );
   const analysisLogsFromRedux = useSelector((state: RootState) => state.eventAnalysisLogs);
   const [analysisLogsPaginationModel, setAnalysisLogsPaginationModel] =
     React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
@@ -525,13 +540,13 @@ export default function EventDetailsPage() {
   // Capacity Table Columns
   const capacityColumns: CustomGridColDef[] = [
     {
-      field: "time",
+      field: "bucketStartUTC",
       headerName: "Date & Time",
       minWidth: 180,
       flex: 1,
       type: "dateTime",
-      valueGetter: (value) => (value ? new Date(value) : null),
-      valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
+      valueGetter: (value: any) => (value ? new Date(value) : null),
+      valueFormatter: (value: any) => (value ? formatDateTime(value) : "-"),
     },
     {
       field: "totalCapacity",
@@ -706,7 +721,7 @@ export default function EventDetailsPage() {
     data: availabilityData.capacityTable || [],
     columns: capacityColumns,
     initialPaginationModel: { page: 0, pageSize: 25 },
-    initialSortModel: [{ field: "time", sort: "desc" }],
+    initialSortModel: [{ field: "bucketStartUTC", sort: "desc" }],
   });
 
   // Analysis Logs Data Grid Columns
@@ -852,11 +867,11 @@ export default function EventDetailsPage() {
 
   const capacityHeaderComponent = (
     <Stack direction="row" alignItems="center" spacing={1}>
-      <Tooltip title="Ticketmaster">
+      <Tooltip title="TicketJockey">
         <Box
           component="img"
           src={TJ_LOGO}
-          alt="Ticketmaster Logo"
+          alt="TicketJockey Logo"
           sx={{
             width: 24,
             height: 24,
@@ -924,339 +939,168 @@ export default function EventDetailsPage() {
         {/* Combined Event Details Card */}
         <Grid size={{ xs: 12 }}>
           <Card variant="outlined">
-            <CardContent>
-              <Stack spacing={3}>
-                {/* Vivid Seats Row */}
-                <Stack direction="row" spacing={4}>
-                  {/* Logo on left */}
-                  <Box>
+            <CardContent sx={{ py: 1.5, px: 2, "&:last-child": { pb: 1.5 } }}>
+              <Stack spacing={1.25} divider={<Divider />}>
+
+                {/* Vivid Seats row */}
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <Stack direction="row" alignItems="center" sx={{ flexShrink: 0, width: 32 }}>
                     <Tooltip title="Vivid Seats">
-                      <Box
-                        component="img"
-                        src={VIVID_LOGO}
-                        alt="Vivid Seats logo"
-                        sx={{
-                          width: 24,
-                          height: 24,
-                          objectFit: "contain",
-                        }}
+                      <Box component="img" src={VIVID_LOGO} alt="Vivid Seats"
+                        sx={{ width: 18, height: 18, objectFit: "contain" }}
+                        onError={(e: any) => { e.currentTarget.style.display = "none"; }}
                       />
                     </Tooltip>
-                  </Box>
-
-                  {/* Event details on right */}
-                  <Box flex={1}>
-                    <Stack
-                      direction="row"
-                      spacing={3}
-                      sx={{
-                        flexWrap: "wrap",
-                        gap: 4,
-                      }}
-                    >
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          Event ID
-                        </Typography>
-                        <Typography variant="body1">
+                  </Stack>
+                  <Divider orientation="vertical" flexItem />
+                  {loading.events ? (
+                    <Stack direction="row" spacing={3} sx={{ flex: 1 }}>
+                      {[80, 140, 110, 120, 90, 80].map((w) => (
+                        <Skeleton key={w} variant="text" width={w} height={32} />
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Grid container spacing={1.5} columns={12} sx={{ flex: 1 }}>
+                      <Grid size={1}>
+                        <EventField label="Event ID">
                           {selectedEvent?.id ? (
-                            selectedEvent?.web_path ? (
-                              <Link
-                                href={`https://www.vividseats.com${selectedEvent.web_path}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                underline="hover"
-                                color="primary"
-                              >
+                            selectedEvent.web_path ? (
+                              <Link href={`https://www.vividseats.com${selectedEvent.web_path}`}
+                                target="_blank" rel="noopener noreferrer" underline="hover" color="primary">
                                 {selectedEvent.id}
                               </Link>
-                            ) : (
-                              selectedEvent.id
-                            )
-                          ) : (
-                            "-"
-                          )}
-                        </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          Name
-                        </Typography>
-                        <Typography variant="body1">
-                          {selectedEvent?.name || "-"}
-                        </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          Date & Time
-                        </Typography>
-                        <Typography variant="body1">
-                          {selectedEvent?.local_date
-                            ? formatDateTime(
-                                moment.parseZone(selectedEvent.local_date),
-                              )
-                            : "-"}
-                        </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          Venue
-                        </Typography>
-                        <Typography variant="body1">
+                            ) : selectedEvent.id
+                          ) : null}
+                        </EventField>
+                      </Grid>
+                      <Grid size={2}><EventField label="Name">{selectedEvent?.name}</EventField></Grid>
+                      <Grid size={2}>
+                        <EventField label="Date">
+                          {selectedEvent?.local_date ? formatDateTime(moment.parseZone(selectedEvent.local_date)) : null}
+                        </EventField>
+                      </Grid>
+                      <Grid size={3}>
+                        <EventField label="Venue">
                           {selectedEvent?.venue_name
                             ? `${selectedEvent.venue_name}, ${selectedEvent.venue_city}, ${selectedEvent.venue_state}`
-                            : "-"}
-                        </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          Performer
-                        </Typography>
-                        <Typography variant="body1">
-                          {selectedEvent?.primary_performer_name || "-"}
-                        </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          Category
-                        </Typography>
-                        <Typography variant="body1">
-                          {selectedEvent?.category_name || "-"}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </Box>
+                            : null}
+                        </EventField>
+                      </Grid>
+                      <Grid size={2}><EventField label="Performer">{selectedEvent?.primary_performer_name}</EventField></Grid>
+                      <Grid size={2}><EventField label="Category">{selectedEvent?.category_name}</EventField></Grid>
+                    </Grid>
+                  )}
                 </Stack>
 
-                {/* SeatGeek Row */}
-                {matchedSeatGeekEvent ? (
-                  <Stack direction="row" spacing={4}>
-                    {/* Logo on left */}
-                    <Box>
-                      <Tooltip title="SeatGeek">
-                        <Box
-                          component="img"
-                          src={SEATGEEK_LOGO}
-                          alt="SeatGeek logo"
-                          sx={{
-                            width: 24,
-                            height: 24,
-                            objectFit: "contain",
-                          }}
-                        />
-                      </Tooltip>
-                    </Box>
-
-                    {/* Event details on right */}
-
-                    <Box flex={1}>
-                      <Stack
-                        direction="row"
-                        spacing={3}
-                        sx={{
-                          flexWrap: "wrap",
-                          gap: 4,
-                        }}
-                      >
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            Event ID
-                          </Typography>
-                          <Typography variant="body1">
-                            <Link
-                              href={
-                                matchedSeatGeekEvent.web_path.startsWith("http")
-                                  ? matchedSeatGeekEvent.web_path
-                                  : `https://seatgeek.com${matchedSeatGeekEvent.web_path}`
-                              }
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              underline="hover"
-                              color="primary"
-                            >
+                {/* SeatGeek row */}
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <Stack direction="row" alignItems="center" sx={{ flexShrink: 0, width: 32 }}>
+                    <Tooltip title="SeatGeek">
+                      <Box component="img" src={SEATGEEK_LOGO} alt="SeatGeek"
+                        sx={{ width: 18, height: 18, objectFit: "contain" }}
+                        onError={(e: any) => { e.currentTarget.style.display = "none"; }}
+                      />
+                    </Tooltip>
+                  </Stack>
+                  <Divider orientation="vertical" flexItem />
+                  {loading.events ? (
+                    <Stack direction="row" spacing={3} sx={{ flex: 1 }}>
+                      {[80, 140, 110, 120, 90, 80].map((w) => (
+                        <Skeleton key={w} variant="text" width={w} height={32} />
+                      ))}
+                    </Stack>
+                  ) : !matchedSeatGeekEvent ? (
+                    <Typography variant="caption" color="text.disabled" sx={{ fontStyle: "italic" }}>
+                      No Data Available
+                    </Typography>
+                  ) : (
+                    <Grid container spacing={1.5} columns={12} sx={{ flex: 1 }}>
+                      <Grid size={1}>
+                        <EventField label="Event ID">
+                          {matchedSeatGeekEvent.id ? (
+                            <Link href={matchedSeatGeekEvent.web_path?.startsWith("http")
+                              ? matchedSeatGeekEvent.web_path
+                              : `https://seatgeek.com${matchedSeatGeekEvent.web_path}`}
+                              target="_blank" rel="noopener noreferrer" underline="hover" color="primary">
                               {matchedSeatGeekEvent.id}
                             </Link>
-                          </Typography>
-                        </Box>
+                          ) : null}
+                        </EventField>
+                      </Grid>
+                      <Grid size={2}><EventField label="Name">{matchedSeatGeekEvent.name}</EventField></Grid>
+                      <Grid size={2}>
+                        <EventField label="Date">
+                          {matchedSeatGeekEvent.local_date ? formatDateTime(moment.parseZone(matchedSeatGeekEvent.local_date)) : null}
+                        </EventField>
+                      </Grid>
+                      <Grid size={3}>
+                        <EventField label="Venue">
+                          {matchedSeatGeekEvent.venue_name
+                            ? `${matchedSeatGeekEvent.venue_name}, ${matchedSeatGeekEvent.venue_city}, ${matchedSeatGeekEvent.venue_state}`
+                            : null}
+                        </EventField>
+                      </Grid>
+                      <Grid size={2}><EventField label="Performer">{matchedSeatGeekEvent.primary_performer_name}</EventField></Grid>
+                      <Grid size={2}><EventField label="Category">{matchedSeatGeekEvent.category_name}</EventField></Grid>
+                    </Grid>
+                  )}
+                </Stack>
 
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            Name
-                          </Typography>
-                          <Typography variant="body1">
-                            {matchedSeatGeekEvent?.name || "-"}
-                          </Typography>
-                        </Box>
-
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            Date & Time
-                          </Typography>
-                          <Typography variant="body1">
-                            {matchedSeatGeekEvent?.local_date
-                              ? formatDateTime(
-                                  moment.parseZone(
-                                    matchedSeatGeekEvent.local_date,
-                                  ),
-                                )
-                              : "-"}
-                          </Typography>
-                        </Box>
-
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            Venue
-                          </Typography>
-                          <Typography variant="body1">
-                            {matchedSeatGeekEvent?.venue_name
-                              ? `${matchedSeatGeekEvent.venue_name}, ${matchedSeatGeekEvent.venue_city}, ${matchedSeatGeekEvent.venue_state}`
-                              : "-"}
-                          </Typography>
-                        </Box>
-
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            Performer
-                          </Typography>
-                          <Typography variant="body1">
-                            {matchedSeatGeekEvent?.primary_performer_name ||
-                              "-"}
-                          </Typography>
-                        </Box>
-
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            Category
-                          </Typography>
-                          <Typography variant="body1">
-                            {matchedSeatGeekEvent?.category_name || "-"}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </Box>
+                {/* TicketJockey (Primary Market) row */}
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <Stack direction="row" alignItems="center" sx={{ flexShrink: 0, width: 32 }}>
+                    <Tooltip title="TicketJockey">
+                      <Box component="img" src={TJ_LOGO} alt="TicketJockey"
+                        sx={{ width: 18, height: 18, objectFit: "contain" }}
+                        onError={(e: any) => { e.currentTarget.style.display = "none"; }}
+                      />
+                    </Tooltip>
                   </Stack>
-                ) : (
-                  <></>
-                )}
+                  <Divider orientation="vertical" flexItem />
+                  {availabilityFromRedux.loading && !availabilityFromRedux.data?.pmEvent ? (
+                    <Stack direction="row" spacing={3} sx={{ flex: 1 }}>
+                      {[80, 140, 110, 120, 90, 80].map((w) => (
+                        <Skeleton key={w} variant="text" width={w} height={32} />
+                      ))}
+                    </Stack>
+                  ) : !availabilityFromRedux.data?.pmEvent ? (
+                    <Typography variant="caption" color="text.disabled" sx={{ fontStyle: "italic" }}>
+                      No Data Available
+                    </Typography>
+                  ) : (
+                    <Grid container spacing={1.5} columns={12} sx={{ flex: 1 }}>
+                      <Grid size={1}>
+                        <EventField label="Event ID">
+                          {availabilityFromRedux.data.pmEvent.id ? (
+                            <Link href={availabilityFromRedux.data.pmEvent.eventUrl
+                              || `https://www.ticketmaster.com/event/${availabilityFromRedux.data.pmEvent.id}`}
+                              target="_blank" rel="noopener noreferrer" underline="hover" color="primary">
+                              {availabilityFromRedux.data.pmEvent.id}
+                            </Link>
+                          ) : null}
+                        </EventField>
+                      </Grid>
+                      <Grid size={2}><EventField label="Name">{availabilityFromRedux.data.pmEvent.name}</EventField></Grid>
+                      <Grid size={2}>
+                        <EventField label="Date">
+                          {availabilityFromRedux.data.pmEvent.eventLocalDate
+                            ? formatDateTime(moment.parseZone(availabilityFromRedux.data.pmEvent.eventLocalDate))
+                            : null}
+                        </EventField>
+                      </Grid>
+                      <Grid size={3}><EventField label="Venue">{availabilityFromRedux.data.pmEvent.venue?.name}</EventField></Grid>
+                      <Grid size={2}><EventField label="Performer">{availabilityFromRedux.data.pmEvent.performer?.name}</EventField></Grid>
+                      <Grid size={2}><EventField label="Market">{availabilityFromRedux.data.pmEvent.marketType}</EventField></Grid>
+                    </Grid>
+                  )}
+                </Stack>
 
-                     {/* TJ (Ticketmaster) Row */}
-                {availabilityFromRedux.data?.pmEvent ? (
-                  <Stack direction="row" spacing={4}>
-                    {/* Logo on left */}
-                    <Box>
-                      <Tooltip title="Ticketmaster">
-                        <Box
-                          component="img"
-                          src={TJ_LOGO}
-                          alt="Ticketmaster logo"
-                          sx={{
-                            width: 24,
-                            height: 24,
-                            objectFit: "contain",
-                          }}
-                        />
-                      </Tooltip>
-                    </Box>
-
-                    {/* Event details on right */}
-                    <Box flex={1}>
-                      <Stack
-                        direction="row"
-                        spacing={3}
-                        sx={{
-                          flexWrap: "wrap",
-                          gap: 4,
-                        }}
-                      >
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            Event ID
-                          </Typography>
-                          <Typography variant="body1">
-                            {availabilityFromRedux.data.pmEvent.id ? (
-                              <Link
-                                href={availabilityFromRedux.data.pmEvent.eventUrl
-                                  ? availabilityFromRedux.data.pmEvent.eventUrl
-                                  : `https://www.ticketmaster.com/event/${availabilityFromRedux.data.pmEvent.id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                underline="hover"
-                                color="primary"
-                              >
-                                {availabilityFromRedux.data.pmEvent.id}
-                              </Link>
-                            ) : (
-                              "-"
-                            )}
-                          </Typography>
-                        </Box>
-
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            Name
-                          </Typography>
-                          <Typography variant="body1">
-                            {availabilityFromRedux.data.pmEvent.name || "-"}
-                          </Typography>
-                        </Box>
-
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            Date & Time
-                          </Typography>
-                          <Typography variant="body1">
-                            {availabilityFromRedux.data.pmEvent.eventLocalDate
-                              ? formatDateTime(
-                                  moment.parseZone(availabilityFromRedux.data.pmEvent.eventLocalDate),
-                                )
-                              : "-"}
-                          </Typography>
-                        </Box>
-
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            Venue
-                          </Typography>
-                          <Typography variant="body1">
-                            {availabilityFromRedux.data.pmEvent.venue?.name || "-"}
-                          </Typography>
-                        </Box>
-
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            Performer
-                          </Typography>
-                          <Typography variant="body1">
-                            {availabilityFromRedux.data.pmEvent.performer?.name || "-"}
-                          </Typography>
-                        </Box>
-
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            Market Type
-                          </Typography>
-                          <Typography variant="body1">
-                            {availabilityFromRedux.data.pmEvent.marketType || "-"}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </Box>
-                  </Stack>
-                ) : (
-                  <></>
-                )}
               </Stack>
             </CardContent>
           </Card>
         </Grid>
 
             {/* Price Point Distribution */}
-            {hasPmAvailabilityData && (
             <Grid size={{ xs: 12 }}>
               <DynamicChart
                 title="Price Points - Availability Trends"
@@ -1274,10 +1118,8 @@ export default function EventDetailsPage() {
                 initialHiddenSeries={priceChartInitialHidden}
               />
             </Grid>
-            )}
 
             {/* Capacity Table */}
-            {hasPmAvailabilityData && (
             <Grid size={{ xs: 12, md: 6 }}>
               <CustomDataGrid
                 title="Primary Market Availability - Capacity Trends"
@@ -1317,10 +1159,8 @@ export default function EventDetailsPage() {
                 logo={TJ_LOGO}
               />
             </Grid>
-            )}
 
             {/* Section Breakdown */}
-            {hasPmAvailabilityData && (
             <Grid size={{ xs: 12, md: 6 }}>
               <DynamicChart
                 title="Sections - Availability Trends"
@@ -1338,7 +1178,6 @@ export default function EventDetailsPage() {
                 initialHiddenSeries={sectionChartInitialHidden}
               />
             </Grid>
-            )}
           
 
         {/* Listing Trends - Short Term */}

@@ -41,4 +41,8 @@ export interface Trade {
   // Flattened from events join
   vs_web_path: string | null;
   local_date: string | null;
+  // From event_buy_listings_logs — sell/buy routing and cross-platform section matches
+  sell_source: string | null;
+  buy_source: string | null;
+  llm_matched_section: Record<string, unknown> | null;
 }
