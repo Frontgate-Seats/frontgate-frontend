@@ -45,7 +45,6 @@ import moment from "moment";
 const SalesTable: React.FC<SalesTableProps> = ({
   eventId,
   height = 220,
-  onRefresh,
 }) => {
   const [sales, setSales] = React.useState<any[]>([]);
   const [vividSales, setVividSales] = React.useState<any[]>([]);
@@ -201,19 +200,7 @@ const SalesTable: React.FC<SalesTableProps> = ({
     initialSortModel: [{ field: "purchased_at", sort: "desc" }],
   });
 
-  // Expose refresh handler
-  React.useEffect(() => {
-    if (typeof onRefresh === "function") {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      const refreshHandler = () => fetchSalesData();
-      // Store the refresh handler in a way that can be accessed externally
-      // This is a simple approach; alternatively, use a ref or context
-    }
-  }, [onRefresh, fetchSalesData]);
-
-  // Make fetchSalesData available externally via a ref or callback
-  // For now, we'll just return it as part of the component's public API
-  // In practice, you might want to use forwardRef or a custom hook pattern
+  // onRefresh prop is unused — SalesTable exposes fetchSalesData directly via onRefresh on the grid below
 
   return (
     <Box sx={{ height: height, width: "100%" }}>
@@ -223,7 +210,7 @@ const SalesTable: React.FC<SalesTableProps> = ({
         rowCount={totalFilteredRows}
         columns={salesColumns}
         isLoading={loading}
-        error={error}
+        error={error ? new Error(error) : null}
         paginationModel={paginationModel}
         setPaginationModel={setPaginationModel}
         sortingModel={sortModel}

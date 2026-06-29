@@ -1,165 +1,13 @@
-import { Button, Typography, Chip, Box } from "@mui/material";
+import { Button, Typography } from "@mui/material";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { formatDateTime } from "../shared/utils/dateTime.util";
 import TradeInfoButton from "../components/trades/TradeInfoButton";
 import type { Trade } from "../shared/types/trade.types";
 
-// ── Listings columns ──────────────────────────────────────────────────────────
-export function getListingColumns(
-  onBuyClick: (row: any) => void,
-): CustomGridColDef[] {
-  return [
-    {
-      field: "zone_name",
-      headerName: "Zone",
-      type: "string",
-      width: 120,
-    },
-    {
-      field: "section_name",
-      headerName: "Section",
-      type: "string",
-      flex: 1,
-      minWidth: 120,
-    },
-    {
-      field: "row",
-      headerName: "Row",
-      type: "string",
-      width: 80,
-    },
-    {
-      field: "quantity",
-      headerName: "Qty",
-      type: "number",
-      width: 60,
-      min: 1,
-      max: 60,
-    },
-    {
-      field: "price",
-      headerName: "Price",
-      type: "number",
-      width: 80,
-      min: 0,
-      max: 10000,
-      valueFormatter: (value: any) => (value ? `$${value}` : "-"),
-    },
-    {
-      field: "actions",
-      type: "actions",
-      headerName: "",
-      width: 80,
-      sortable: false,
-      filterable: false,
-      getActions: (params: any) => [
-        <Button
-          key={params.row.id}
-          size="small"
-          variant="contained"
-          onClick={() => onBuyClick(params.row)}
-          sx={{ textTransform: "none", borderRadius: 2, fontSize: "0.75rem" }}
-        >
-          Buy
-        </Button>,
-      ],
-    },
-  ];
-}
-
-// ── Trade recommendation columns ──────────────────────────────────────────────
-export function getTradeColumns(onBuyClick: (row: any) => void): CustomGridColDef[] {
-  return [
-    {
-      field: "__info",
-      headerName: "",
-      width: 60,
-      sortable: false,
-      filterable: false,
-      disableColumnMenu: true,
-      renderCell: (params: any) => <TradeInfoButton trade={params.row} />,
-    },
-    {
-      field: "vs_section",
-      headerName: "Section",
-      type: "string",
-      flex: 1,
-      minWidth: 100,
-    },
-    {
-      field: "row",
-      headerName: "Row",
-      type: "string",
-      width: 60,
-    },
-    {
-      field: "quantity",
-      headerName: "Qty",
-      type: "number",
-      width: 50,
-      min: 1,
-      max: 60,
-    },
-    {
-      field: "confidence_level",
-      headerName: "Signal",
-      type: "singleSelect",
-      valueOptions: ["BUY", "STRONG_BUY", "CONVICTION_BUY"],
-      width: 130,
-      renderCell: (params: any) => {
-        const confidence = params.value;
-        const color =
-          confidence === "CONVICTION_BUY"
-            ? "success.main"
-            : confidence === "STRONG_BUY"
-              ? "warning.main"
-              : "error.main";
-        return (
-          <Typography variant="body2" fontWeight={600} color={color}>
-            {confidence ?? "-"}
-          </Typography>
-        );
-      },
-    },
-    {
-      field: "created_at",
-      headerName: "Date",
-      type: "dateTime",
-      width: 140,
-      valueGetter: (value: any) => (value ? new Date(value) : null),
-      valueFormatter: (value: any) => (value ? formatDateTime(value) : "-"),
-    },
-    {
-      field: "actions",
-      headerName: "",
-      type: "actions",
-      width: 100,
-      sortable: false,
-      filterable: false,
-      renderCell: (params: any) => {
-        const trade = params.row;
-        if (!trade.event_id || !trade.listing_id) return null;
-        return (
-          <Button
-            variant="contained"
-            size="small"
-            onClick={(e: any) => {
-              e.stopPropagation();
-              onBuyClick(trade);
-            }}
-            sx={{ textTransform: "none", borderRadius: 2, fontSize: "0.75rem" }}
-          >
-            Buy
-          </Button>
-        );
-      },
-    },
-  ];
-}
-// ── Merged columns: combines listings + recommendations with buy price, sell price, projection price, recommendation date ─
+// ── Merged columns: listings + recommendations ────────────────────────────────
 export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColDef[] {
   return [
-    // Info button for recommendations (with bulb icon for reasoning)
+    // Info button — only shown for recommendation rows
     {
       field: "__info",
       headerName: "",
@@ -193,7 +41,7 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
       min: 1,
       max: 60,
     },
-    // Buy Price - only populated for recommendations
+    // Buy Price — populated for all rows (recommendations use max_buy_price, listings use price)
     {
       field: "max_buy_price",
       headerName: "Buy Price",
@@ -201,7 +49,7 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
       width: 90,
       min: 0,
       max: 10000,
-      valueGetter: (value: any, row: any) => row.price || row.max_buy_price || null,
+      valueGetter: (_value: any, row: any) => row.price || row.max_buy_price || null,
       renderCell: (params: any) => {
         if (params.value == null) return "-";
         return (
@@ -211,7 +59,7 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
         );
       },
     },
-    // Projected Sell Price - only for recommendations
+    // Projected Sell Price — only for recommendations
     {
       field: "projected_sell_price",
       headerName: "Proj. Sell",
@@ -228,7 +76,7 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
         );
       },
     },
-    // Margin % - only for recommendations
+    // Margin % — only for recommendations
     {
       field: "estimated_margin_percent",
       headerName: "Margin %",
@@ -244,7 +92,7 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
         );
       },
     },
-    // Confidence/Signal - only for recommendations
+    // Confidence signal — only for recommendations
     {
       field: "confidence_level",
       headerName: "Signal",
@@ -267,7 +115,7 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
         );
       },
     },
-    // Recommendation Date - only for recommendations
+    // Recommendation date — only for recommendations
     {
       field: "recommendation_date",
       headerName: "Rec. Date",
@@ -280,7 +128,7 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
       },
       valueFormatter: (value: any) => (value ? formatDateTime(value) : "-"),
     },
-    // Current listing price (for all rows)
+    // Current listing price — for all rows
     {
       field: "price",
       headerName: "Price",
@@ -304,8 +152,7 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
       getActions: (params: any) => {
         const isRecommendation = params.row.isRecommendation;
         const isAvailable = params.row.isListingAvailable !== false;
-        
-        // If recommendation listing is not in current listings, show "Not Available"
+
         if (isRecommendation && !isAvailable) {
           return [
             <Typography
@@ -320,7 +167,6 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
           ];
         }
 
-        // Hide button entirely if no real listing ID
         if (!params.row.listingId) return [];
 
         return [
@@ -329,11 +175,7 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
             size="small"
             variant={isRecommendation ? "contained" : "outlined"}
             onClick={() => onBuyClick(params.row)}
-            sx={{ 
-              textTransform: "none", 
-              borderRadius: 2, 
-              fontSize: "0.7rem",
-            }}
+            sx={{ textTransform: "none", borderRadius: 2, fontSize: "0.7rem" }}
             color="primary"
           >
             Buy

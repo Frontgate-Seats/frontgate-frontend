@@ -59,8 +59,6 @@ export default function TradesPage() {
   }, []);
 
   // ── Filter / sort / pagination ────────────────────────────────────────────
-  const defaultTradesFilter = React.useMemo(() => ({ items: [] }), []);
-
   const {
     paginationModel,
     setPaginationModel,
@@ -70,7 +68,7 @@ export default function TradesPage() {
     setFilterModel,
   } = useDataGridQueryParams({
     columns: [
-    { field: "event_id", type: "number" },
+      { field: "event_id", type: "number" },
       { field: "event_name", type: "string" },
       { field: "local_date", type: "dateTime" },
       { field: "venue_name", type: "string" },
@@ -85,7 +83,7 @@ export default function TradesPage() {
     ],
     defaultPaginationModel: { page: 0, pageSize: 25 },
     defaultSortModel: [{ field: "created_at", sort: "desc" }],
-    defaultFilterModel: defaultTradesFilter,
+    defaultFilterModel: { items: [] },
   });
 
   React.useEffect(() => {
@@ -111,7 +109,7 @@ export default function TradesPage() {
   }, [dispatch, paginationModel.page, paginationModel.pageSize, sortModel, filterModel]);
 
   React.useEffect(() => {
-    const interval = setInterval(handleRefresh, 5 * 60 * 1000);
+    const interval = setInterval(handleRefresh, 10 * 60 * 1000); // 10 min — trades are monitor-generated, no need to poll faster
     return () => clearInterval(interval);
   }, [handleRefresh]);
 
@@ -168,8 +166,8 @@ export default function TradesPage() {
                       row: listing.row,
                       section_name: listing.section_name,
                       price: listing.price,
-                      quantity: listing.quantity,
-                      splits: listing.splits || [listing.quantity],
+                      quantity: Number(listing.quantity),
+                      splits: listing.splits || [Number(listing.quantity)],
                     },
                     {
                       id: String(parentTrade.event_id),

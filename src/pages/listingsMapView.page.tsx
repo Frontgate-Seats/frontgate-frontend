@@ -28,14 +28,13 @@ import { useClientFilters } from "../hooks/useClientFilters";
 import { useListingsMapState } from "../hooks/useListingsMapState";
 import { usePurchaseModal } from "../components/common/PurchaseModal";
 import { formatDateTime } from "../shared/utils/dateTime.util";
-import { getListingColumns, getTradeColumns, getMergedColumns } from "./listingsMapView.columns";
+import { getMergedColumns } from "./listingsMapView.columns";
 import type { Trade } from "../shared/types/trade.types";
 import moment from "moment";
 
 // ── Filter state for merged view ─────────────────────────────────────────────
 interface FilterState {
   showRecommendedOnly: boolean;
-  daysRange: [number, number]; // [minDays, maxDays]
   recommendationTime: "all" | "today" | "thisWeek";
 }
 
@@ -46,7 +45,6 @@ export default function ListingsMapViewPage() {
   // ── Filter state ───────────────────────────────────────────────────────────
   const [filters, setFilters] = React.useState<FilterState>({
     showRecommendedOnly: false,
-    daysRange: [7, 30],
     recommendationTime: "all",
   });
 
@@ -60,9 +58,7 @@ export default function ListingsMapViewPage() {
     filteredTrades,
     allTrades,
     availableSectionIds,
-    zoneOptions,
     selectedSections,
-    selectedSectionIds,
     highlightedGroup,
     setSelectedSections,
     setSelectedSectionIds,
@@ -147,13 +143,6 @@ export default function ListingsMapViewPage() {
     }
   };
 
-  const handleDaysRangeChange = (_event: React.MouseEvent<HTMLElement>, newRange: string | null) => {
-    if (newRange) {
-      const [min, max] = newRange.split("-").map(Number);
-      setFilters((prev) => ({ ...prev, daysRange: [min, max] as [number, number] }));
-    }
-  };
-
   const handleRecommendationTimeChange = (_event: React.MouseEvent<HTMLElement>, newTime: "all" | "today" | "thisWeek" | null) => {
     if (newTime) {
       setFilters((prev) => ({ ...prev, recommendationTime: newTime }));
@@ -183,17 +172,6 @@ export default function ListingsMapViewPage() {
   }, [filteredTrades, filters.recommendationTime]);
 
   // ── Get recommended section names ──────────────────────────────────────────
-  const recommendedSections = React.useMemo(() => {
-    const sections = new Set<string>();
-    filteredTrades.forEach((t: Trade) => {
-      if (t.vs_section) {
-        sections.add(t.vs_section.toLowerCase());
-      }
-    });
-    return sections;
-  }, [filteredTrades]);
-
-  // ── Merge listings and trades into unified view ───────────────────────────
   const mergedRows = React.useMemo(() => {
     // Build set of currently available listing IDs from enrichedListings (unfiltered by map)
     const availableListingIds = new Set<string>();
@@ -235,6 +213,7 @@ export default function ListingsMapViewPage() {
     const listingRows = filteredListings
       .map((l: any) => ({
         ...l,
+        listingId: l.listingId || l.id || "",  // ensure listingId is always set
         isRecommendation: false,
         isInRecommendedSection: recSections.has((l.section_name || "").toLowerCase()),
         isListingAvailable: true,
@@ -256,20 +235,12 @@ export default function ListingsMapViewPage() {
   }, [filteredListings, filteredTradesByTime, filters.showRecommendedOnly]);
 
   // ── Column definitions ──────────────────────────────────────────────────────
-  const mapListingColumns = React.useMemo(
-    () => getListingColumns(handleBuyClick),
-    [zoneOptions, handleBuyClick],
-  );
-  const tradeColumns = React.useMemo(
-    () => getTradeColumns(handleBuyClick),
-    [handleBuyClick],
-  );
   const mergedColumns = React.useMemo(
     () => getMergedColumns(handleBuyClick),
     [handleBuyClick],
   );
 
-  // ── Client-side filtering — listings ────────────────────────────────────────
+  // ── Client-side filtering — merged rows ──────────────────────────────────
   const {
     paginationModel,
     sortModel,
@@ -277,23 +248,13 @@ export default function ListingsMapViewPage() {
     setPaginationModel,
     setSortModel,
     setFilterModel,
-    paginatedRows,
-    totalFilteredRows,
+    paginatedRows: paginatedMergedRows,
+    totalFilteredRows: mergedTotalFiltered,
   } = useClientFilters({
-    data: filteredListings,
-    columns: mapListingColumns,
+    data: mergedRows,
+    columns: mergedColumns,
     initialPaginationModel: { page: 0, pageSize: 50 },
     initialSortModel: [{ field: "price", sort: "asc" }],
-  });
-
-  // ── Client-side filtering — trades (kept for URL row filter functionality) ──
-  const {
-    setFilterModel: setTradesFilterModel,
-  } = useClientFilters({
-    data: filteredTrades,
-    columns: tradeColumns,
-    initialPaginationModel: { page: 0, pageSize: 25 },
-    initialSortModel: [{ field: "created_at", sort: "desc" }],
   });
 
   // ── Apply URL row filter on mount ──────────────────────────────────────────
@@ -302,11 +263,6 @@ export default function ListingsMapViewPage() {
     if (urlRowFilter && !urlRowApplied.current) {
       urlRowApplied.current = true;
       setFilterModel((prev) => {
-        const items = (prev?.items || []).filter((i) => i.field !== "row");
-        items.push({ field: "row", operator: "contains", value: urlRowFilter });
-        return { ...prev, items };
-      });
-      setTradesFilterModel((prev) => {
         const items = (prev?.items || []).filter((i) => i.field !== "row");
         items.push({ field: "row", operator: "contains", value: urlRowFilter });
         return { ...prev, items };
@@ -466,8 +422,8 @@ export default function ListingsMapViewPage() {
             >
               <CustomDataGrid
                 title={filters.showRecommendedOnly ? "Recommended Sections" : "Listings & Recommendations"}
-                rows={mergedRows}
-                rowCount={mergedRows.length}
+                rows={paginatedMergedRows}
+                rowCount={mergedTotalFiltered}
                 isLoading={loading || tradesLoading}
                 error={null}
                 columns={mergedColumns}
@@ -496,7 +452,7 @@ export default function ListingsMapViewPage() {
                   <Typography variant="subtitle1" fontWeight={600}>
                     {filters.showRecommendedOnly ? "Recommended Sections" : "Listings & Recommendations"}
                     <Typography component="span" variant="caption" color="text.secondary" ml={1}>
-                      ({mergedRows.length} total
+                      ({mergedTotalFiltered} of {mergedRows.length}
                       {filteredTrades.length > 0 ? `, ${filteredTrades.length} recommendations` : ""})
                     </Typography>
                   </Typography>

@@ -133,7 +133,8 @@ export default function PurchaseModalProvider({ children }: { children: React.Re
         createOrder({
           event_id: eventData.id,
           event_name: eventData.name,
-          event_utc_date: eventData.local_date || eventData.utc_date || "",
+          event_utc_date: eventData.utc_date
+            || (eventData.local_date ? moment(eventData.local_date).utc().toISOString() : ""),
           primary_performer_name: eventData.primary_performer_name || "",
           venue_id: eventData.venue_id || "",
           venue_name: eventData.venue_name || "",
@@ -332,7 +333,7 @@ export default function PurchaseModalProvider({ children }: { children: React.Re
                   ["Event", eventData?.name || "—"],
                   ["Performer", eventData?.primary_performer_name || "—"],
                   ["Venue", eventData?.venue_name || "—"],
-                  ["Event Date", (eventData?.local_date || eventData?.utc_date) ? formatDateTime(moment.parseZone(eventData?.local_date || eventData?.utc_date)) : "—"],
+                  ["Event Date", eventData?.local_date ? formatDateTime(moment.parseZone(eventData.local_date)) : "—"],
                 ].map(([label, value]) => (
                   <Box key={label} display="flex" justifyContent="space-between" py={0.75}>
                     <Typography variant="body2" color="text.secondary">{label}</Typography>
@@ -455,7 +456,7 @@ export default function PurchaseModalProvider({ children }: { children: React.Re
                       </Typography>
                     </Stack>
                   )}
-                  {(eventData.local_date || eventData.utc_date) && (
+                  {eventData.local_date && (
                     <Stack direction="row" alignItems="center" spacing={0.5}>
                       <EventIcon sx={{ fontSize: 16, color: "text.secondary" }} />
                       <Typography variant="caption" color="text.secondary">

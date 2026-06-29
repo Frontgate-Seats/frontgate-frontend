@@ -22,7 +22,6 @@ export interface ListingsMapState {
   // Derived / computed
   eventInfo: any;
   effectiveMap: VenueMapData | null;
-  enrichedListings: any[];
   filteredListings: any[];
   filteredTrades: any[];
   allTrades: any[];
@@ -324,7 +323,6 @@ export function useListingsMapState(): ListingsMapState {
     tradesLoading,
     eventInfo,
     effectiveMap,
-    enrichedListings,
     filteredListings,
     filteredTrades,
     allTrades: trades || [],

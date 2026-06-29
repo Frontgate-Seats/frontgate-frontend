@@ -130,24 +130,9 @@ export function useEventData(eventId: string | undefined) {
     }
   }, [eventsExternalMappings.rows.data, fetchSales]);
 
-  // Auto-refresh
-  React.useEffect(() => {
-    if (!eventsExternalMappings.rows.data?.length) return;
-    const intervalId = setInterval(fetchSales, 600000);
-    return () => clearInterval(intervalId);
-  }, [eventsExternalMappings.rows.data?.length, fetchSales]);
-
-  React.useEffect(() => {
-    if (!eventId) return;
-    const intervalId = setInterval(fetchListingTrends, 600000);
-    return () => clearInterval(intervalId);
-  }, [eventId, fetchListingTrends]);
-
-  React.useEffect(() => {
-    if (!eventId) return;
-    const intervalId = setInterval(fetchVividSales, 600000);
-    return () => clearInterval(intervalId);
-  }, [eventId, fetchVividSales]);
+  // Auto-refresh sales & listing trends removed — this data is historical
+  // and does not change frequently enough to justify background polling.
+  // Users can refresh manually via the refresh button.
 
   return {
     selectedEvent,

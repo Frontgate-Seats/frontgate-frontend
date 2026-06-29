@@ -191,7 +191,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
     const listingRows = filteredListings.map((l: any) => ({
       ...l,
       id: l.id || `listing-${Math.random()}`,
-      listingId: l.id || "",
+      listingId: l.listingId || l.id || "",
       price: l.pricePerTicket ?? l.price ?? l.listPrice ?? null,
       isRecommendation: false,
       isInRecommendedSection: recSections.size > 0
@@ -207,7 +207,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
   // Use listingId as the real VS listing ID — if missing, button shouldn't be shown
   const handleBuyClick = React.useCallback((row: any) => {
     if (!onBuyClick || !row.listingId) return;
-    onBuyClick({ ...row, id: row.listingId });
+    onBuyClick({ ...row, id: row.listingId, quantity: Number(row.quantity) });
   }, [onBuyClick]);
 
   const mergedColumns = React.useMemo(() => getMergedColumns(handleBuyClick), [handleBuyClick]);
