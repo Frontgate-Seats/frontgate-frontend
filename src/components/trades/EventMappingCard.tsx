@@ -222,7 +222,7 @@ const EventMappingCard: React.FC<EventMappingCardProps> = ({ trade }) => {
 
           <PlatformRow
             logo="/tj-logo.ico"
-            title="Primary Market"
+            title="TicketJockey"
             loading={availabilityFromRedux.loading && !pmEvent}
             noMatch={!availabilityFromRedux.loading && !pmEvent}
           >

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Grid, Card, CardContent, Box, Typography, Stack } from "@mui/material";
+import { Grid, Card, CardContent, Box, Typography, Stack, Tooltip } from "@mui/material";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import { useSelector } from "react-redux";
 import { useAppDispatch } from "../../store/reducers/root.reducer";
@@ -83,13 +83,15 @@ const AvailabilityCharts: React.FC<AvailabilityChartsProps> = ({
       <Card variant="outlined" sx={{ height: perChartHeight, display: "flex", flexDirection: "column" }}>
         <CardContent sx={{ flex: 1, display: "flex", flexDirection: "column", p: 2, "&:last-child": { pb: 2 } }}>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-            <Box
-              component="img"
-              src="/tj-logo.ico"
-              alt="TJ"
-              sx={{ width: 15, height: 15, objectFit: "contain" }}
-              onError={(e: any) => { e.currentTarget.style.display = "none"; }}
-            />
+            <Tooltip title="TicketJockey">
+              <Box
+                component="img"
+                src="/tj-logo.ico"
+                alt="TicketJockey"
+                sx={{ width: 15, height: 15, objectFit: "contain" }}
+                onError={(e: any) => { e.currentTarget.style.display = "none"; }}
+              />
+            </Tooltip>
             <Typography variant="subtitle2" fontWeight={600}>{title}</Typography>
           </Stack>
           <Box sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1 }}>
