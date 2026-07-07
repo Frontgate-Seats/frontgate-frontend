@@ -190,7 +190,6 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
     const recSections = new Set(allTrades.map((t) => (t.vs_section || "").toLowerCase()).filter(Boolean));
     const listingRows = filteredListings.map((l: any) => ({
       ...l,
-      id: l.id || `listing-${Math.random()}`,
       listingId: l.listingId || l.id || "",
       price: l.pricePerTicket ?? l.price ?? l.listPrice ?? null,
       isRecommendation: false,
@@ -424,7 +423,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
                 setFilterModel={setFilterModel}
                 onRefresh={fetchListingsWithMap}
                 isFullHeight
-                paginationMode="client"
+                paginationMode="server"
                 sortingMode="client"
                 defaultFilterType="header"
                 getRowClassName={(params: unknown) => {
