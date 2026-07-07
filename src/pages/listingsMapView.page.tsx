@@ -435,7 +435,7 @@ export default function ListingsMapViewPage() {
                 setFilterModel={setFilterModel}
                 onRefresh={handleRefresh}
                 isFullHeight
-                paginationMode="client"
+                paginationMode="server"
                 sortingMode="client"
                 defaultFilterType="header"
                 getRowClassName={(params: unknown) => {
