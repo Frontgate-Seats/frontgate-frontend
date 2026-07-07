@@ -17,6 +17,8 @@ import vividSalesReducer from "../slices/vividSales.slice";
 import tradesReducer from "../slices/trades.slice";
 import eventAnalysisLogsReducer from "../slices/eventAnalysisLogs.slice";
 import listingsMapViewReducer from "../slices/listingsMapView.slice";
+import stubhubEventsReducer from "../slices/stubhubEvents.slice";
+import stubhubSalesReducer from "../slices/stubhubSales.slice";
 
 import type { store } from "..";
 import { useDispatch } from "react-redux";
@@ -40,6 +42,8 @@ const rootReducer = combineReducers({
   trades: tradesReducer,
   eventAnalysisLogs: eventAnalysisLogsReducer,
   listingsMapView: listingsMapViewReducer,
+  stubhubEvents: stubhubEventsReducer,
+  stubhubSales: stubhubSalesReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>; // <--- optional, for selector typing

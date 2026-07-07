@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Stack, Tooltip, Typography } from "@mui/material";
 import CustomDataGrid from "../common/datagrid/CustomDatagrid";
 import { useClientFilters } from "../../hooks/useClientFilters";
 import { formatDateTime } from "../../shared/utils/dateTime.util";
@@ -9,7 +9,7 @@ import type { CustomGridColDef } from "../../shared/types/mui.type";
 
 export interface SalesRow {
   id: string;
-  source: "SeatGeek" | "Vivid";
+  source: "SeatGeek" | "Vivid" | "StubHub";
   purchased_at: string;
   section_name: string;
   row_name: string;
@@ -28,7 +28,9 @@ export interface SalesTableProps {
 
 import salesApi from "../../apis/sales.api";
 import vividSalesApi from "../../apis/vividSales.api";
+import stubhubSalesApi from "../../apis/stubhubSales.api";
 import supabaseHttpClient from "../../clients/supabaseHttp.client";
+import supabaseClient from "../../clients/supabase.client";
 import moment from "moment";
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -48,6 +50,7 @@ const SalesTable: React.FC<SalesTableProps> = ({
 }) => {
   const [sales, setSales] = React.useState<any[]>([]);
   const [vividSales, setVividSales] = React.useState<any[]>([]);
+  const [stubhubSales, setStubhubSales] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -62,7 +65,7 @@ const SalesTable: React.FC<SalesTableProps> = ({
       .then((res) => setVividSales(res.data ?? []))
       .catch(() => setVividSales([]));
 
-    // Fetch SeatGeek sales via mapping
+    // Fetch SeatGeek sales via mapping (resolve SeatGeek event ID first)
     const sgPromise = supabaseHttpClient
       .get(`/functions/v1/events-api/seatgeekEvent/${eventId}`)
       .then((mappingRes) => {
@@ -72,7 +75,23 @@ const SalesTable: React.FC<SalesTableProps> = ({
       })
       .catch(() => setSales([]));
 
-    Promise.all([vividPromise, sgPromise])
+    // Fetch StubHub sales via mapping (resolve StubHub event ID first)
+    const stubhubPromise = Promise.resolve(
+      supabaseClient
+        .from("events_external_mapping")
+        .select("external_event_id")
+        .eq("event_id", eventId)
+        .eq("external_platform", "stubhub")
+        .maybeSingle()
+    )
+      .then(({ data: mapping }) => {
+        if (!mapping?.external_event_id) return;
+        return stubhubSalesApi.fetchStubhubSales(String(mapping.external_event_id))
+          .then((res) => setStubhubSales(res.data ?? []));
+      })
+      .catch(() => setStubhubSales([]));
+
+    Promise.all([vividPromise, sgPromise, stubhubPromise])
       .catch((err) => setError(err?.message ?? "Failed to load sales"))
       .finally(() => setLoading(false));
   }, [eventId]);
@@ -112,20 +131,56 @@ const SalesTable: React.FC<SalesTableProps> = ({
       };
     });
 
-    return [...seatgeekData, ...vividData].sort((a, b) =>
+    const stubhubData = (stubhubSales || []).map((sale: any, index: number) => ({
+      id: sale.id || `sh-${index}`,
+      purchased_at: sale.purchased_at,
+      section_name: sale.section_name || "-",
+      row_name: sale.row_name || "-",
+      base_price: sale.base_price,
+      quantity: sale.quantity,
+      total_price: sale.total_price || sale.base_price * sale.quantity,
+      source: "StubHub",
+    }));
+
+    return [...seatgeekData, ...vividData, ...stubhubData].sort((a, b) =>
       moment.utc(b.purchased_at).valueOf() - moment.utc(a.purchased_at).valueOf()
     );
-  }, [sales, vividSales]);
+  }, [sales, vividSales, stubhubSales]);
+
+  // Logo paths
+  const SEATGEEK_LOGO = "/seatgeek-logo.ico";
+  const VIVID_LOGO = "/vivid-logo.ico";
+  const STUBHUB_LOGO = "/stubhub-logo.ico";
 
   // Sales columns
   const salesColumns: CustomGridColDef[] = React.useMemo(() => [
     {
       field: "source",
       headerName: "Source",
-      minWidth: 90,
-      flex: 1,
+      minWidth: 70,
+      maxWidth: 70,
+      flex: 0,
       type: "singleSelect",
-      valueOptions: ["SeatGeek", "Vivid"],
+      valueOptions: ["SeatGeek", "Vivid", "StubHub"],
+      renderCell: (params: any) => {
+        const logoMap: Record<string, string> = {
+          SeatGeek: SEATGEEK_LOGO,
+          Vivid: VIVID_LOGO,
+          StubHub: STUBHUB_LOGO,
+        };
+        const logo = logoMap[params.value];
+        if (!logo) return params.value || "-";
+        return (
+          <Tooltip title={params.value}>
+            <Box
+              component="img"
+              src={logo}
+              alt={params.value}
+              sx={{ width: 16, height: 16, objectFit: "contain" }}
+            />
+          </Tooltip>
+        );
+      },
     },
     {
       field: "purchased_at",
@@ -223,14 +278,36 @@ const SalesTable: React.FC<SalesTableProps> = ({
         paginationMode="client"
         sortingMode="client"
         headerComponent={
-          <Typography variant="subtitle1" fontWeight={600}>
-            Sales Data
-            {!loading && combinedSalesTableData.length > 0 && (
-              <Typography component="span" variant="caption" color="text.secondary" ml={1}>
-                ({totalFilteredRows} sales)
-              </Typography>
-            )}
-          </Typography>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Stack direction="row" spacing={0.5}>
+              {sales.length > 0 && (
+                <Tooltip title="SeatGeek">
+                  <Box component="img" src={SEATGEEK_LOGO} alt="SeatGeek"
+                    sx={{ width: 20, height: 20, objectFit: "contain" }} />
+                </Tooltip>
+              )}
+              {vividSales.length > 0 && (
+                <Tooltip title="Vivid Seats">
+                  <Box component="img" src={VIVID_LOGO} alt="Vivid Seats"
+                    sx={{ width: 20, height: 20, objectFit: "contain" }} />
+                </Tooltip>
+              )}
+              {stubhubSales.length > 0 && (
+                <Tooltip title="StubHub">
+                  <Box component="img" src={STUBHUB_LOGO} alt="StubHub"
+                    sx={{ width: 20, height: 20, objectFit: "contain" }} />
+                </Tooltip>
+              )}
+            </Stack>
+            <Typography variant="subtitle1" fontWeight={600}>
+              Sales Data
+              {!loading && combinedSalesTableData.length > 0 && (
+                <Typography component="span" variant="caption" color="text.secondary" ml={1}>
+                  ({totalFilteredRows} sales)
+                </Typography>
+              )}
+            </Typography>
+          </Stack>
         }
       />
     </Box>

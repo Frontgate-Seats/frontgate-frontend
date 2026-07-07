@@ -1159,6 +1159,7 @@ export const useCombinedSalesChartDataFromRows = (
 
     const sgGrouped: Record<number, any[]> = {};
     const vividGrouped: Record<number, any[]> = {};
+    const stubhubGrouped: Record<number, any[]> = {};
 
     (combinedRows || []).forEach((row) => {
       const time = moment.utc(row.purchased_at).valueOf();
@@ -1170,6 +1171,9 @@ export const useCombinedSalesChartDataFromRows = (
       } else if (row.source === "Vivid") {
         if (!vividGrouped[bucket]) vividGrouped[bucket] = [];
         vividGrouped[bucket].push(row);
+      } else if (row.source === "StubHub") {
+        if (!stubhubGrouped[bucket]) stubhubGrouped[bucket] = [];
+        stubhubGrouped[bucket].push(row);
       }
     });
 
@@ -1184,6 +1188,7 @@ export const useCombinedSalesChartDataFromRows = (
 
       const sgArr = sgGrouped[t] || [];
       const vividArr = vividGrouped[t] || [];
+      const stubhubArr = stubhubGrouped[t] || [];
 
       const sgAvgPrice = sgArr.length
         ? sgArr.reduce((s, r) => s + r.base_price, 0) / sgArr.length
@@ -1197,6 +1202,12 @@ export const useCombinedSalesChartDataFromRows = (
       const vividTickets = vividArr.reduce((s, r) => s + (r.quantity || 0), 0);
       const vividTotalPrice = vividArr.reduce((s, r) => s + (r.total_price || r.base_price * (r.quantity || 1)), 0);
 
+      const stubhubAvgPrice = stubhubArr.length
+        ? stubhubArr.reduce((s, r) => s + r.base_price, 0) / stubhubArr.length
+        : 0;
+      const stubhubTickets = stubhubArr.reduce((s, r) => s + (r.quantity || 0), 0);
+      const stubhubTotalPrice = stubhubArr.reduce((s, r) => s + (r.total_price || r.base_price * (r.quantity || 1)), 0);
+
       result.push({
         time: timeStr,
         bucketStartUTC,
@@ -1208,6 +1219,10 @@ export const useCombinedSalesChartDataFromRows = (
         vividListings: vividArr.length,
         vividTickets: vividTickets,
         vividTotalPrice: +vividTotalPrice.toFixed(2),
+        stubhubAvgPrice: +stubhubAvgPrice.toFixed(2),
+        stubhubListings: stubhubArr.length,
+        stubhubTickets: stubhubTickets,
+        stubhubTotalPrice: +stubhubTotalPrice.toFixed(2),
       });
     }
 

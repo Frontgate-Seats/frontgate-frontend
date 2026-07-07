@@ -115,7 +115,10 @@ function PlatformRow({
 const EventMappingCard: React.FC<EventMappingCardProps> = ({ trade }) => {
   const dispatch = useAppDispatch();
   const [mapping, setMapping] = React.useState<EventMapping | null>(null);
+  const [stubhubMapping, setStubhubMapping] = React.useState<EventMapping | null>(null);
+  const [stubhubEvent, setStubhubEvent] = React.useState<any | null>(null);
   const [mappingLoading, setMappingLoading] = React.useState(false);
+  const [stubhubLoading, setStubhubLoading] = React.useState(false);
 
   const sgevents = useSelector((state: RootState) => state.sgevents);
   const availabilityFromRedux = useSelector((state: RootState) => state.availability);
@@ -124,6 +127,9 @@ const EventMappingCard: React.FC<EventMappingCardProps> = ({ trade }) => {
     if (!trade.event_id) return;
     setMappingLoading(true);
     setMapping(null);
+    setStubhubMapping(null);
+
+    // Fetch SeatGeek mapping
     supabaseClient
       .from("events_external_mapping")
       .select("external_event_id, mapping_confidence, is_verified")
@@ -133,6 +139,32 @@ const EventMappingCard: React.FC<EventMappingCardProps> = ({ trade }) => {
       .then(({ data }) => {
         setMapping(data ?? null);
         setMappingLoading(false);
+      });
+
+    // Fetch StubHub mapping
+    setStubhubLoading(true);
+    supabaseClient
+      .from("events_external_mapping")
+      .select("external_event_id, mapping_confidence, is_verified")
+      .eq("event_id", trade.event_id)
+      .eq("external_platform", "stubhub")
+      .maybeSingle()
+      .then(({ data }) => {
+        setStubhubMapping(data ?? null);
+        if (data?.external_event_id) {
+          // Fetch the StubHub event details
+          supabaseClient
+            .from("stubhubevents")
+            .select("*")
+            .eq("id", data.external_event_id)
+            .maybeSingle()
+            .then(({ data: shEvent }) => {
+              setStubhubEvent(shEvent ?? null);
+              setStubhubLoading(false);
+            });
+        } else {
+          setStubhubLoading(false);
+        }
       });
   }, [trade.event_id]);
 
@@ -160,6 +192,10 @@ const EventMappingCard: React.FC<EventMappingCardProps> = ({ trade }) => {
 
   const pmHref =
     pmEvent?.eventUrl ?? (pmEvent?.id ? `https://www.ticketmaster.com/event/${pmEvent.id}` : null);
+
+  const shHref = stubhubEvent?.web_path
+    ? stubhubEvent.web_path.startsWith("http") ? stubhubEvent.web_path : `https://www.stubhub.com/event/${stubhubEvent.id}`
+    : stubhubEvent?.id ? `https://www.stubhub.com/event/${stubhubEvent.id}` : null;
 
   const SgFields = sgEvent ? (
     <Grid container spacing={1.5} columns={11}>
@@ -206,6 +242,34 @@ const EventMappingCard: React.FC<EventMappingCardProps> = ({ trade }) => {
     </Grid>
   ) : null;
 
+  const ShFields = stubhubEvent ? (
+    <Grid container spacing={1.5} columns={11}>
+      <Grid size={1}>
+        <Field label="Event ID">
+          {shHref
+            ? <Link href={shHref} target="_blank" rel="noopener noreferrer" underline="hover" color="primary">{stubhubEvent.id}</Link>
+            : stubhubEvent.id}
+        </Field>
+      </Grid>
+      <Grid size={2}><Field label="Name">{stubhubEvent.name}</Field></Grid>
+      <Grid size={3}>
+        <Field label="Venue">
+          {stubhubEvent.venue_name
+            ? `${stubhubEvent.venue_name}${stubhubEvent.venue_city ? `, ${stubhubEvent.venue_city}` : ""}${stubhubEvent.venue_state ? `, ${stubhubEvent.venue_state}` : ""}`
+            : null}
+        </Field>
+      </Grid>
+      <Grid size={2}>
+        <Field label="Date (UTC)">
+          {stubhubEvent.utc_date
+            ? formatDateTime(moment.utc(stubhubEvent.utc_date))
+            : null}
+        </Field>
+      </Grid>
+      <Grid size={3}><Field label="Performer">{stubhubEvent.primary_performer_name}</Field></Grid>
+    </Grid>
+  ) : null;
+
   return (
     <Card variant="outlined">
       <CardContent sx={{ py: 1.5, px: 2, "&:last-child": { pb: 1.5 } }}>
@@ -221,6 +285,16 @@ const EventMappingCard: React.FC<EventMappingCardProps> = ({ trade }) => {
           </PlatformRow>
 
           <PlatformRow
+            logo="/stubhub-logo.ico"
+            title="StubHub"
+            isVerified={stubhubMapping?.is_verified}
+            loading={stubhubLoading}
+            noMatch={!stubhubLoading && stubhubMapping === null}
+          >
+            {ShFields}
+          </PlatformRow>
+
+          <PlatformRow
             logo="/tj-logo.ico"
             title="TicketJockey"
             loading={availabilityFromRedux.loading && !pmEvent}
@@ -228,6 +302,7 @@ const EventMappingCard: React.FC<EventMappingCardProps> = ({ trade }) => {
           >
             {PmFields}
           </PlatformRow>
+         
         </Stack>
       </CardContent>
     </Card>
