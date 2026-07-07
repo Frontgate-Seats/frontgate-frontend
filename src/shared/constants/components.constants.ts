@@ -338,6 +338,14 @@ export const COMBINED_SALES_CHART_CONFIG: ChartConfig = {
       yAxisId: "leftAxis",
       valueFormatter: (v) => (v != null ? `$${v}` : "-"),
     },
+    {
+      type: "line",
+      label: "StubHub Avg Price",
+      dataKey: "stubhubAvgPrice",
+      color: "#00897b",
+      yAxisId: "leftAxis",
+      valueFormatter: (v) => (v != null ? `$${v}` : "-"),
+    },
   ] as LineSeriesType[],
   barSeries: [
     {
@@ -352,6 +360,13 @@ export const COMBINED_SALES_CHART_CONFIG: ChartConfig = {
       label: "Vivid Listings",
       dataKey: "vividListings",
       color: "rgba(255,112,67,0.45)",
+      yAxisId: "rightAxis",
+    },
+    {
+      type: "bar",
+      label: "StubHub Listings",
+      dataKey: "stubhubListings",
+      color: "rgba(0,137,123,0.45)",
       yAxisId: "rightAxis",
     },
   ] as BarSeriesType[],

@@ -15,8 +15,8 @@ export interface TradeDetailPanelProps {
 const PANEL_SECTION_HEIGHT = 380;
 
 // Exported so trades.page.tsx can size the detail row precisely
-// py:2(32) + 4×gap spacing:2(64) + match card(96) + 2×divider(2) + map(450) + sales/charts(380) + border(2)
-export const TRADE_DETAIL_PANEL_HEIGHT = 32 + 64 + 96 + 2 + 450 + PANEL_SECTION_HEIGHT + 2;
+// py:2(32) + 5×gap spacing:2(80) + match card(180) + 2×divider(2) + map(450) + sales/charts(380) + border(2)
+export const TRADE_DETAIL_PANEL_HEIGHT = 32 + 80 + 180 + 2 + 450 + PANEL_SECTION_HEIGHT + 2;
 
 export default function TradeDetailPanel({ trade, onBuyClick }: TradeDetailPanelProps) {
   const eventId = trade.event_id ? String(trade.event_id) : null;
@@ -60,7 +60,7 @@ export default function TradeDetailPanel({ trade, onBuyClick }: TradeDetailPanel
         {/* ── ROW 3: Sales (left) | PM availability charts (right) ── */}
         <Grid container spacing={2} alignItems="flex-start">
           <Grid size={{ xs: 12, md: 5 }}>
-            <Box sx={{ height: PANEL_SECTION_HEIGHT }}>
+            <Box sx={{ minHeight: PANEL_SECTION_HEIGHT }}>
               <SalesTable eventId={eventId || ""} height={PANEL_SECTION_HEIGHT} />
             </Box>
           </Grid>

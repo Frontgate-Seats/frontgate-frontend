@@ -93,13 +93,16 @@ export default function EventDetailsPage() {
   const TJ_LOGO = "/tj-logo.ico";
   const VIVID_LOGO = "/vivid-logo.ico";
   const SEATGEEK_LOGO = "/seatgeek-logo.ico";
+  const STUBHUB_LOGO = "/stubhub-logo.ico";
 
   // Fetch event-related data (excluding suggests - handled separately for server-side rendering)
   const {
     selectedEvent,
     matchedSeatGeekEvent,
+    matchedStubhubEvent,
     sales,
     vividSales,
+    stubhubSales,
     listingTrends,
     loading,
     error,
@@ -221,6 +224,14 @@ export default function EventDetailsPage() {
         yAxisId: "leftAxis",
         valueFormatter: (v: any) => (v != null ? `$${v}` : "-"),
       },
+      {
+        type: "line" as const,
+        label: "StubHub Total Revenue",
+        dataKey: "stubhubTotalPrice",
+        color: "#00695c",
+        yAxisId: "leftAxis",
+        valueFormatter: (v: any) => (v != null ? `$${v}` : "-"),
+      },
     ],
     barSeries: [
       {
@@ -235,6 +246,13 @@ export default function EventDetailsPage() {
         label: "Vivid Tickets",
         dataKey: "vividTickets",
         color: "rgba(255,112,67,0.45)",
+        yAxisId: "rightAxis",
+      },
+      {
+        type: "bar" as const,
+        label: "StubHub Tickets",
+        dataKey: "stubhubTickets",
+        color: "rgba(0,105,92,0.45)",
         yAxisId: "rightAxis",
       },
     ],
@@ -473,10 +491,30 @@ export default function EventDetailsPage() {
      {
       field: "source",
       headerName: "Source",
-      minWidth: 100,
-      flex: 1,
+      minWidth: 70,
+      maxWidth: 70,
+      flex: 0,
       type: "singleSelect",
-      valueOptions: ["none", "SeatGeek", "Vivid"],
+      valueOptions: ["none", "SeatGeek", "Vivid", "StubHub"],
+      renderCell: (params: any) => {
+        const logoMap: Record<string, string> = {
+          SeatGeek: SEATGEEK_LOGO,
+          Vivid: VIVID_LOGO,
+          StubHub: STUBHUB_LOGO,
+        };
+        const logo = logoMap[params.value];
+        if (!logo) return params.value || "-";
+        return (
+          <Tooltip title={params.value}>
+            <Box
+              component="img"
+              src={logo}
+              alt={params.value}
+              sx={{ width: 20, height: 20, objectFit: "contain" }}
+            />
+          </Tooltip>
+        );
+      },
     },
     {
       field: "purchased_at",
@@ -607,10 +645,21 @@ export default function EventDetailsPage() {
       };
     });
 
-    return [...seatgeekData, ...vividData].sort((a, b) => 
+    const stubhubData = (stubhubSales || []).map((sale: any, index: number) => ({
+      id: sale.id || `sh-${index}`,
+      purchased_at: sale.purchased_at,
+      section_name: sale.section_name || "-",
+      row_name: sale.row_name || "-",
+      base_price: sale.base_price,
+      quantity: sale.quantity,
+      total_price: sale.total_price || sale.base_price * sale.quantity,
+      source: "StubHub",
+    }));
+
+    return [...seatgeekData, ...vividData, ...stubhubData].sort((a, b) => 
       moment.utc(b.purchased_at).valueOf() - moment.utc(a.purchased_at).valueOf()
     );
-  }, [sales, vividSales]);
+  }, [sales, vividSales, stubhubSales]);
 
   // Derive a cutoff date from the active time range — null means "all time" (no filter)
   const timeRangeCutoffDate = React.useMemo(() => {
@@ -696,6 +745,7 @@ export default function EventDetailsPage() {
     return {
       hasSeatGeek: sources.has("SeatGeek"),
       hasVivid: sources.has("Vivid"),
+      hasStubHub: sources.has("StubHub"),
     };
   }, [filteredSales]);
 
@@ -807,11 +857,11 @@ export default function EventDetailsPage() {
     <Stack direction="row" alignItems="center" justifyContent="space-between" width="100%">
       <Stack direction="row" alignItems="center" spacing={1}>
         <Tooltip title={
-          activeSourcesInFilter.hasSeatGeek && activeSourcesInFilter.hasVivid
-            ? "SeatGeek & Vivid Seats"
-            : activeSourcesInFilter.hasSeatGeek
-            ? "SeatGeek"
-            : "Vivid Seats"
+          [
+            activeSourcesInFilter.hasSeatGeek && "SeatGeek",
+            activeSourcesInFilter.hasVivid && "Vivid Seats",
+            activeSourcesInFilter.hasStubHub && "StubHub",
+          ].filter(Boolean).join(" & ") || "No Sources"
         }>
           <Stack direction="row" spacing={0.5}>
             {activeSourcesInFilter.hasSeatGeek && (
@@ -831,6 +881,18 @@ export default function EventDetailsPage() {
                 component="img"
                 src={VIVID_LOGO}
                 alt="Vivid Seats Logo"
+                sx={{
+                  width: 24,
+                  height: 24,
+                  objectFit: "contain",
+                }}
+              />
+            )}
+            {activeSourcesInFilter.hasStubHub && (
+              <Box
+                component="img"
+                src={STUBHUB_LOGO}
+                alt="StubHub Logo"
                 sx={{
                   width: 24,
                   height: 24,
@@ -1046,6 +1108,62 @@ export default function EventDetailsPage() {
                   )}
                 </Stack>
 
+                {/* StubHub row */}
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <Stack direction="row" alignItems="center" sx={{ flexShrink: 0, width: 32 }}>
+                    <Tooltip title="StubHub">
+                      <Box component="img" src={STUBHUB_LOGO} alt="StubHub"
+                        sx={{ width: 18, height: 18, objectFit: "contain" }}
+                        onError={(e: any) => { e.currentTarget.style.display = "none"; }}
+                      />
+                    </Tooltip>
+                  </Stack>
+                  <Divider orientation="vertical" flexItem />
+                  {loading.stubhubEvents ? (
+                    <Stack direction="row" spacing={3} sx={{ flex: 1 }}>
+                      {[80, 140, 110, 120, 90, 80].map((w) => (
+                        <Skeleton key={w} variant="text" width={w} height={32} />
+                      ))}
+                    </Stack>
+                  ) : !matchedStubhubEvent ? (
+                    <Typography variant="caption" color="text.disabled" sx={{ fontStyle: "italic" }}>
+                      No Data Available
+                    </Typography>
+                  ) : (
+                    <Grid container spacing={1.5} columns={12} sx={{ flex: 1 }}>
+                      <Grid size={1}>
+                        <EventField label="Event ID">
+                          {matchedStubhubEvent.id ? (
+                            <Link href={matchedStubhubEvent.web_path?.startsWith("http")
+                              ? matchedStubhubEvent.web_path
+                              : `https://www.stubhub.com/event/${matchedStubhubEvent.id}`}
+                              target="_blank" rel="noopener noreferrer" underline="hover" color="primary">
+                              {matchedStubhubEvent.id}
+                            </Link>
+                          ) : null}
+                        </EventField>
+                      </Grid>
+                      <Grid size={2}><EventField label="Name">{matchedStubhubEvent.name}</EventField></Grid>
+                      <Grid size={2}>
+                        <EventField label="Date (UTC)">
+                          {matchedStubhubEvent.utc_date
+                            ? formatDateTime(moment.utc(matchedStubhubEvent.utc_date))
+                            : null}
+                        </EventField>
+                      </Grid>
+                      <Grid size={3}>
+                        <EventField label="Venue">
+                          {matchedStubhubEvent.venue_name
+                            ? `${matchedStubhubEvent.venue_name}${matchedStubhubEvent.venue_city ? `, ${matchedStubhubEvent.venue_city}` : ""}${matchedStubhubEvent.venue_state ? `, ${matchedStubhubEvent.venue_state}` : ""}`
+                            : null}
+                        </EventField>
+                      </Grid>
+                      <Grid size={2}><EventField label="Performer">{matchedStubhubEvent.primary_performer_name}</EventField></Grid>
+                      <Grid size={2}><EventField label="Category">{matchedStubhubEvent.category_name}</EventField></Grid>
+                    </Grid>
+                  )}
+                </Stack>
+
                 {/* TicketJockey (Primary Market) row */}
                 <Stack direction="row" alignItems="center" spacing={1.5}>
                   <Stack direction="row" alignItems="center" sx={{ flexShrink: 0, width: 32 }}>
@@ -1222,7 +1340,7 @@ export default function EventDetailsPage() {
             title="Sales Trends"
             dataset={filteredCombinedSalesChartDataset}
             chartConfig={enhancedSalesChartConfig}
-            loading={loading.sales || loading.vividSales}
+            loading={loading.sales || loading.vividSales || loading.stubhubSales}
             timeRange={salesChart.timeRange}
             interval={salesChart.interval}
             onTimeRangeChange={salesChart.setTimeRange}
@@ -1230,36 +1348,34 @@ export default function EventDetailsPage() {
             timeRangeOptions={TIME_RANGE_OPTIONS}
             intervalOptionsMap={INTERVAL_OPTIONS_MAP}
             height={400}
-            logo={
-              activeSourcesInFilter.hasSeatGeek && activeSourcesInFilter.hasVivid
-                ? undefined // Show both logos in a custom way
-                : activeSourcesInFilter.hasSeatGeek
-                ? SEATGEEK_LOGO
-                : VIVID_LOGO
-            }
+            logo={undefined}
             customLogoComponent={
-              activeSourcesInFilter.hasSeatGeek && activeSourcesInFilter.hasVivid ? (
+              (activeSourcesInFilter.hasSeatGeek || activeSourcesInFilter.hasVivid || activeSourcesInFilter.hasStubHub) ? (
                 <Stack direction="row" spacing={0.5}>
-                  <Box
-                    component="img"
-                    src={SEATGEEK_LOGO}
-                    alt="SeatGeek Logo"
-                    sx={{
-                      width: 24,
-                      height: 24,
-                      objectFit: "contain",
-                    }}
-                  />
-                  <Box
-                    component="img"
-                    src={VIVID_LOGO}
-                    alt="Vivid Seats Logo"
-                    sx={{
-                      width: 24,
-                      height: 24,
-                      objectFit: "contain",
-                    }}
-                  />
+                  {activeSourcesInFilter.hasSeatGeek && (
+                    <Box
+                      component="img"
+                      src={SEATGEEK_LOGO}
+                      alt="SeatGeek Logo"
+                      sx={{ width: 24, height: 24, objectFit: "contain" }}
+                    />
+                  )}
+                  {activeSourcesInFilter.hasVivid && (
+                    <Box
+                      component="img"
+                      src={VIVID_LOGO}
+                      alt="Vivid Seats Logo"
+                      sx={{ width: 24, height: 24, objectFit: "contain" }}
+                    />
+                  )}
+                  {activeSourcesInFilter.hasStubHub && (
+                    <Box
+                      component="img"
+                      src={STUBHUB_LOGO}
+                      alt="StubHub Logo"
+                      sx={{ width: 24, height: 24, objectFit: "contain" }}
+                    />
+                  )}
                 </Stack>
               ) : undefined
             }
@@ -1273,8 +1389,8 @@ export default function EventDetailsPage() {
             rows={paginatedSales}
             rowCount={salesTotalFiltered}
             columns={salesColumns}
-            isLoading={loading.sales || loading.vividSales}
-            error={error.sales || error.vividSales}
+            isLoading={loading.sales || loading.vividSales || loading.stubhubSales}
+            error={error.sales || error.vividSales || error.stubhubSales}
             paginationModel={salesPaginationModel}
             setPaginationModel={setSalesPaginationModel}
             sortingModel={salesSortModel}
@@ -1285,6 +1401,7 @@ export default function EventDetailsPage() {
             onRefresh={() => {
               refetch.sales();
               refetch.vividSales();
+              refetch.stubhubSales();
             }}
             height={400}
             headerComponent={salesHeaderComponent}
