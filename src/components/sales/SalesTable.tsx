@@ -275,7 +275,7 @@ const SalesTable: React.FC<SalesTableProps> = ({
         defaultFilterType="header"
         onRefresh={fetchSalesData}
         height={height}
-        paginationMode="client"
+        paginationMode="server"
         sortingMode="client"
         headerComponent={
           <Stack direction="row" alignItems="center" spacing={1}>
