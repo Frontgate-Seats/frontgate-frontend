@@ -17,3 +17,28 @@ body {
   place-items: center;
   justify-content: center;
 }
+
+/* Recommendation row styling - Green = available, Red = unavailable */
+.recommendation-row-available {
+  background-color: rgba(46, 125, 50, 0.08) !important;
+  border-left: 3px solid #2e7d32 !important;
+}
+.recommendation-row-available:hover {
+  background-color: rgba(46, 125, 50, 0.14) !important;
+}
+
+.recommendation-row-unavailable {
+  background-color: rgba(211, 47, 47, 0.06) !important;
+  border-left: 3px solid #d32f2f !important;
+}
+.recommendation-row-unavailable:hover {
+  background-color: rgba(211, 47, 47, 0.12) !important;
+}
+
+.recommendation-row-current {
+  background-color: rgba(46, 125, 50, 0.15) !important;
+  border-left: 3px solid #1b5e20 !important;
+}
+.recommendation-row-current:hover {
+  background-color: rgba(46, 125, 50, 0.22) !important;
+}

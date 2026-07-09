@@ -62,6 +62,7 @@ import {
   StartMonitoringDialog,
   type MonitorLevel,
 } from "../components/common/dialogs";
+import { getPrimaryMarketLogo, getPrimaryMarketLabel } from "../shared/utils/primaryMarketLogo.util";
 
 // ─── Compact labelled field — mirrors EventMappingCard's Field component ─────
 function EventField({ label, children }: { label: string; children: React.ReactNode }) {
@@ -94,6 +95,11 @@ export default function EventDetailsPage() {
   const VIVID_LOGO = "/vivid-logo.ico";
   const SEATGEEK_LOGO = "/seatgeek-logo.ico";
   const STUBHUB_LOGO = "/stubhub-logo.ico";
+
+  // Primary market provider label and logo (dynamic based on pmEvent.marketType)
+  const pmMarketType = availabilityFromRedux.data?.pmEvent?.marketType || "";
+  const PRIMARY_LABEL = getPrimaryMarketLabel(pmMarketType);
+  const PRIMARY_LOGO = getPrimaryMarketLogo(pmMarketType);
 
   // Fetch event-related data (excluding suggests - handled separately for server-side rendering)
   const {
@@ -929,11 +935,11 @@ export default function EventDetailsPage() {
 
   const capacityHeaderComponent = (
     <Stack direction="row" alignItems="center" spacing={1}>
-      <Tooltip title="TicketJockey">
+      <Tooltip title={PRIMARY_LABEL}>
         <Box
           component="img"
-          src={TJ_LOGO}
-          alt="TicketJockey Logo"
+          src={PRIMARY_LOGO}
+          alt="Primary Market Logo"
           sx={{
             width: 24,
             height: 24,
@@ -942,7 +948,7 @@ export default function EventDetailsPage() {
         />
       </Tooltip>
       <Typography variant="h6" fontWeight={600} gutterBottom>
-        Primary Market Availability - Capacity Trends
+        {PRIMARY_LABEL} - Capacity Trends
       </Typography>
     </Stack>
   );
@@ -1164,11 +1170,11 @@ export default function EventDetailsPage() {
                   )}
                 </Stack>
 
-                {/* TicketJockey (Primary Market) row */}
+                {/* Primary Market row */}
                 <Stack direction="row" alignItems="center" spacing={1.5}>
                   <Stack direction="row" alignItems="center" sx={{ flexShrink: 0, width: 32 }}>
-                    <Tooltip title="TicketJockey">
-                      <Box component="img" src={TJ_LOGO} alt="TicketJockey"
+                    <Tooltip title={PRIMARY_LABEL}>
+                      <Box component="img" src={PRIMARY_LOGO} alt="Primary Market"
                         sx={{ width: 18, height: 18, objectFit: "contain" }}
                         onError={(e: any) => { e.currentTarget.style.display = "none"; }}
                       />
@@ -1221,7 +1227,7 @@ export default function EventDetailsPage() {
             {/* Price Point Distribution */}
             <Grid size={{ xs: 12 }}>
               <DynamicChart
-                title="Price Points - Availability Trends"
+                title={`${PRIMARY_LABEL} - Price Points Availability`}
                 dataset={availabilityData.priceChart}
                 chartConfig={priceChartConfig}
                 loading={availabilityFromRedux.loading}
@@ -1232,7 +1238,7 @@ export default function EventDetailsPage() {
                 timeRangeOptions={TIME_RANGE_OPTIONS}
                 intervalOptionsMap={INTERVAL_OPTIONS_MAP}
                 height={400}
-                logo={TJ_LOGO}
+                logo={PRIMARY_LOGO}
                 initialHiddenSeries={priceChartInitialHidden}
               />
             </Grid>
@@ -1240,7 +1246,7 @@ export default function EventDetailsPage() {
             {/* Capacity Table */}
             <Grid size={{ xs: 12, md: 6 }}>
               <CustomDataGrid
-                title="Primary Market Availability - Capacity Trends"
+                title={`${PRIMARY_LABEL} - Capacity Trends`}
                 rows={paginatedCapacity}
                 rowCount={capacityTotalFiltered}
                 columns={capacityColumns}
@@ -1274,14 +1280,14 @@ export default function EventDetailsPage() {
                 }}
                 height={400}
                 headerComponent={capacityHeaderComponent}
-                logo={TJ_LOGO}
+                logo={PRIMARY_LOGO}
               />
             </Grid>
 
             {/* Section Breakdown */}
             <Grid size={{ xs: 12, md: 6 }}>
               <DynamicChart
-                title="Sections - Availability Trends"
+                title={`${PRIMARY_LABEL} - Sections Availability`}
                 dataset={availabilityData.sectionChart}
                 chartConfig={sectionChartConfig}
                 loading={availabilityFromRedux.loading}
@@ -1292,7 +1298,7 @@ export default function EventDetailsPage() {
                 timeRangeOptions={TIME_RANGE_OPTIONS}
                 intervalOptionsMap={INTERVAL_OPTIONS_MAP}
                 height={400}
-                logo={TJ_LOGO}
+                logo={PRIMARY_LOGO}
                 initialHiddenSeries={sectionChartInitialHidden}
               />
             </Grid>
