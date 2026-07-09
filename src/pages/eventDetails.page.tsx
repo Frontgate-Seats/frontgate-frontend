@@ -90,8 +90,12 @@ export default function EventDetailsPage() {
   const dispatch = useAppDispatch();
   const { eventId } = useParams<{ eventId: string }>();
 
+  // Availability state from Redux — declared early because logo constants depend on it
+  const availabilityFromRedux = useSelector(
+    (state: RootState) => state.availability,
+  );
+
   // Logo paths
-  const TJ_LOGO = "/tj-logo.ico";
   const VIVID_LOGO = "/vivid-logo.ico";
   const SEATGEEK_LOGO = "/seatgeek-logo.ico";
   const STUBHUB_LOGO = "/stubhub-logo.ico";
@@ -157,10 +161,7 @@ export default function EventDetailsPage() {
     _setDataSpanMs: pricePointsChartBase._setDataSpanMs,
   };
 
-  // Availability state from Redux — must be declared before the span useEffect below
-  const availabilityFromRedux = useSelector(
-    (state: RootState) => state.availability,
-  );
+  // availabilityFromRedux is declared above (before logo constants that depend on it)
 
   // When "all" is selected, compute the actual data span from whichever source
   // has the widest range and push it into the chart state so the interval
