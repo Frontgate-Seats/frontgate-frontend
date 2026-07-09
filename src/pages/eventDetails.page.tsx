@@ -62,6 +62,7 @@ import {
   StartMonitoringDialog,
   type MonitorLevel,
 } from "../components/common/dialogs";
+import { getPrimaryMarketLogo, getPrimaryMarketLabel } from "../shared/utils/primaryMarketLogo.util";
 
 // ─── Compact labelled field — mirrors EventMappingCard's Field component ─────
 function EventField({ label, children }: { label: string; children: React.ReactNode }) {
@@ -97,8 +98,8 @@ export default function EventDetailsPage() {
 
   // Primary market provider label and logo (dynamic based on pmEvent.marketType)
   const pmMarketType = availabilityFromRedux.data?.pmEvent?.marketType || "";
-  const PRIMARY_LABEL = pmMarketType ? `Primary (${pmMarketType})` : "Primary";
-  const PRIMARY_LOGO = TJ_LOGO; // Use TJ logo as the primary market aggregator logo
+  const PRIMARY_LABEL = getPrimaryMarketLabel(pmMarketType);
+  const PRIMARY_LOGO = getPrimaryMarketLogo(pmMarketType);
 
   // Fetch event-related data (excluding suggests - handled separately for server-side rendering)
   const {

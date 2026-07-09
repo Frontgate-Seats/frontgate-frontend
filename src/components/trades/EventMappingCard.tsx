@@ -17,6 +17,7 @@ import { useAppDispatch } from "../../store/reducers/root.reducer";
 import { getSGEvent } from "../../store/slices/sgevents.slice";import type { RootState } from "../../store";
 import supabaseClient from "../../clients/supabase.client";
 import { formatDateTime } from "../../shared/utils/dateTime.util";
+import { getPrimaryMarketLogo, getPrimaryMarketLabel } from "../../shared/utils/primaryMarketLogo.util";
 import moment from "moment";
 import type { Trade } from "../../shared/types/trade.types";
 
@@ -295,8 +296,8 @@ const EventMappingCard: React.FC<EventMappingCardProps> = ({ trade }) => {
           </PlatformRow>
 
           <PlatformRow
-            logo="/tj-logo.ico"
-            title={pmEvent?.marketType ? `Primary (${pmEvent.marketType})` : "Primary"}
+            logo={getPrimaryMarketLogo(pmEvent?.marketType)}
+            title={getPrimaryMarketLabel(pmEvent?.marketType)}
             loading={availabilityFromRedux.loading && !pmEvent}
             noMatch={!availabilityFromRedux.loading && !pmEvent}
           >
