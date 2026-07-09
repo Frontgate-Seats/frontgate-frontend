@@ -201,7 +201,7 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                 <Tooltip
                   title={
                     logo.includes("tj-logo")
-                      ? "TicketJockey"
+                      ? "Primary Market"
                       : logo.includes("vivid-logo")
                         ? "Vivid Seats"
                         : logo.includes("seatgeek-logo")

@@ -11,7 +11,7 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
     {
       field: "__info",
       headerName: "",
-      width: 50,
+      width: 70,
       sortable: false,
       filterable: false,
       disableColumnMenu: true,

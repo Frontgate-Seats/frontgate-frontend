@@ -39,7 +39,8 @@ export interface MapWithListingsProps {
 
 /**
  * MapWithListings - Reusable component that renders VenueMap on left
- * and merged CustomDataGrid on right (listings + recommendations)
+ * and merged CustomDataGrid on right (listings + recommendations).
+ * Matches the same UI/behavior as the standalone ListingsMapView page.
  */
 const MapWithListings: React.FC<MapWithListingsProps> = ({
   event_id,
@@ -59,7 +60,11 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
   const [selectedSectionIds, setSelectedSectionIds] = React.useState<Set<number>>(new Set());
   const [highlightedGroup, setHighlightedGroup] = React.useState<Set<number>>(new Set());
 
-  const [showRecommendedOnly, setShowRecommendedOnly] = React.useState(true);
+  // Filter state:
+  // showRecommendedSections: selects all sections with recommendations on the map
+  // excludeRecommendations: hides recommendation rows from the table (shows only listings)
+  const [showRecommendedSections, setShowRecommendedSections] = React.useState(false);
+  const [excludeRecommendations, setExcludeRecommendations] = React.useState(false);
   const [recommendationTime, setRecommendationTime] = React.useState<"all" | "today" | "thisWeek">("all");
 
   const fetchListingsWithMap = React.useCallback(() => {
@@ -111,12 +116,6 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
     fetchListingsWithMap();
   }, [fetchListingsWithMap]);
 
-  // Pre-select all recommendation sections once map data is loaded
-  React.useEffect(() => {
-    if (!mapData || allTrades.length === 0) return;
-    handleShowRecommendedChange(true);
-  }, [mapData, allTrades.length]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const sectionToZone = React.useMemo(() => {
     const lookup: Record<number, string> = {};
     if (!mapData) return lookup;
@@ -161,14 +160,56 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
     return result;
   }, [enrichedListings, selectedSectionIds, highlightedGroup, mapData]);
 
+  // Filter trades by selected section
+  const filteredTrades = React.useMemo(() => {
+    let result = [...allTrades];
+    if (selectedSections.size > 0) {
+      result = result.filter(
+        (t) => t.vs_section && selectedSections.has(t.vs_section.toLowerCase()),
+      );
+    } else if (highlightedGroup.size > 0 && mapData) {
+      const groupSectionNames = new Set(
+        mapData.sections
+          .filter((s) => s.groupId != null && highlightedGroup.has(s.groupId!))
+          .map((s) => s.name.toLowerCase()),
+      );
+      result = result.filter(
+        (t) => t.vs_section && groupSectionNames.has(t.vs_section.toLowerCase()),
+      );
+    }
+    return result;
+  }, [allTrades, selectedSections, highlightedGroup, mapData]);
+
+  // Filter trades by recommendation time
+  const filteredTradesByTime = React.useMemo(() => {
+    if (recommendationTime === "all") return filteredTrades;
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(todayStart);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    return filteredTrades.filter((t) => {
+      if (!t.created_at) return false;
+      const recDate = new Date(t.created_at);
+      if (recommendationTime === "today") return recDate >= todayStart;
+      if (recommendationTime === "thisWeek") return recDate >= weekStart;
+      return true;
+    });
+  }, [filteredTrades, recommendationTime]);
+
   const mergedRows = React.useMemo(() => {
     const availableListingIds = new Set<string>();
     filteredListings.forEach((l: any) => {
       if (l.id) availableListingIds.add(String(l.id));
     });
 
-    // All recommendations for this event as pinned rows at the top
-    const tradeRows = allTrades.map((t) => ({
+    // Get sections that have recommendations
+    const recSections = new Set<string>();
+    filteredTradesByTime.forEach((t) => {
+      if (t.vs_section) recSections.add(t.vs_section.toLowerCase());
+    });
+
+    // Convert trades to listing-like format (unless excludeRecommendations is checked)
+    const tradeRows = !excludeRecommendations ? filteredTradesByTime.map((t) => ({
       id: `trade-${t.id}`,
       listingId: t.listing_id || "",
       section_name: t.vs_section || "—",
@@ -183,11 +224,9 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
       recommendation_date: t.created_at,
       estimated_margin_percent: t.estimated_margin_percent,
       _trade: t,
-      // highlight the currently expanded trade
       _isCurrentTrade: t.id === trade?.id,
-    }));
+    })) : [];
 
-    const recSections = new Set(allTrades.map((t) => (t.vs_section || "").toLowerCase()).filter(Boolean));
     const listingRows = filteredListings.map((l: any) => ({
       ...l,
       listingId: l.listingId || l.id || "",
@@ -201,7 +240,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
     }));
 
     return [...tradeRows, ...listingRows];
-  }, [filteredListings, allTrades, trade?.id]);
+  }, [filteredListings, filteredTradesByTime, excludeRecommendations, trade?.id]);
 
   // Use listingId as the real VS listing ID — if missing, button shouldn't be shown
   const handleBuyClick = React.useCallback((row: any) => {
@@ -210,25 +249,6 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
   }, [onBuyClick]);
 
   const mergedColumns = React.useMemo(() => getMergedColumns(handleBuyClick), [handleBuyClick]);
-
-  const filteredRowsByTime = React.useMemo(() => {
-    if (recommendationTime === "all") return mergedRows;
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekStart = new Date(todayStart);
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-    return mergedRows.filter((row) => {
-      // Always keep listing rows
-      if (!row.isRecommendation) return true;
-      if (!row.recommendation_date) return false;
-      const recDate = new Date(row.recommendation_date);
-      if (recommendationTime === "today") return recDate >= todayStart;
-      if (recommendationTime === "thisWeek") return recDate >= weekStart;
-      return true;
-    });
-  }, [mergedRows, recommendationTime]);
-
-  const activeRows = showRecommendedOnly && allTrades.length > 0 ? filteredRowsByTime : mergedRows;
 
   const {
     paginationModel,
@@ -240,7 +260,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
     paginatedRows,
     totalFilteredRows,
   } = useClientFilters({
-    data: activeRows,
+    data: mergedRows,
     columns: mergedColumns,
     initialPaginationModel: { page: 0, pageSize: 50 },
     initialSortModel: [{ field: "price", sort: "asc" }],
@@ -275,10 +295,10 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
     setSelectedSectionIds(new Set());
   }, []);
 
-  const handleShowRecommendedChange = React.useCallback((checked: boolean) => {
-    setShowRecommendedOnly(checked);
+  const handleShowRecommendedSectionsChange = React.useCallback((checked: boolean) => {
+    setShowRecommendedSections(checked);
     if (checked && mapData && allTrades.length > 0) {
-      // Collect all unique sections across all recommendations
+      // Select all sections that have recommendations on the map
       const recSectionNames = new Set(
         allTrades.map((t) => (t.vs_section || "").toLowerCase()).filter(Boolean)
       );
@@ -294,6 +314,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
       setSelectedSectionIds(sectionIds);
       setHighlightedGroup(groupIds);
     } else if (!checked) {
+      // Clear map selections
       setSelectedSections(new Set());
       setSelectedSectionIds(new Set());
       setHighlightedGroup(new Set());
@@ -307,21 +328,38 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
       )}
 
       <Stack spacing={2} sx={{ height: "100%" }}>
+        {/* Filter Controls */}
         <Box sx={{ mb: 1 }}>
           <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
             <FormControlLabel
               control={
                 <Checkbox
-                  checked={showRecommendedOnly}
-                  onChange={(e) => handleShowRecommendedChange(e.target.checked)}
-                  disabled={allTrades.length === 0}
+                  checked={showRecommendedSections}
+                  onChange={(e) => handleShowRecommendedSectionsChange(e.target.checked)}
                   size="small"
                   color="success"
+                  disabled={allTrades.length === 0}
                 />
               }
               label={
                 <Typography variant="body2" fontWeight={500}>
                   Show Recommended Sections
+                </Typography>
+              }
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={excludeRecommendations}
+                  onChange={(e) => setExcludeRecommendations(e.target.checked)}
+                  size="small"
+                  color="error"
+                  disabled={allTrades.length === 0}
+                />
+              }
+              label={
+                <Typography variant="body2" fontWeight={500}>
+                  Exclude Recommendations
                 </Typography>
               }
             />
@@ -335,6 +373,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
                 if (newTime) setRecommendationTime(newTime as any);
               }}
               size="small"
+              disabled={excludeRecommendations || allTrades.length === 0}
               sx={{
                 "& .MuiToggleButton-root": {
                   px: 1.5,
@@ -343,73 +382,68 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
                   textTransform: "none",
                 },
               }}
-              disabled={allTrades.length === 0}
             >
-              <ToggleButton value="all">All</ToggleButton>
               <ToggleButton value="today">Today</ToggleButton>
               <ToggleButton value="thisWeek">This Week</ToggleButton>
+              <ToggleButton value="all">All</ToggleButton>
             </ToggleButtonGroup>
-
-            <Box sx={{ ml: "auto" }}>
-              <Typography variant="caption" color="text.secondary">
-                {allTrades.length > 0
-                  ? `${allTrades.length} recommendation${allTrades.length > 1 ? "s" : ""} · ${[...new Set(allTrades.map(t => t.vs_section).filter(Boolean))].join(", ")}`
-                  : "No recommendations"}
-              </Typography>
-            </Box>
           </Stack>
         </Box>
 
+        {/* Map + Listings grid */}
         <Box sx={{ display: "flex", maxHeight: height - 80, minHeight: 0 }}>
+          {/* Left: Venue Map */}
           <Box sx={{ flex: "0 0 35%", maxHeight: "100%" }}>
             <ToggleFullscreen fillHeight>
               <Card
                 variant="outlined"
                 sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}
               >
-              {loading ? (
-                <Stack alignItems="center" justifyContent="center" sx={{ height: "100%" }} spacing={1}>
-                  <CircularProgress size={40} />
-                  <Typography variant="body2" color="text.secondary">Loading venue map...</Typography>
-                </Stack>
-              ) : mapData ? (
-                <>
-                  <Box sx={{ flexShrink: 0, maxHeight: 60, overflowY: "auto", overflowX: "hidden" }}>
-                    <ZoneLegend
-                      groups={mapData.groups}
-                      sections={mapData.sections}
-                      highlightedGroup={highlightedGroup}
-                      onGroupClick={handleGroupClick}
-                      availableSectionIds={availableSectionIds}
-                    />
-                  </Box>
-                  <Box sx={{ flex: 1, minHeight: 0 }}>
-                    <VenueMap
-                      mapData={mapData}
-                      selectedSections={selectedSections}
-                      onSectionClick={handleSectionClick}
-                      highlightedGroup={highlightedGroup}
-                      availableSectionIds={availableSectionIds}
-                    />
-                  </Box>
-                </>
-              ) : (
-                <Stack alignItems="center" justifyContent="center" sx={{ height: "100%" }} spacing={1}>
-                  <MapIcon sx={{ fontSize: 64, color: "text.disabled" }} />
-                  <Typography color="text.secondary">No venue map available</Typography>
-                </Stack>
-              )}
-            </Card>
+                {loading ? (
+                  <Stack alignItems="center" justifyContent="center" sx={{ height: "100%" }} spacing={1}>
+                    <CircularProgress size={40} />
+                    <Typography variant="body2" color="text.secondary">Loading venue map...</Typography>
+                  </Stack>
+                ) : mapData ? (
+                  <>
+                    <Box sx={{ flexShrink: 0, maxHeight: 60, overflowY: "auto", overflowX: "hidden" }}>
+                      <ZoneLegend
+                        groups={mapData.groups}
+                        sections={mapData.sections}
+                        highlightedGroup={highlightedGroup}
+                        onGroupClick={handleGroupClick}
+                        availableSectionIds={availableSectionIds}
+                      />
+                    </Box>
+                    <Divider sx={{ margin: 1 }} />
+                    <Box sx={{ flex: 1, minHeight: 0 }}>
+                      <VenueMap
+                        mapData={mapData}
+                        selectedSections={selectedSections}
+                        onSectionClick={handleSectionClick}
+                        highlightedGroup={highlightedGroup}
+                        availableSectionIds={availableSectionIds}
+                      />
+                    </Box>
+                  </>
+                ) : (
+                  <Stack alignItems="center" justifyContent="center" sx={{ height: "100%" }} spacing={1}>
+                    <MapIcon sx={{ fontSize: 64, color: "text.disabled" }} />
+                    <Typography color="text.secondary">No venue map available</Typography>
+                  </Stack>
+                )}
+              </Card>
             </ToggleFullscreen>
           </Box>
 
+          {/* Right: Listings + Recommendations table */}
           <Box sx={{ flex: 1, maxHeight: "100%", ml: 2 }}>
             <Paper
               variant="outlined"
-              sx={{ height: "100%", borderRadius: 1, overflow: "hidden", padding: 1.5, display: "flex", flexDirection: "column" }}
+              sx={{ height: "100%", borderRadius: 1, overflow: "hidden", padding: 2, display: "flex", flexDirection: "column" }}
             >
               <CustomDataGrid
-                title={showRecommendedOnly && allTrades.length > 0 ? "Recommended Sections" : "Listings & Recommendations"}
+                title={showRecommendedSections ? "Recommended Sections" : "Listings & Recommendations"}
                 rows={paginatedRows}
                 rowCount={totalFilteredRows}
                 isLoading={loading}
@@ -430,7 +464,6 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
                   const row = (params as { row?: any })?.row;
                   if (!row) return "";
                   if (row.isRecommendation) {
-                    // Current trade gets a stronger highlight
                     if (row._isCurrentTrade) return "recommendation-row-current";
                     if (row.isListingAvailable === false) return "recommendation-row-unavailable";
                     return "recommendation-row-available";
@@ -439,9 +472,9 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
                 }}
                 headerComponent={
                   <Typography variant="subtitle1" fontWeight={600}>
-                    {showRecommendedOnly && allTrades.length > 0 ? "Recommended Sections" : "Listings & Recommendations"}
+                    {showRecommendedSections ? "Recommended Sections" : "Listings & Recommendations"}
                     <Typography component="span" variant="caption" color="text.secondary" ml={1}>
-                      ({totalFilteredRows} of {activeRows.length}
+                      ({totalFilteredRows} of {mergedRows.length}
                       {allTrades.length > 0 ? `, ${allTrades.length} recommendation${allTrades.length > 1 ? "s" : ""}` : ""})
                     </Typography>
                   </Typography>

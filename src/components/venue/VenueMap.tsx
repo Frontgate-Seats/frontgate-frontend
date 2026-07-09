@@ -6,6 +6,7 @@ import {
   Tooltip,
   IconButton,
   Stack,
+  useTheme,
 } from "@mui/material";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import ZoomOutIcon from "@mui/icons-material/ZoomOut";
@@ -109,6 +110,9 @@ export default function VenueMap({
   highlightedGroup,
   availableSectionIds,
 }: VenueMapProps) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
   const [parsedSections, setParsedSections] = useState<ParsedSection[]>([]);
   const [decorativePaths, setDecorativePaths] = useState<DecorativePath[]>([]);
   const [labels, setLabels] = useState<ParsedLabel[]>([]);
@@ -231,7 +235,39 @@ export default function VenueMap({
 
         setParsedSections(sections);
         setDecorativePaths(decorative);
-        setLabels(textLabels);
+
+        // If no text labels came from the API, generate labels from section names
+        if (textLabels.length === 0 && sections.length > 0) {
+          const generatedLabels: ParsedLabel[] = sections
+            .filter((s) => s.name && s.path)
+            .map((s) => {
+              // Compute centroid from the path bounding box using regex to extract coords
+              const coords: number[] = [];
+              const numRegex = /[-+]?[0-9]*\.?[0-9]+/g;
+              let match: RegExpExecArray | null;
+              while ((match = numRegex.exec(s.path)) !== null) {
+                coords.push(parseFloat(match[0]));
+              }
+              let cx = 0, cy = 0;
+              if (coords.length >= 2) {
+                const xs = coords.filter((_, i) => i % 2 === 0);
+                const ys = coords.filter((_, i) => i % 2 === 1);
+                cx = xs.reduce((a, b) => a + b, 0) / xs.length;
+                cy = ys.reduce((a, b) => a + b, 0) / ys.length;
+              }
+              return {
+                text: s.name,
+                x: cx,
+                y: cy,
+                fontSize: 3.5,
+                fontWeight: "600",
+                anchor: "middle",
+              };
+            });
+          setLabels(generatedLabels);
+        } else {
+          setLabels(textLabels);
+        }
       })
       .catch((err) => {
         console.error("Map fetch error:", err);
@@ -251,7 +287,7 @@ export default function VenueMap({
       const isSelected = selectedSections.has(section.name.toLowerCase());
 
       // Unavailable — transparent/invisible
-      if (!hasListings) return "#f5f5f5";
+      if (!hasListings) return isDark ? "#2c2c2c" : "#f5f5f5";
 
       // Selected section — strong blue
       if (isSelected) return "#1565c0";
@@ -271,9 +307,9 @@ export default function VenueMap({
         if (color) return color;
       }
 
-      return "#bbdefb";
+      return isDark ? "#1a3a5c" : "#bbdefb";
     },
-    [selectedSections, hoveredSection, highlightedGroup, sectionById, groupLookup, availableSectionIds],
+    [selectedSections, hoveredSection, highlightedGroup, sectionById, groupLookup, availableSectionIds, isDark],
   );
 
   const getOpacity = useCallback(
@@ -314,7 +350,7 @@ export default function VenueMap({
         ? availableSectionIds.has(section.id)
         : sectionById.get(section.id)?.isActive !== false;
 
-      if (!hasListings) return { color: "#e0e0e0", width: 0.2 };
+      if (!hasListings) return { color: isDark ? "#444" : "#e0e0e0", width: 0.2 };
 
       if (selectedSections.has(section.name.toLowerCase())) {
         return { color: "#0d47a1", width: 2.5 };
@@ -322,9 +358,9 @@ export default function VenueMap({
       if (hoveredSection === section.id) {
         return { color: "#1976d2", width: 1.5 };
       }
-      return { color: "#9e9e9e", width: 0.3 };
+      return { color: isDark ? "#666" : "#9e9e9e", width: 0.3 };
     },
-    [selectedSections, hoveredSection, availableSectionIds, sectionById],
+    [selectedSections, hoveredSection, availableSectionIds, sectionById, isDark],
   );
 
   // Zoom handlers
@@ -433,7 +469,7 @@ export default function VenueMap({
           justifyContent: "center",
           overflow: "hidden",
           borderRadius: 2,
-          bgcolor: "#f5f5f5",
+          bgcolor: "transparent",
         }}
       >
         <img
@@ -478,7 +514,7 @@ export default function VenueMap({
             justifyContent: "center",
             overflow: "hidden",
             borderRadius: 2,
-            bgcolor: "#f5f5f5",
+            bgcolor: "transparent",
           }}
         >
           <img
@@ -510,7 +546,7 @@ export default function VenueMap({
           justifyContent: "center",
           overflow: "hidden",
           borderRadius: 2,
-          bgcolor: "#f5f5f5",
+          bgcolor: "transparent",
         }}
       >
         <img
@@ -564,7 +600,7 @@ export default function VenueMap({
           cursor: isPanning ? "grabbing" : "grab",
           overflow: "hidden",
           borderRadius: 2,
-          bgcolor: "#fafafa",
+          bgcolor: "transparent",
           userSelect: "none",
         }}
       >
@@ -584,7 +620,7 @@ export default function VenueMap({
               key={`bg-${i}`}
               d={dp.path}
               fill={dp.fill}
-              stroke={dp.stroke === "none" ? "none" : dp.stroke || "#ddd"}
+              stroke={dp.stroke === "none" ? "none" : dp.stroke || (isDark ? "#444" : "#ddd")}
               strokeWidth={0.2}
               pointerEvents="none"
             />
@@ -603,8 +639,8 @@ export default function VenueMap({
                 <path
                   key={section.id}
                   d={section.path}
-                  fill="#f5f5f5"
-                  stroke="#e0e0e0"
+                  fill={isDark ? "#2c2c2c" : "#f5f5f5"}
+                  stroke={isDark ? "#444" : "#e0e0e0"}
                   strokeWidth={0.2}
                   opacity={0.4}
                   pointerEvents="none"
@@ -649,7 +685,7 @@ export default function VenueMap({
               fontSize={label.fontSize}
               fontWeight={label.fontWeight}
               textAnchor={label.anchor as "start" | "middle" | "end"}
-              fill="#333"
+              fill={isDark ? "#e0e0e0" : "#333"}
               pointerEvents="none"
               style={{ userSelect: "none" }}
             >
