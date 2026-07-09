@@ -21,6 +21,7 @@ export interface DynamicChartProps {
   height?: number;
   onFullscreenChange?: (isFullscreen: boolean) => void;
   logo?: string;
+  logoTooltip?: string;
   customLogoComponent?: React.ReactNode;
   initialHiddenSeries?: Set<string>;
 }

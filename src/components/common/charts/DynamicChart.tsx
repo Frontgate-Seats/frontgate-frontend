@@ -45,6 +45,7 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
   intervalOptionsMap,
   height = 400,
   logo,
+  logoTooltip,
   customLogoComponent,
   initialHiddenSeries,
 }) => {
@@ -200,13 +201,15 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
               ) : logo ? (
                 <Tooltip
                   title={
-                    logo.includes("tj-logo")
-                      ? "Primary Market"
-                      : logo.includes("vivid-logo")
-                        ? "Vivid Seats"
-                        : logo.includes("seatgeek-logo")
-                          ? "SeatGeek"
-                          : ""
+                    logoTooltip
+                      ? logoTooltip
+                      : logo.includes("tj-logo") || logo.includes("pm-")
+                        ? "Primary Market"
+                        : logo.includes("vivid-logo")
+                          ? "Vivid Seats"
+                          : logo.includes("seatgeek-logo")
+                            ? "SeatGeek"
+                            : ""
                   }
                 >
                   <Box
