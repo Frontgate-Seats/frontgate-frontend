@@ -327,163 +327,162 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
         <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
       )}
 
-      <Stack spacing={2} sx={{ height: "100%" }}>
-        {/* Filter Controls */}
-        <Box sx={{ mb: 1 }}>
-          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={showRecommendedSections}
-                  onChange={(e) => handleShowRecommendedSectionsChange(e.target.checked)}
-                  size="small"
-                  color="success"
-                  disabled={allTrades.length === 0}
-                />
-              }
-              label={
-                <Typography variant="body2" fontWeight={500}>
-                  Show Recommended Sections
-                </Typography>
-              }
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={excludeRecommendations}
-                  onChange={(e) => setExcludeRecommendations(e.target.checked)}
-                  size="small"
-                  color="error"
-                  disabled={allTrades.length === 0}
-                />
-              }
-              label={
-                <Typography variant="body2" fontWeight={500}>
-                  Exclude Recommendations
-                </Typography>
-              }
-            />
-
-            <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-
-            <ToggleButtonGroup
-              value={recommendationTime}
-              exclusive
-              onChange={(_e, newTime) => {
-                if (newTime) setRecommendationTime(newTime as any);
-              }}
-              size="small"
-              disabled={excludeRecommendations || allTrades.length === 0}
-              sx={{
-                "& .MuiToggleButton-root": {
-                  px: 1.5,
-                  py: 0.5,
-                  fontSize: "0.75rem",
-                  textTransform: "none",
-                },
-              }}
+      {/* Map + Listings grid */}
+      <Box sx={{ display: "flex", height: "100%" }}>
+        {/* Left: Venue Map — full height */}
+        <Box sx={{ flex: "0 0 35%", height: "100%" }}>
+          <ToggleFullscreen fillHeight>
+            <Card
+              variant="outlined"
+              sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}
             >
-              <ToggleButton value="today">Today</ToggleButton>
-              <ToggleButton value="thisWeek">This Week</ToggleButton>
-              <ToggleButton value="all">All</ToggleButton>
-            </ToggleButtonGroup>
-          </Stack>
+              {loading ? (
+                <Stack alignItems="center" justifyContent="center" sx={{ height: "100%" }} spacing={1}>
+                  <CircularProgress size={40} />
+                  <Typography variant="body2" color="text.secondary">Loading venue map...</Typography>
+                </Stack>
+              ) : mapData ? (
+                <>
+                  <Box sx={{ flexShrink: 0, maxHeight: 60, overflowY: "auto", overflowX: "hidden" }}>
+                    <ZoneLegend
+                      groups={mapData.groups}
+                      sections={mapData.sections}
+                      highlightedGroup={highlightedGroup}
+                      onGroupClick={handleGroupClick}
+                      availableSectionIds={availableSectionIds}
+                    />
+                  </Box>
+                  <Divider sx={{ margin: 1 }} />
+                  <Box sx={{ flex: 1, minHeight: 0 }}>
+                    <VenueMap
+                      mapData={mapData}
+                      selectedSections={selectedSections}
+                      onSectionClick={handleSectionClick}
+                      highlightedGroup={highlightedGroup}
+                      availableSectionIds={availableSectionIds}
+                    />
+                  </Box>
+                </>
+              ) : (
+                <Stack alignItems="center" justifyContent="center" sx={{ height: "100%" }} spacing={1}>
+                  <MapIcon sx={{ fontSize: 64, color: "text.disabled" }} />
+                  <Typography color="text.secondary">No venue map available</Typography>
+                </Stack>
+              )}
+            </Card>
+          </ToggleFullscreen>
         </Box>
 
-        {/* Map + Listings grid */}
-        <Box sx={{ display: "flex", maxHeight: height - 80, minHeight: 0 }}>
-          {/* Left: Venue Map */}
-          <Box sx={{ flex: "0 0 35%", maxHeight: "100%" }}>
-            <ToggleFullscreen fillHeight>
-              <Card
-                variant="outlined"
-                sx={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}
-              >
-                {loading ? (
-                  <Stack alignItems="center" justifyContent="center" sx={{ height: "100%" }} spacing={1}>
-                    <CircularProgress size={40} />
-                    <Typography variant="body2" color="text.secondary">Loading venue map...</Typography>
-                  </Stack>
-                ) : mapData ? (
-                  <>
-                    <Box sx={{ flexShrink: 0, maxHeight: 60, overflowY: "auto", overflowX: "hidden" }}>
-                      <ZoneLegend
-                        groups={mapData.groups}
-                        sections={mapData.sections}
-                        highlightedGroup={highlightedGroup}
-                        onGroupClick={handleGroupClick}
-                        availableSectionIds={availableSectionIds}
-                      />
-                    </Box>
-                    <Divider sx={{ margin: 1 }} />
-                    <Box sx={{ flex: 1, minHeight: 0 }}>
-                      <VenueMap
-                        mapData={mapData}
-                        selectedSections={selectedSections}
-                        onSectionClick={handleSectionClick}
-                        highlightedGroup={highlightedGroup}
-                        availableSectionIds={availableSectionIds}
-                      />
-                    </Box>
-                  </>
-                ) : (
-                  <Stack alignItems="center" justifyContent="center" sx={{ height: "100%" }} spacing={1}>
-                    <MapIcon sx={{ fontSize: 64, color: "text.disabled" }} />
-                    <Typography color="text.secondary">No venue map available</Typography>
-                  </Stack>
-                )}
-              </Card>
-            </ToggleFullscreen>
-          </Box>
-
-          {/* Right: Listings + Recommendations table */}
-          <Box sx={{ flex: 1, maxHeight: "100%", ml: 2 }}>
-            <Paper
-              variant="outlined"
-              sx={{ height: "100%", borderRadius: 1, overflow: "hidden", padding: 2, display: "flex", flexDirection: "column" }}
-            >
-              <CustomDataGrid
-                title={showRecommendedSections ? "Recommended Sections" : "Listings & Recommendations"}
-                rows={paginatedRows}
-                rowCount={totalFilteredRows}
-                isLoading={loading}
-                error={null}
-                columns={mergedColumns}
-                paginationModel={paginationModel}
-                setPaginationModel={setPaginationModel}
-                sortingModel={sortModel}
-                setSortingModel={setSortModel}
-                filterModel={filterModel}
-                setFilterModel={setFilterModel}
-                onRefresh={fetchListingsWithMap}
-                isFullHeight
-                paginationMode="server"
-                sortingMode="client"
-                defaultFilterType="header"
-                getRowClassName={(params: unknown) => {
-                  const row = (params as { row?: any })?.row;
-                  if (!row) return "";
-                  if (row.isRecommendation) {
-                    if (row._isCurrentTrade) return "recommendation-row-current";
-                    if (row.isListingAvailable === false) return "recommendation-row-unavailable";
-                    return "recommendation-row-available";
-                  }
-                  return "";
-                }}
-                headerComponent={
-                  <Typography variant="subtitle1" fontWeight={600}>
-                    {showRecommendedSections ? "Recommended Sections" : "Listings & Recommendations"}
-                    <Typography component="span" variant="caption" color="text.secondary" ml={1}>
-                      ({totalFilteredRows} of {mergedRows.length}
-                      {allTrades.length > 0 ? `, ${allTrades.length} recommendation${allTrades.length > 1 ? "s" : ""}` : ""})
-                    </Typography>
+        {/* Right: Filter Controls + Table */}
+        <Box sx={{ flex: 1, height: "100%", ml: 2, display: "flex", flexDirection: "column" }}>
+          {/* Filter Controls — above the table */}
+          <Box sx={{ flexShrink: 0, mb: 1 }}>
+            <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={showRecommendedSections}
+                    onChange={(e) => handleShowRecommendedSectionsChange(e.target.checked)}
+                    size="small"
+                    color="success"
+                    disabled={allTrades.length === 0}
+                  />
+                }
+                label={
+                  <Typography variant="body2" fontWeight={500}>
+                    Show Recommended Sections
                   </Typography>
                 }
               />
-            </Paper>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={excludeRecommendations}
+                    onChange={(e) => setExcludeRecommendations(e.target.checked)}
+                    size="small"
+                    color="error"
+                    disabled={allTrades.length === 0}
+                  />
+                }
+                label={
+                  <Typography variant="body2" fontWeight={500}>
+                    Exclude Recommendations
+                  </Typography>
+                }
+              />
+
+              <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+
+              <ToggleButtonGroup
+                value={recommendationTime}
+                exclusive
+                onChange={(_e, newTime) => {
+                  if (newTime) setRecommendationTime(newTime as any);
+                }}
+                size="small"
+                disabled={excludeRecommendations || allTrades.length === 0}
+                sx={{
+                  "& .MuiToggleButton-root": {
+                    px: 1.5,
+                    py: 0.5,
+                    fontSize: "0.75rem",
+                    textTransform: "none",
+                  },
+                }}
+              >
+                <ToggleButton value="today">Today</ToggleButton>
+                <ToggleButton value="thisWeek">This Week</ToggleButton>
+                <ToggleButton value="all">All</ToggleButton>
+              </ToggleButtonGroup>
+            </Stack>
           </Box>
+
+          {/* Table */}
+          <Paper
+            variant="outlined"
+            sx={{ flex: 1, minHeight: 0, borderRadius: 1, overflow: "hidden", padding: 2, display: "flex", flexDirection: "column" }}
+          >
+            <CustomDataGrid
+              title={showRecommendedSections ? "Recommended Sections" : "Listings & Recommendations"}
+              rows={paginatedRows}
+              rowCount={totalFilteredRows}
+              isLoading={loading}
+              error={null}
+              columns={mergedColumns}
+              paginationModel={paginationModel}
+              setPaginationModel={setPaginationModel}
+              sortingModel={sortModel}
+              setSortingModel={setSortModel}
+              filterModel={filterModel}
+              setFilterModel={setFilterModel}
+              onRefresh={fetchListingsWithMap}
+              isFullHeight
+              paginationMode="server"
+              sortingMode="client"
+              defaultFilterType="header"
+              getRowClassName={(params: unknown) => {
+                const row = (params as { row?: any })?.row;
+                if (!row) return "";
+                if (row.isRecommendation) {
+                  if (row._isCurrentTrade) return "recommendation-row-current";
+                  if (row.isListingAvailable === false) return "recommendation-row-unavailable";
+                  return "recommendation-row-available";
+                }
+                return "";
+              }}
+              headerComponent={
+                <Typography variant="subtitle1" fontWeight={600}>
+                  {showRecommendedSections ? "Recommended Sections" : "Listings & Recommendations"}
+                  <Typography component="span" variant="caption" color="text.secondary" ml={1}>
+                    ({totalFilteredRows} of {mergedRows.length}
+                    {allTrades.length > 0 ? `, ${allTrades.length} recommendation${allTrades.length > 1 ? "s" : ""}` : ""})
+                  </Typography>
+                </Typography>
+              }
+            />
+          </Paper>
         </Box>
-      </Stack>
+      </Box>
     </Box>
   );
 };
