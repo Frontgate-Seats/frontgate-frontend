@@ -65,7 +65,11 @@ export const useFilterLogic = ({
     } else {
       // Handle simple filters (string, singleSelect)
       const item = items.find((item) => item.field === field);
-      setLocalValue(item?.value || "");
+      if (item && item.operator === "isAnyOf" && Array.isArray(item.value)) {
+        setLocalValue(item.value);
+      } else {
+        setLocalValue(item?.value || "");
+      }
     }
   }, [filterModel, field, columnType]);
 
@@ -134,12 +138,21 @@ export const useFilterLogic = ({
             break;
 
           case "singleSelect":
-            newItems.push({
-              id: `${field}-${Date.now()}`,
-              field,
-              operator: "is" as any,
-              value,
-            });
+            if (Array.isArray(value)) {
+              newItems.push({
+                id: `${field}-${Date.now()}`,
+                field,
+                operator: "isAnyOf" as any,
+                value,
+              });
+            } else {
+              newItems.push({
+                id: `${field}-${Date.now()}`,
+                field,
+                operator: "is" as any,
+                value,
+              });
+            }
             break;
 
           default:

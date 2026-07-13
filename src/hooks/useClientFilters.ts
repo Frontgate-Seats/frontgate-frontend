@@ -184,6 +184,10 @@ export function useClientFilters<T = any>({
             if (operator === "is") {
               return String(fieldValue ?? "") === String(value);
             }
+            if (operator === "isAnyOf") {
+              const arr = Array.isArray(value) ? value : [value];
+              return arr.map(String).includes(String(fieldValue ?? ""));
+            }
             if (operator === "not") {
               return String(fieldValue ?? "") !== String(value);
             }

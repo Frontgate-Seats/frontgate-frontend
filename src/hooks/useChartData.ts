@@ -512,12 +512,14 @@ export const useAvailabilityData = (
     const allPrices = new Set<number>();
     
     snapshotsInRange.forEach((snapshot: any) => {
-      snapshot.summary?.sections?.forEach((section: any) => {
+      const sections = snapshot.summary?.greenSeats?.sections || snapshot.summary?.sections || [];
+      sections.forEach((section: any) => {
         if (section.available > 0) {
           allSections.add(section.name);
         }
       });
-      snapshot.summary?.pricePoints?.forEach((pp: any) => {
+      const pps = snapshot.summary?.greenSeats?.pricePoints || snapshot.summary?.pricePoints || [];
+      pps.forEach((pp: any) => {
         if (pp.available > 0) {
           allPrices.add(pp.price);
         }
@@ -552,17 +554,19 @@ export const useAvailabilityData = (
 
     let lastSections: Record<string, number> = {};
     if (lastBefore) {
+      const lastBeforeSections = lastBefore.summary?.greenSeats?.sections || lastBefore.summary?.sections || [];
       sectionNames.forEach((sectionName) => {
-        const section = lastBefore.summary?.sections?.find((s: any) => s.name === sectionName);
+        const section = lastBeforeSections.find((s: any) => s.name === sectionName);
         lastSections[sectionName] = section?.available || 0;
       });
     }
 
     let lastPrices: Record<string, number> = {};
     if (lastBefore) {
+      const lastBeforePPs = lastBefore.summary?.greenSeats?.pricePoints || lastBefore.summary?.pricePoints || [];
       pricePoints.forEach((price) => {
         const priceKey = `${price.toFixed(2)}`;
-        const pricePoint = lastBefore.summary?.pricePoints?.find((pp: any) => pp.price === price);
+        const pricePoint = lastBeforePPs.find((pp: any) => pp.price === price);
         lastPrices[priceKey] = pricePoint?.available || 0;
       });
     }
@@ -616,7 +620,8 @@ export const useAvailabilityData = (
           let count = 0;
           
           bucketSnapshots.forEach((snapshot: any) => {
-            const section = snapshot.summary?.sections?.find((s: any) => s.name === sectionName);
+            const sections = snapshot.summary?.greenSeats?.sections || snapshot.summary?.sections || [];
+            const section = sections.find((s: any) => s.name === sectionName);
             if (section) {
               totalAvailability += section.available;
               count++;
@@ -632,7 +637,8 @@ export const useAvailabilityData = (
           if (lastSections[sectionName] !== undefined) {
             sectionDataPoint[sectionName] = lastSections[sectionName];
           } else if (firstSnapshotInRange) {
-            const section = firstSnapshotInRange.summary?.sections?.find((s: any) => s.name === sectionName);
+            const sections = firstSnapshotInRange.summary?.greenSeats?.sections || firstSnapshotInRange.summary?.sections || [];
+            const section = sections.find((s: any) => s.name === sectionName);
             sectionDataPoint[sectionName] = section?.available || 0;
           } else {
             sectionDataPoint[sectionName] = 0;
@@ -654,7 +660,8 @@ export const useAvailabilityData = (
           let count = 0;
 
           bucketSnapshots.forEach((snapshot: any) => {
-            const pricePoint = snapshot.summary?.pricePoints?.find((pp: any) => pp.price === price);
+            const pps = snapshot.summary?.greenSeats?.pricePoints || snapshot.summary?.pricePoints || [];
+            const pricePoint = pps.find((pp: any) => pp.price === price);
             if (pricePoint) {
               totalAvailability += pricePoint.available;
               count++;
@@ -672,7 +679,8 @@ export const useAvailabilityData = (
           if (lastPrices[priceKey] !== undefined) {
             priceDataPoint[priceKey] = lastPrices[priceKey];
           } else if (firstSnapshotInRange) {
-            const pricePoint = firstSnapshotInRange.summary?.pricePoints?.find((pp: any) => pp.price === price);
+            const pps = firstSnapshotInRange.summary?.greenSeats?.pricePoints || firstSnapshotInRange.summary?.pricePoints || [];
+            const pricePoint = pps.find((pp: any) => pp.price === price);
             priceDataPoint[priceKey] = pricePoint?.available || 0;
           } else {
             priceDataPoint[priceKey] = 0;
@@ -725,7 +733,8 @@ export const useAvailabilitySectionChartData = (
     snapshots.forEach((snapshot: any) => {
       const time = moment.utc(snapshot.timestamp).valueOf();
       if (time >= rangeStart && time <= rangeEnd) {
-        snapshot.summary?.sections?.forEach((section: any) => {
+        const sections = snapshot.summary?.greenSeats?.sections || snapshot.summary?.sections || [];
+        sections.forEach((section: any) => {
           if (section.available > 0) {
             allSections.add(section.name);
             const current = sectionTotals.get(section.name) || 0;
@@ -791,7 +800,8 @@ export const useAvailabilitySectionChartData = (
     // If we have lastBefore data, populate lastValue with it
     if (lastBefore) {
       topSections.forEach((sectionName) => {
-        const section = lastBefore.summary?.sections?.find(
+        const sections = lastBefore.summary?.greenSeats?.sections || lastBefore.summary?.sections || [];
+        const section = sections.find(
           (s: any) => s.name === sectionName
         );
         lastValue[sectionName] = section?.available || 0;
@@ -812,7 +822,8 @@ export const useAvailabilitySectionChartData = (
           let count = 0;
           
           bucketSnapshots.forEach((snapshot: any) => {
-            const section = snapshot.summary?.sections?.find(
+            const sections = snapshot.summary?.greenSeats?.sections || snapshot.summary?.sections || [];
+            const section = sections.find(
               (s: any) => s.name === sectionName
             );
             if (section) {
@@ -833,7 +844,8 @@ export const useAvailabilitySectionChartData = (
             dataPoint[sectionName] = lastValue[sectionName];
           } else if (firstSnapshotInRange) {
             // No lastValue, but we have first snapshot in range - use it as "next data"
-            const section = firstSnapshotInRange.summary?.sections?.find(
+            const sections = firstSnapshotInRange.summary?.greenSeats?.sections || firstSnapshotInRange.summary?.sections || [];
+            const section = sections.find(
               (s: any) => s.name === sectionName
             );
             dataPoint[sectionName] = section?.available || 0;
@@ -884,7 +896,8 @@ export const useAvailabilityPriceChartData = (
     snapshots.forEach((snapshot: any) => {
       const time = moment.utc(snapshot.timestamp).valueOf();
       if (time >= rangeStart && time <= rangeEnd) {
-        snapshot.summary?.pricePoints?.forEach((pp: any) => {
+        const pps = snapshot.summary?.greenSeats?.pricePoints || snapshot.summary?.pricePoints || [];
+        pps.forEach((pp: any) => {
           if (pp.available > 0) {
             allPrices.add(pp.price);
             const current = priceTotals.get(pp.price) || 0;
@@ -951,7 +964,8 @@ export const useAvailabilityPriceChartData = (
     if (lastBefore) {
       topPrices.forEach((price) => {
         const priceKey = `${price.toFixed(2)}`;
-        const pricePoint = lastBefore.summary?.pricePoints?.find(
+        const pps = lastBefore.summary?.greenSeats?.pricePoints || lastBefore.summary?.pricePoints || [];
+        const pricePoint = pps.find(
           (pp: any) => pp.price === price
         );
         lastValue[priceKey] = pricePoint?.available || 0;
@@ -972,7 +986,8 @@ export const useAvailabilityPriceChartData = (
           let count = 0;
 
           bucketSnapshots.forEach((snapshot: any) => {
-            const pricePoint = snapshot.summary?.pricePoints?.find(
+            const pps = snapshot.summary?.greenSeats?.pricePoints || snapshot.summary?.pricePoints || [];
+            const pricePoint = pps.find(
               (pp: any) => pp.price === price
             );
             if (pricePoint) {
@@ -995,7 +1010,8 @@ export const useAvailabilityPriceChartData = (
             dataPoint[priceKey] = lastValue[priceKey];
           } else if (firstSnapshotInRange) {
             // No lastValue, but we have first snapshot in range - use it as "next data"
-            const pricePoint = firstSnapshotInRange.summary?.pricePoints?.find(
+            const pps = firstSnapshotInRange.summary?.greenSeats?.pricePoints || firstSnapshotInRange.summary?.pricePoints || [];
+            const pricePoint = pps.find(
               (pp: any) => pp.price === price
             );
             dataPoint[priceKey] = pricePoint?.available || 0;

@@ -7,6 +7,10 @@ import {
   Box,
   Typography,
   Popover,
+  Select,
+  Checkbox,
+  ListItemText,
+  FormControl,
 } from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterMoment } from "@mui/x-date-pickers/AdapterMoment";
@@ -446,27 +450,45 @@ export default function FilterInput({
           ? options({} as GridValueOptionsParams)
           : options ?? [];
 
+      // Multi-select: value is an array of selected options
+      const selectedValues: string[] = Array.isArray(value) ? value : value ? [value] : [];
+
       return (
-        <TextField
-          select
-          size={size}
-          fullWidth={fullWidth}
-          value={value ?? ""}
-          onChange={(e) => onChange(e.target.value)}
-          variant={variant}
-          sx={{ ...compactTextFieldSx, width: "100%" }}
-          {...commonProps}
-        >
-          <MenuItem value="">All</MenuItem>
-          {opts.map((opt, i) => {
-            const { value: optValue, label } = normalizeOption(opt);
-            return (
-              <MenuItem key={i} value={optValue}>
-                {label}
-              </MenuItem>
-            );
-          })}
-        </TextField>
+        <FormControl size={size} fullWidth={fullWidth} {...commonProps}>
+          <Select
+            multiple
+            value={selectedValues}
+            onChange={(e) => {
+              const val = e.target.value;
+              const arr = typeof val === "string" ? val.split(",") : val;
+              onChange(arr.length > 0 ? arr : "");
+            }}
+            displayEmpty
+            renderValue={(selected: string[]) => {
+              if (!selected || selected.length === 0) return "All";
+              if (selected.length === opts.length) return "All";
+              return selected.map((s) => {
+                const o = opts.find((opt) => normalizeOption(opt).value === s);
+                return o ? normalizeOption(o).label : s;
+              }).join(", ");
+            }}
+            variant={variant as any}
+            sx={{
+              ...(compact ? { minHeight: 28, fontSize: "0.75rem", "& .MuiSelect-select": { padding: "3px 6px" } } : { height: STANDARD_INPUT_HEIGHT }),
+              width: "100%",
+            }}
+          >
+            {opts.map((opt, i) => {
+              const { value: optValue, label } = normalizeOption(opt);
+              return (
+                <MenuItem key={i} value={optValue} dense>
+                  <Checkbox size="small" checked={selectedValues.includes(optValue)} sx={{ p: 0.5 }} />
+                  <ListItemText primary={label} primaryTypographyProps={{ fontSize: "0.8rem" }} />
+                </MenuItem>
+              );
+            })}
+          </Select>
+        </FormControl>
       );
 
     default:
