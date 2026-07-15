@@ -52,18 +52,21 @@ const SalesTable: React.FC<SalesTableProps> = ({
   const [vividSales, setVividSales] = React.useState<any[]>([]);
   const [stubhubSales, setStubhubSales] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  // Track per-source errors independently so one failure doesn't block the others
+  const [sourceErrors, setSourceErrors] = React.useState<{ sg: boolean; vivid: boolean; stubhub: boolean }>({
+    sg: false, vivid: false, stubhub: false,
+  });
 
   // Fetch sales data
   const fetchSalesData = React.useCallback(() => {
     if (!eventId) return;
     setLoading(true);
-    setError(null);
+    setSourceErrors({ sg: false, vivid: false, stubhub: false });
 
     // Fetch VividSeats sales directly
     const vividPromise = vividSalesApi.fetchVividSales(eventId)
       .then((res) => setVividSales(res.data ?? []))
-      .catch(() => setVividSales([]));
+      .catch(() => { setVividSales([]); setSourceErrors((p) => ({ ...p, vivid: true })); });
 
     // Fetch SeatGeek sales via mapping (resolve SeatGeek event ID first)
     const sgPromise = supabaseHttpClient
@@ -73,7 +76,7 @@ const SalesTable: React.FC<SalesTableProps> = ({
         if (!sgEventId) return;
         return salesApi.fetchSales(String(sgEventId)).then((res) => setSales(res.data ?? []));
       })
-      .catch(() => setSales([]));
+      .catch(() => { setSales([]); setSourceErrors((p) => ({ ...p, sg: true })); });
 
     // Fetch StubHub sales via mapping (resolve StubHub event ID first)
     const stubhubPromise = Promise.resolve(
@@ -89,10 +92,9 @@ const SalesTable: React.FC<SalesTableProps> = ({
         return stubhubSalesApi.fetchStubhubSales(String(mapping.external_event_id))
           .then((res) => setStubhubSales(res.data ?? []));
       })
-      .catch(() => setStubhubSales([]));
+      .catch(() => { setStubhubSales([]); setSourceErrors((p) => ({ ...p, stubhub: true })); });
 
     Promise.all([vividPromise, sgPromise, stubhubPromise])
-      .catch((err) => setError(err?.message ?? "Failed to load sales"))
       .finally(() => setLoading(false));
   }, [eventId]);
 
@@ -265,7 +267,7 @@ const SalesTable: React.FC<SalesTableProps> = ({
         rowCount={totalFilteredRows}
         columns={salesColumns}
         isLoading={loading}
-        error={error ? new Error(error) : null}
+        error={null}
         paginationModel={paginationModel}
         setPaginationModel={setPaginationModel}
         sortingModel={sortModel}
@@ -278,35 +280,51 @@ const SalesTable: React.FC<SalesTableProps> = ({
         paginationMode="server"
         sortingMode="client"
         headerComponent={
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Stack direction="row" spacing={0.5}>
-              {sales.length > 0 && (
-                <Tooltip title="SeatGeek">
-                  <Box component="img" src={SEATGEEK_LOGO} alt="SeatGeek"
-                    sx={{ width: 20, height: 20, objectFit: "contain" }} />
-                </Tooltip>
-              )}
-              {vividSales.length > 0 && (
-                <Tooltip title="Vivid Seats">
-                  <Box component="img" src={VIVID_LOGO} alt="Vivid Seats"
-                    sx={{ width: 20, height: 20, objectFit: "contain" }} />
-                </Tooltip>
-              )}
-              {stubhubSales.length > 0 && (
-                <Tooltip title="StubHub">
-                  <Box component="img" src={STUBHUB_LOGO} alt="StubHub"
-                    sx={{ width: 20, height: 20, objectFit: "contain" }} />
-                </Tooltip>
-              )}
+          <Stack direction="column" width="100%" spacing={0.5}>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Stack direction="row" spacing={0.5}>
+                {sales.length > 0 && (
+                  <Tooltip title="SeatGeek">
+                    <Box component="img" src={SEATGEEK_LOGO} alt="SeatGeek"
+                      sx={{ width: 20, height: 20, objectFit: "contain" }} />
+                  </Tooltip>
+                )}
+                {vividSales.length > 0 && (
+                  <Tooltip title="Vivid Seats">
+                    <Box component="img" src={VIVID_LOGO} alt="Vivid Seats"
+                      sx={{ width: 20, height: 20, objectFit: "contain" }} />
+                  </Tooltip>
+                )}
+                {stubhubSales.length > 0 && (
+                  <Tooltip title="StubHub">
+                    <Box component="img" src={STUBHUB_LOGO} alt="StubHub"
+                      sx={{ width: 20, height: 20, objectFit: "contain" }} />
+                  </Tooltip>
+                )}
+              </Stack>
+              <Typography variant="subtitle1" fontWeight={600}>
+                Sales Data
+                {!loading && combinedSalesTableData.length > 0 && (
+                  <Typography component="span" variant="caption" color="text.secondary" ml={1}>
+                    ({totalFilteredRows} sales)
+                  </Typography>
+                )}
+              </Typography>
             </Stack>
-            <Typography variant="subtitle1" fontWeight={600}>
-              Sales Data
-              {!loading && combinedSalesTableData.length > 0 && (
-                <Typography component="span" variant="caption" color="text.secondary" ml={1}>
-                  ({totalFilteredRows} sales)
-                </Typography>
-              )}
-            </Typography>
+            {/* Per-source partial failure warnings — grid still shows data from successful sources */}
+            {(sourceErrors.sg || sourceErrors.vivid || sourceErrors.stubhub) && (
+              <Stack direction="row" spacing={1} flexWrap="wrap">
+                {sourceErrors.sg && (
+                  <Typography variant="caption" color="warning.main">⚠ SeatGeek sales unavailable</Typography>
+                )}
+                {sourceErrors.vivid && (
+                  <Typography variant="caption" color="warning.main">⚠ Vivid Seats sales unavailable</Typography>
+                )}
+                {sourceErrors.stubhub && (
+                  <Typography variant="caption" color="warning.main">⚠ StubHub sales unavailable</Typography>
+                )}
+              </Stack>
+            )}
           </Stack>
         }
       />

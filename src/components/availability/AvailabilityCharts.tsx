@@ -17,6 +17,7 @@ import {
   INTERVAL_OPTIONS_MAP,
   TIME_RANGE_OPTIONS,
 } from "../../shared/constants/components.constants";
+import { getPrimaryMarketLogo, getPrimaryMarketLabel } from "../../shared/utils/primaryMarketLogo.util";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,11 @@ const AvailabilityCharts: React.FC<AvailabilityChartsProps> = ({
   const pricePointsChart = useChartState("7d");
 
   const availabilityFromRedux = useSelector((state: any) => state.availability);
+
+  // Derive primary market logo dynamically from availability data
+  const pmMarketType = availabilityFromRedux.data?.pmEvent?.marketType || "";
+  const primaryLogo = getPrimaryMarketLogo(pmMarketType);
+  const primaryLabel = getPrimaryMarketLabel(pmMarketType);
 
   const availabilityData = useAvailabilityData(
     availabilityFromRedux.data,
@@ -72,9 +78,11 @@ const AvailabilityCharts: React.FC<AvailabilityChartsProps> = ({
 
   React.useEffect(() => {
     if (!eventId) return;
-    // Always clear stale data and fetch fresh when eventId changes
+    // Always clear stale data and fetch fresh when eventId changes.
+    // Fetch the full history (87600h = 10 years) to match the event details
+    // page "all" range, so the trade panel and event details stay in sync.
     dispatch(clearAvailability());
-    dispatch(getAvailability({ eventId, lastHoursCount: 8760 })); // 1 year — same as "all" on event details
+    dispatch(getAvailability({ eventId, lastHoursCount: 87600 }));
   }, [dispatch, eventId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // If PM data fetch failed, show a static no-data state — don't retry
@@ -83,11 +91,11 @@ const AvailabilityCharts: React.FC<AvailabilityChartsProps> = ({
       <Card variant="outlined" sx={{ height: perChartHeight, display: "flex", flexDirection: "column" }}>
         <CardContent sx={{ flex: 1, display: "flex", flexDirection: "column", p: 2, "&:last-child": { pb: 2 } }}>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-            <Tooltip title="TicketJockey">
+            <Tooltip title={primaryLabel}>
               <Box
                 component="img"
-                src="/tj-logo.ico"
-                alt="TicketJockey"
+                src={primaryLogo}
+                alt={primaryLabel}
                 sx={{ width: 15, height: 15, objectFit: "contain" }}
                 onError={(e: any) => { e.currentTarget.style.display = "none"; }}
               />
@@ -125,7 +133,8 @@ const AvailabilityCharts: React.FC<AvailabilityChartsProps> = ({
           intervalOptionsMap={INTERVAL_OPTIONS_MAP}
           height={perChartHeight}
           initialHiddenSeries={sectionHidden}
-          logo="/tj-logo.ico"
+          logo={primaryLogo}
+          logoTooltip={primaryLabel}
         />
       </Grid>
       <Grid size={{ xs: 12, md: 6 }}>
@@ -142,7 +151,8 @@ const AvailabilityCharts: React.FC<AvailabilityChartsProps> = ({
           intervalOptionsMap={INTERVAL_OPTIONS_MAP}
           height={perChartHeight}
           initialHiddenSeries={priceHidden}
-          logo="/tj-logo.ico"
+          logo={primaryLogo}
+          logoTooltip={primaryLabel}
         />
       </Grid>
     </Grid>

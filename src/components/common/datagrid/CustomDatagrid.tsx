@@ -77,7 +77,7 @@ export default function CustomDataGrid({
   paginationMode = "server",
   sortingMode = "server",
   isFullHeight = false,
-  initialShowFilters = false,
+  initialShowFilters = true,
 }: CustomDataGridProps) {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const handleFullscreenChange = (fullscreenMode: boolean) => {
@@ -92,8 +92,8 @@ export default function CustomDataGrid({
       {logo && (
         <Tooltip
           title={
-            logo.includes("tj-logo")
-              ? "TicketJockey"
+            logo.includes("tj-logo") || logo.includes("pm-")
+              ? "Primary Market"
               : logo.includes("vivid-logo")
                 ? "Vivid Seats"
                 : logo.includes("seatgeek-logo")

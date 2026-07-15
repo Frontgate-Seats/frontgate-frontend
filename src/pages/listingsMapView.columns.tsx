@@ -1,23 +1,48 @@
-import { Button, Typography } from "@mui/material";
+import { Box, Button, Chip, Tooltip, Typography } from "@mui/material";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { formatDateTime } from "../shared/utils/dateTime.util";
 import TradeInfoButton from "../components/trades/TradeInfoButton";
 import type { Trade } from "../shared/types/trade.types";
 
-// ── Merged columns: listings + recommendations ────────────────────────────────
+const VIVID_LOGO = "/vivid-logo.ico";
+
 export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColDef[] {
   return [
-    // Info button — only shown for recommendation rows
     {
       field: "__info",
       headerName: "",
-      width: 70,
+      width: 60,
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
       renderCell: (params: any) => {
         if (!params.row.isRecommendation || !params.row._trade) return null;
         return <TradeInfoButton trade={params.row._trade as Trade} />;
+      },
+    },
+    {
+      field: "_source",
+      headerName: "Source",
+      type: "singleSelect",
+      valueOptions: ["recommendations", "vivid", "tfs"],
+      width: 75,
+      renderCell: (params: any) => {
+        const source = params.value || (params.row.isRecommendation ? "recommendations" : "vivid");
+        if (source === "tfs") {
+          return (
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}>
+              <Chip label="TFS" size="small" color="secondary" variant="filled" sx={{ fontSize: "0.65rem", height: 20, fontWeight: 600 }} />
+            </Box>
+          );
+        }
+        // Vivid and Recommendations both show Vivid logo
+        return (
+          <Tooltip title={source === "recommendations" ? "Recommendation (Vivid)" : "Vivid"}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}>
+              <Box component="img" src={VIVID_LOGO} alt="Vivid" sx={{ width: 18, height: 18, objectFit: "contain" }} />
+            </Box>
+          </Tooltip>
+        );
       },
     },
     {
@@ -41,15 +66,13 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
       min: 1,
       max: 60,
     },
-    // Buy Price — populated for all rows (recommendations use max_buy_price, listings use price)
     {
-      field: "max_buy_price",
-      headerName: "Buy Price",
+      field: "price",
+      headerName: "Price",
       type: "number",
-      width: 90,
+      width: 80,
       min: 0,
       max: 10000,
-      valueGetter: (_value: any, row: any) => row.price || row.max_buy_price || null,
       renderCell: (params: any) => {
         if (params.value == null) return "-";
         return (
@@ -59,7 +82,6 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
         );
       },
     },
-    // Projected Sell Price — only for recommendations
     {
       field: "projected_sell_price",
       headerName: "Proj. Sell",
@@ -69,14 +91,9 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
       max: 10000,
       renderCell: (params: any) => {
         if (params.value == null) return "-";
-        return (
-          <Typography color="text.secondary" variant="body2">
-            ${Number(params.value).toFixed(2)}
-          </Typography>
-        );
+        return <Typography color="text.secondary" variant="body2">${Number(params.value).toFixed(2)}</Typography>;
       },
     },
-    // Margin % — only for recommendations
     {
       field: "estimated_margin_percent",
       headerName: "Margin %",
@@ -84,15 +101,13 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
       width: 80,
       renderCell: (params: any) => {
         if (params.value == null) return "-";
-        const margin = params.value;
         return (
-          <Typography fontWeight={600} color={margin > 0 ? "success.main" : "error.main"} variant="body2">
-            {Number(margin).toFixed(1)}%
+          <Typography fontWeight={600} color={params.value > 0 ? "success.main" : "error.main"} variant="body2">
+            {Number(params.value).toFixed(1)}%
           </Typography>
         );
       },
     },
-    // Confidence signal — only for recommendations
     {
       field: "confidence_level",
       headerName: "Signal",
@@ -101,21 +116,10 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
       width: 110,
       renderCell: (params: any) => {
         if (!params.value) return "-";
-        const confidence = params.value;
-        const color =
-          confidence === "CONVICTION_BUY"
-            ? "success.main"
-            : confidence === "STRONG_BUY"
-              ? "warning.main"
-              : "error.main";
-        return (
-          <Typography variant="body2" fontWeight={600} color={color}>
-            {confidence}
-          </Typography>
-        );
+        const color = params.value === "CONVICTION_BUY" ? "success.main" : params.value === "STRONG_BUY" ? "warning.main" : "error.main";
+        return <Typography variant="body2" fontWeight={600} color={color}>{params.value}</Typography>;
       },
     },
-    // Recommendation date — only for recommendations
     {
       field: "recommendation_date",
       headerName: "Rec. Date",
@@ -128,20 +132,6 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
       },
       valueFormatter: (value: any) => (value ? formatDateTime(value) : "-"),
     },
-    // Current listing price — for all rows
-    {
-      field: "price",
-      headerName: "Price",
-      type: "number",
-      width: 80,
-      min: 0,
-      max: 10000,
-      renderCell: (params: any) => {
-        if (params.value == null) return "-";
-        return `$${params.value}`;
-      },
-    },
-    // Buy action button
     {
       field: "actions",
       type: "actions",
@@ -150,34 +140,15 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
       sortable: false,
       filterable: false,
       getActions: (params: any) => {
-        const isRecommendation = params.row.isRecommendation;
-        const isAvailable = params.row.isListingAvailable !== false;
+        // No buy button for TFS listings
+        if (params.row._source === "tfs") return [];
 
-        if (isRecommendation && !isAvailable) {
-          return [
-            <Typography
-              key={params.row.id}
-              variant="caption"
-              color="error"
-              fontWeight={600}
-              sx={{ fontSize: "0.65rem" }}
-            >
-              Not Available
-            </Typography>,
-          ];
+        if (params.row.isRecommendation && params.row.isListingAvailable === false) {
+          return [<Typography key={params.row.id} variant="caption" color="error" fontWeight={600} sx={{ fontSize: "0.65rem" }}>Not Available</Typography>];
         }
-
         if (!params.row.listingId) return [];
-
         return [
-          <Button
-            key={params.row.id}
-            size="small"
-            variant={isRecommendation ? "contained" : "outlined"}
-            onClick={() => onBuyClick(params.row)}
-            sx={{ textTransform: "none", borderRadius: 2, fontSize: "0.7rem" }}
-            color="primary"
-          >
+          <Button key={params.row.id} size="small" variant={"contained"} onClick={() => onBuyClick(params.row)} sx={{ textTransform: "none", borderRadius: 2, fontSize: "0.7rem" }} color="primary">
             Buy
           </Button>,
         ];

@@ -286,77 +286,27 @@ export default function EventDetailsPage() {
     pricePointsChart.interval,
   );
 
-  // Generate dynamic chart configs for sections and price points
-  const sectionChartConfig = React.useMemo(
-    () => ({
-      ...AVAILABILITY_SECTION_CHART_CONFIG,
-      lineSeries: generateSectionLineSeriesConfig(
-        availabilityData.sectionChart,
-      ).series,
-    }),
+  // Generate dynamic chart configs for sections and price points — top 5 visible, rest hidden
+  const { series: sectionSeries, initialHidden: sectionChartInitialHidden } = React.useMemo(
+    () => generateSectionLineSeriesConfig(availabilityData.sectionChart),
     [availabilityData.sectionChart],
   );
 
-  const priceChartConfig = React.useMemo(
-    () => ({
-      ...AVAILABILITY_PRICE_CHART_CONFIG,
-      lineSeries: generatePricePointLineSeriesConfig(
-        availabilityData.priceChart,
-      ).series,
-    }),
+  const { series: priceSeries, initialHidden: priceChartInitialHidden } = React.useMemo(
+    () => generatePricePointLineSeriesConfig(availabilityData.priceChart),
     [availabilityData.priceChart],
   );
 
-  // Stable empty set — used as fallback when dataset has no series keys
-  const EMPTY_SET = React.useMemo(() => new Set<string>(), []);
+  const sectionChartConfig = React.useMemo(
+    () => ({ ...AVAILABILITY_SECTION_CHART_CONFIG, lineSeries: sectionSeries ?? [] }),
+    [sectionSeries],
+  );
 
-  // Compute initial hidden series for price chart: show only top 10% by total availability
-  const priceChartInitialHidden = React.useMemo(() => {
-    const dataset = availabilityData.priceChart;
-    if (!dataset || dataset.length === 0) return EMPTY_SET;
+  const priceChartConfig = React.useMemo(
+    () => ({ ...AVAILABILITY_PRICE_CHART_CONFIG, lineSeries: priceSeries ?? [] }),
+    [priceSeries],
+  );
 
-    const firstPoint = dataset[0];
-    const keys = Object.keys(firstPoint).filter(
-      (k) => k !== "time" && k !== "bucketStartUTC",
-    );
-    if (keys.length === 0) return EMPTY_SET;
-
-    // Sum availability across all time buckets per key
-    const totals: Record<string, number> = {};
-    keys.forEach((k) => {
-      totals[k] = dataset.reduce((sum: number, pt: any) => sum + (pt[k] ?? 0), 0);
-    });
-
-    const sorted = [...keys].sort((a, b) => totals[b] - totals[a]);
-    const topCount = Math.max(1, Math.ceil(sorted.length * 0.05));
-    const topKeys = new Set(sorted.slice(0, topCount));
-
-    return new Set(keys.filter((k) => !topKeys.has(k)));
-  }, [availabilityData.priceChart]);
-
-  // Compute initial hidden series for section chart: show only top 10% by total availability
-  const sectionChartInitialHidden = React.useMemo(() => {
-    const dataset = availabilityData.sectionChart;
-    if (!dataset || dataset.length === 0) return EMPTY_SET;
-
-    const firstPoint = dataset[0];
-    const keys = Object.keys(firstPoint).filter(
-      (k) => k !== "time" && k !== "bucketStartUTC",
-    );
-    if (keys.length === 0) return EMPTY_SET;
-
-    // Sum availability across all time buckets per key
-    const totals: Record<string, number> = {};
-    keys.forEach((k) => {
-      totals[k] = dataset.reduce((sum: number, pt: any) => sum + (pt[k] ?? 0), 0);
-    });
-
-    const sorted = [...keys].sort((a, b) => totals[b] - totals[a]);
-    const topCount = Math.max(1, Math.ceil(sorted.length * 0.2));
-    const topKeys = new Set(sorted.slice(0, topCount));
-
-    return new Set(keys.filter((k) => !topKeys.has(k)));
-  }, [availabilityData.sectionChart]);
 
   const analysisLogsFromRedux = useSelector((state: RootState) => state.eventAnalysisLogs);
   const [analysisLogsPaginationModel, setAnalysisLogsPaginationModel] =
@@ -502,7 +452,7 @@ export default function EventDetailsPage() {
       maxWidth: 70,
       flex: 0,
       type: "singleSelect",
-      valueOptions: ["none", "SeatGeek", "Vivid", "StubHub"],
+      valueOptions: ["SeatGeek", "Vivid", "StubHub"],
       renderCell: (params: any) => {
         const logoMap: Record<string, string> = {
           SeatGeek: SEATGEEK_LOGO,
@@ -861,76 +811,92 @@ export default function EventDetailsPage() {
 
   // Custom header components with logos
   const salesHeaderComponent = (
-    <Stack direction="row" alignItems="center" justifyContent="space-between" width="100%">
-      <Stack direction="row" alignItems="center" spacing={1}>
-        <Tooltip title={
-          [
-            activeSourcesInFilter.hasSeatGeek && "SeatGeek",
-            activeSourcesInFilter.hasVivid && "Vivid Seats",
-            activeSourcesInFilter.hasStubHub && "StubHub",
-          ].filter(Boolean).join(" & ") || "No Sources"
-        }>
-          <Stack direction="row" spacing={0.5}>
-            {activeSourcesInFilter.hasSeatGeek && (
-              <Box
-                component="img"
-                src={SEATGEEK_LOGO}
-                alt="SeatGeek Logo"
-                sx={{
-                  width: 24,
-                  height: 24,
-                  objectFit: "contain",
-                }}
-              />
-            )}
-            {activeSourcesInFilter.hasVivid && (
-              <Box
-                component="img"
-                src={VIVID_LOGO}
-                alt="Vivid Seats Logo"
-                sx={{
-                  width: 24,
-                  height: 24,
-                  objectFit: "contain",
-                }}
-              />
-            )}
-            {activeSourcesInFilter.hasStubHub && (
-              <Box
-                component="img"
-                src={STUBHUB_LOGO}
-                alt="StubHub Logo"
-                sx={{
-                  width: 24,
-                  height: 24,
-                  objectFit: "contain",
-                }}
-              />
-            )}
-          </Stack>
-        </Tooltip>
-        <Typography variant="h6" fontWeight={600}>
-          Sales Data
-        </Typography>
-      </Stack>
-      <Stack direction="row" spacing={3} alignItems="center">
-        <Box>
-          <Typography variant="body2" color="text.secondary">
-            Total Sales:
-          </Typography>
+    <Stack direction="column" width="100%" spacing={0.5}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" width="100%">
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Tooltip title={
+            [
+              activeSourcesInFilter.hasSeatGeek && "SeatGeek",
+              activeSourcesInFilter.hasVivid && "Vivid Seats",
+              activeSourcesInFilter.hasStubHub && "StubHub",
+            ].filter(Boolean).join(" & ") || "No Sources"
+          }>
+            <Stack direction="row" spacing={0.5}>
+              {activeSourcesInFilter.hasSeatGeek && (
+                <Box
+                  component="img"
+                  src={SEATGEEK_LOGO}
+                  alt="SeatGeek Logo"
+                  sx={{
+                    width: 24,
+                    height: 24,
+                    objectFit: "contain",
+                  }}
+                />
+              )}
+              {activeSourcesInFilter.hasVivid && (
+                <Box
+                  component="img"
+                  src={VIVID_LOGO}
+                  alt="Vivid Seats Logo"
+                  sx={{
+                    width: 24,
+                    height: 24,
+                    objectFit: "contain",
+                  }}
+                />
+              )}
+              {activeSourcesInFilter.hasStubHub && (
+                <Box
+                  component="img"
+                  src={STUBHUB_LOGO}
+                  alt="StubHub Logo"
+                  sx={{
+                    width: 24,
+                    height: 24,
+                    objectFit: "contain",
+                  }}
+                />
+              )}
+            </Stack>
+          </Tooltip>
           <Typography variant="h6" fontWeight={600}>
-            {salesSummary.totalSales}
+            Sales Data
           </Typography>
-        </Box>
-        <Box>
-          <Typography variant="body2" color="text.secondary">
-            Total sold QTY:
-          </Typography>
-          <Typography variant="h6" fontWeight={600}>
-            {salesSummary.totalQuantity}
-          </Typography>
-        </Box>
+        </Stack>
+        <Stack direction="row" spacing={3} alignItems="center">
+          <Box>
+            <Typography variant="body2" color="text.secondary">
+              Total Sales:
+            </Typography>
+            <Typography variant="h6" fontWeight={600}>
+              {salesSummary.totalSales}
+            </Typography>
+          </Box>
+          <Box>
+            <Typography variant="body2" color="text.secondary">
+              Total sold QTY:
+            </Typography>
+            <Typography variant="h6" fontWeight={600}>
+              {salesSummary.totalQuantity}
+            </Typography>
+          </Box>
+        </Stack>
       </Stack>
+      {/* Per-source partial failure warnings — grid still shows data from successful sources */}
+      {(error.sales || error.vividSales || error.stubhubSales) && (
+        <Stack direction="row" spacing={1} flexWrap="wrap">
+          {error.sales && (
+            <Typography variant="caption" color="warning.main">⚠ SeatGeek sales unavailable</Typography>
+          )}
+          {error.vividSales && (
+            <Typography variant="caption" color="warning.main">⚠ Vivid Seats sales unavailable</Typography>
+          )}
+          {error.stubhubSales && (
+            <Typography variant="caption" color="warning.main">⚠ StubHub sales unavailable</Typography>
+          )}
+        </Stack>
+      )}
     </Stack>
   );
 
@@ -1397,7 +1363,7 @@ export default function EventDetailsPage() {
             rowCount={salesTotalFiltered}
             columns={salesColumns}
             isLoading={loading.sales || loading.vividSales || loading.stubhubSales}
-            error={error.sales || error.vividSales || error.stubhubSales}
+            error={null}
             paginationModel={salesPaginationModel}
             setPaginationModel={setSalesPaginationModel}
             sortingModel={salesSortModel}
