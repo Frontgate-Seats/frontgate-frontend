@@ -14,6 +14,7 @@ import {
   Divider,
 } from "@mui/material";
 import MapIcon from "@mui/icons-material/Map";
+import type { GridFilterModel } from "@mui/x-data-grid";
 
 import listingsApi from "../../apis/listings.api";
 import tfsListingsApi from "../../apis/tfsListings.api";
@@ -36,8 +37,6 @@ export interface MapWithListingsProps {
   height?: number;
 }
 
-type SourceFilter = "recommendations" | "vivid" | "tfs";
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const MapWithListings: React.FC<MapWithListingsProps> = ({
@@ -53,12 +52,11 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
   const [error, setError] = React.useState<string | null>(null);
   const [allTrades, setAllTrades] = React.useState<Trade[]>([]);
 
+  // Map visual state — which sections/groups are highlighted on the map
   const [selectedSections, setSelectedSections] = React.useState<Set<string>>(new Set());
-  const [selectedSectionIds, setSelectedSectionIds] = React.useState<Set<number>>(new Set());
   const [highlightedGroup, setHighlightedGroup] = React.useState<Set<number>>(new Set());
 
   const [showRecommendedSections, setShowRecommendedSections] = React.useState(false);
-  const [sourceFilter, setSourceFilter] = React.useState<SourceFilter[]>(["recommendations", "vivid", "tfs"]);
   const [recommendationTime, setRecommendationTime] = React.useState<"all" | "today" | "thisWeek">("all");
 
   // ─── Data Fetching ──────────────────────────────────────────────────────────
@@ -130,112 +128,68 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
     return lookup;
   }, [mapData]);
 
-  const enrichedListings = React.useMemo(() =>
-    listings.map((l: any) => ({
-      ...l,
-      zone_name: sectionToZone[l.section?.id] || "—",
-      section_name: l.section_name ?? l.section?.name ?? "—",
-    })),
-  [listings, sectionToZone]);
-
   const availableSectionIds = React.useMemo(() => {
     const set = new Set<number>();
     listings.forEach((l: any) => { if (l.section?.id) set.add(l.section.id); });
     return set;
   }, [listings]);
 
-  // ─── Section/Group Filtering ────────────────────────────────────────────────
-
-  const filteredListings = React.useMemo(() => {
-    let result = enrichedListings;
-    if (selectedSectionIds.size > 0) {
-      result = result.filter((l: any) => selectedSectionIds.has(l.section?.id));
-    } else if (highlightedGroup.size > 0 && mapData) {
-      const ids = new Set(mapData.sections.filter((s) => s.groupId != null && highlightedGroup.has(s.groupId!)).map((s) => s.id));
-      result = result.filter((l: any) => ids.has(l.section?.id));
-    }
-    return result;
-  }, [enrichedListings, selectedSectionIds, highlightedGroup, mapData]);
-
-  const filteredTfsListings = React.useMemo(() => {
-    if (selectedSections.size === 0 && highlightedGroup.size === 0) return tfsListings;
-    if (selectedSections.size > 0) {
-      return tfsListings.filter((l: any) => l.section_name && selectedSections.has(l.section_name.toLowerCase()));
-    }
-    if (highlightedGroup.size > 0 && mapData) {
-      const names = new Set(mapData.sections.filter((s) => s.groupId != null && highlightedGroup.has(s.groupId!)).map((s) => s.name.toLowerCase()));
-      return tfsListings.filter((l: any) => l.section_name && names.has(l.section_name.toLowerCase()));
-    }
-    return tfsListings;
-  }, [tfsListings, selectedSections, highlightedGroup, mapData]);
-
-  const filteredTrades = React.useMemo(() => {
-    let result = [...allTrades];
-    if (selectedSections.size > 0) {
-      result = result.filter((t) => t.vs_section && selectedSections.has(t.vs_section.toLowerCase()));
-    } else if (highlightedGroup.size > 0 && mapData) {
-      const names = new Set(mapData.sections.filter((s) => s.groupId != null && highlightedGroup.has(s.groupId!)).map((s) => s.name.toLowerCase()));
-      result = result.filter((t) => t.vs_section && names.has(t.vs_section.toLowerCase()));
-    }
-    return result;
-  }, [allTrades, selectedSections, highlightedGroup, mapData]);
+  // ─── All rows (no external filtering — filtering is done via DataGrid filterModel) ──
 
   const filteredTradesByTime = React.useMemo(() => {
-    if (recommendationTime === "all") return filteredTrades;
+    if (recommendationTime === "all") return allTrades;
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const weekStart = new Date(todayStart);
     weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-    return filteredTrades.filter((t) => {
+    return allTrades.filter((t) => {
       if (!t.created_at) return false;
       const d = new Date(t.created_at);
       return recommendationTime === "today" ? d >= todayStart : d >= weekStart;
     });
-  }, [filteredTrades, recommendationTime]);
-
-  // ─── Merge Rows ─────────────────────────────────────────────────────────────
+  }, [allTrades, recommendationTime]);
 
   const mergedRows = React.useMemo(() => {
+    const enrichedListings = listings.map((l: any) => ({
+      ...l,
+      zone_name: sectionToZone[l.section?.id] || "—",
+      section_name: l.section_name ?? l.section?.name ?? "—",
+    }));
+
     const availableIds = new Set<string>();
-    filteredListings.forEach((l: any) => { if (l.id) availableIds.add(String(l.id)); });
+    enrichedListings.forEach((l: any) => { if (l.id) availableIds.add(String(l.id)); });
 
     const recSections = new Set<string>();
     filteredTradesByTime.forEach((t) => { if (t.vs_section) recSections.add(t.vs_section.toLowerCase()); });
 
-    const tradeRows = sourceFilter.includes("recommendations")
-      ? filteredTradesByTime.map((t) => ({
-          id: `trade-${t.id}`, listingId: t.listing_id || "",
-          section_name: t.vs_section || "—", row: t.row || "—",
-          quantity: t.quantity || 1, price: t.max_buy_price || 0,
-          isRecommendation: true, isInRecommendedSection: true,
-          isListingAvailable: t.listing_id ? availableIds.has(t.listing_id) : false,
-          projected_sell_price: t.projected_sell_price, confidence_level: t.confidence_level,
-          recommendation_date: t.created_at, estimated_margin_percent: t.estimated_margin_percent,
-          _trade: t, _isCurrentTrade: t.id === trade?.id, _source: "recommendations" as const,
-        }))
-      : [];
+    const tradeRows = filteredTradesByTime.map((t) => ({
+      id: `trade-${t.id}`, listingId: t.listing_id || "",
+      section_name: t.vs_section || "—", row: t.row || "—",
+      quantity: t.quantity || 1, price: t.max_buy_price || 0,
+      isRecommendation: true, isInRecommendedSection: true,
+      isListingAvailable: t.listing_id ? availableIds.has(t.listing_id) : false,
+      projected_sell_price: t.projected_sell_price, confidence_level: t.confidence_level,
+      recommendation_date: t.created_at, estimated_margin_percent: t.estimated_margin_percent,
+      _trade: t, _isCurrentTrade: t.id === trade?.id, _source: "recommendations" as const,
+    }));
 
-    const listingRows = sourceFilter.includes("vivid")
-      ? filteredListings.map((l: any) => ({
-          ...l, listingId: l.listingId || l.id || "",
-          price: l.pricePerTicket ?? l.price ?? l.listPrice ?? null,
-          isRecommendation: false, isListingAvailable: true, _trade: null,
-          isInRecommendedSection: recSections.has((l.section_name || "").toLowerCase()),
-          _source: "vivid" as const,
-        }))
-      : [];
+    const listingRows = enrichedListings.map((l: any) => ({
+      ...l, listingId: l.listingId || l.id || "",
+      price: l.pricePerTicket ?? l.price ?? l.listPrice ?? null,
+      isRecommendation: false, isListingAvailable: true, _trade: null,
+      isInRecommendedSection: recSections.has((l.section_name || "").toLowerCase()),
+      _source: "vivid" as const,
+    }));
 
-    const tfsRows = sourceFilter.includes("tfs")
-      ? filteredTfsListings.map((l: any) => ({
-          ...l, listingId: l.listingId || "", isRecommendation: false,
-          isListingAvailable: true, _trade: null,
-          isInRecommendedSection: recSections.has((l.section_name || "").toLowerCase()),
-          _source: "tfs" as const,
-        }))
-      : [];
+    const tfsRows = tfsListings.map((l: any) => ({
+      ...l, listingId: l.listingId || "", isRecommendation: false,
+      isListingAvailable: true, _trade: null,
+      isInRecommendedSection: recSections.has((l.section_name || "").toLowerCase()),
+      _source: "tfs" as const,
+    }));
 
     return [...tradeRows, ...listingRows, ...tfsRows];
-  }, [filteredListings, filteredTfsListings, filteredTradesByTime, sourceFilter, trade?.id]);
+  }, [listings, tfsListings, filteredTradesByTime, sectionToZone, trade?.id]);
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
 
@@ -257,68 +211,142 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
     initialSortModel: [{ field: "price", sort: "asc" }],
   });
 
-  const handleSectionClick = React.useCallback((sectionName: string, sectionId: number) => {
+  /**
+   * Build a filterModel that filters by section name(s) and source.
+   * Uses the DataGrid's own filterModel so the filters are visible in the header inputs.
+   */
+  const applySectionFilter = React.useCallback((
+    sectionNames: string[],   // exact names (case-insensitive match via "contains" per name)
+    sourceValues: string[],   // e.g. ["vivid"] or ["recommendations","vivid","tfs"]
+  ) => {
+    const items: GridFilterModel["items"] = [];
+
+    if (sectionNames.length === 1) {
+      // Single section — use "contains" so it shows in the text filter input
+      items.push({
+        id: "section-filter",
+        field: "section_name",
+        operator: "contains",
+        value: sectionNames[0],
+      });
+    } else if (sectionNames.length > 1) {
+      // Multiple sections (group click) — use isAnyOf
+      items.push({
+        id: "section-filter",
+        field: "section_name",
+        operator: "isAnyOf",
+        value: sectionNames,
+      });
+    }
+
+    if (sourceValues.length < 3) {
+      // Not all sources — set a source filter visible in the _source column header
+      items.push({
+        id: "source-filter",
+        field: "_source",
+        operator: "isAnyOf",
+        value: sourceValues,
+      });
+    }
+
+    setFilterModel({ items });
+  }, [setFilterModel]);
+
+  const clearSectionFilter = React.useCallback(() => {
+    setFilterModel((prev) => ({
+      ...prev,
+      items: prev.items.filter(
+        (item) => item.id !== "section-filter" && item.id !== "source-filter"
+      ),
+    }));
+  }, [setFilterModel]);
+
+  const handleSectionClick = React.useCallback((sectionName: string, _sectionId: number) => {
+    const k = sectionName.toLowerCase();
+
     setSelectedSections((prev) => {
       const n = new Set(prev);
-      const k = sectionName.toLowerCase();
       if (n.has(k)) {
-        // Deselecting — clear and restore all sources
         n.delete(k);
         if (n.size === 0) {
-          setSourceFilter(["recommendations", "vivid", "tfs"]);
+          // Fully deselected — clear the DataGrid filters
+          clearSectionFilter();
+        } else {
+          // Still have other sections selected — update filter
+          applySectionFilter(Array.from(n), ["vivid"]);
         }
       } else {
-        // Selecting a section — show only Vivid, uncheck recommendations overlay
         n.add(k);
+        // Section selected: filter to Vivid only for this section
         setShowRecommendedSections(false);
-        setSourceFilter(["vivid"]);
+        applySectionFilter(Array.from(n), ["vivid"]);
       }
       return n;
     });
-    setSelectedSectionIds((prev) => {
-      const n = new Set(prev);
-      n.has(sectionId) ? n.delete(sectionId) : n.add(sectionId);
-      return n;
-    });
     setHighlightedGroup(new Set());
-  }, []);
+  }, [applySectionFilter, clearSectionFilter]);
 
   const handleGroupClick = React.useCallback((groupId: number | null) => {
     setHighlightedGroup((prev) => {
       if (groupId == null) {
-        setSourceFilter(["recommendations", "vivid", "tfs"]);
+        clearSectionFilter();
+        setSelectedSections(new Set());
         return new Set();
       }
       const n = new Set(prev);
       if (n.has(groupId)) {
         n.delete(groupId);
         if (n.size === 0) {
-          setSourceFilter(["recommendations", "vivid", "tfs"]);
+          clearSectionFilter();
+        } else {
+          // Remaining groups — rebuild section names for those groups
+          if (mapData) {
+            const names = mapData.sections
+              .filter((s) => s.groupId != null && n.has(s.groupId!))
+              .map((s) => s.name.toLowerCase());
+            applySectionFilter(names, ["vivid"]);
+          }
         }
       } else {
         n.add(groupId);
         setShowRecommendedSections(false);
-        setSourceFilter(["vivid"]);
+        if (mapData) {
+          const names = Array.from(n).flatMap((gId) =>
+            mapData.sections
+              .filter((s) => s.groupId === gId)
+              .map((s) => s.name.toLowerCase())
+          );
+          applySectionFilter(names, ["vivid"]);
+        }
       }
+      setSelectedSections(new Set());
       return n;
     });
-    setSelectedSections(new Set());
-    setSelectedSectionIds(new Set());
-  }, []);
+  }, [mapData, applySectionFilter, clearSectionFilter]);
 
   const handleShowRecommendedSectionsChange = React.useCallback((checked: boolean) => {
     setShowRecommendedSections(checked);
     if (checked && mapData && allTrades.length > 0) {
-      const recNames = new Set(allTrades.map((t) => (t.vs_section || "").toLowerCase()).filter(Boolean));
+      const recNames = Array.from(
+        new Set(allTrades.map((t) => (t.vs_section || "").toLowerCase()).filter(Boolean))
+      );
+      // Highlight on map
       const sIds = new Set<number>(); const gIds = new Set<number>();
-      mapData.sections.forEach((s) => { if (recNames.has(s.name.toLowerCase())) { sIds.add(s.id); if (s.groupId != null) gIds.add(s.groupId); } });
-      // Restore all sources when showing recommended sections
-      setSourceFilter(["recommendations", "vivid", "tfs"]);
-      setSelectedSections(new Set()); setSelectedSectionIds(sIds); setHighlightedGroup(gIds);
+      mapData.sections.forEach((s) => {
+        if (recNames.includes(s.name.toLowerCase())) {
+          sIds.add(s.id); if (s.groupId != null) gIds.add(s.groupId);
+        }
+      });
+      setSelectedSections(new Set(recNames));
+      setHighlightedGroup(gIds);
+      // Set DataGrid filter — show all sources for recommended sections
+      applySectionFilter(recNames, ["recommendations", "vivid", "tfs"]);
     } else {
-      setSelectedSections(new Set()); setSelectedSectionIds(new Set()); setHighlightedGroup(new Set());
+      setSelectedSections(new Set());
+      setHighlightedGroup(new Set());
+      clearSectionFilter();
     }
-  }, [mapData, allTrades]);
+  }, [mapData, allTrades, applySectionFilter, clearSectionFilter]);
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 
@@ -362,7 +390,15 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
           <Box sx={{ flexShrink: 0, mb: 1 }}>
             <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
               <FormControlLabel
-                control={<Checkbox checked={showRecommendedSections} onChange={(e) => handleShowRecommendedSectionsChange(e.target.checked)} size="small" color="success" disabled={allTrades.length === 0} />}
+                control={
+                  <Checkbox
+                    checked={showRecommendedSections}
+                    onChange={(e) => handleShowRecommendedSectionsChange(e.target.checked)}
+                    size="small"
+                    color="success"
+                    disabled={allTrades.length === 0}
+                  />
+                }
                 label={<Typography variant="body2" fontWeight={500}>Show Recommended Sections</Typography>}
               />
 
@@ -373,7 +409,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
                 exclusive
                 onChange={(_e, v) => { if (v) setRecommendationTime(v); }}
                 size="small"
-                disabled={!sourceFilter.includes("recommendations") || allTrades.length === 0}
+                disabled={allTrades.length === 0}
                 sx={{ "& .MuiToggleButton-root": { px: 1.5, py: 0.5, fontSize: "0.75rem", textTransform: "none" } }}
               >
                 <ToggleButton value="today">Today</ToggleButton>
@@ -383,7 +419,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
             </Stack>
           </Box>
 
-          {/* Table */}
+          {/* Table — filters set by map clicks appear in the column header inputs */}
           <Paper variant="outlined" sx={{ flex: 1, minHeight: 0, borderRadius: 1, overflow: "hidden", padding: 2, display: "flex", flexDirection: "column" }}>
             <CustomDataGrid
               title="Listings"
@@ -403,6 +439,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
               paginationMode="server"
               sortingMode="client"
               defaultFilterType="header"
+              initialShowFilters
               getRowClassName={(params: unknown) => {
                 const row = (params as { row?: any })?.row;
                 if (!row) return "";
