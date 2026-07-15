@@ -78,9 +78,11 @@ const AvailabilityCharts: React.FC<AvailabilityChartsProps> = ({
 
   React.useEffect(() => {
     if (!eventId) return;
-    // Always clear stale data and fetch fresh when eventId changes
+    // Always clear stale data and fetch fresh when eventId changes.
+    // Fetch the full history (87600h = 10 years) to match the event details
+    // page "all" range, so the trade panel and event details stay in sync.
     dispatch(clearAvailability());
-    dispatch(getAvailability({ eventId, lastHoursCount: 8760 })); // 1 year — same as "all" on event details
+    dispatch(getAvailability({ eventId, lastHoursCount: 87600 }));
   }, [dispatch, eventId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // If PM data fetch failed, show a static no-data state — don't retry

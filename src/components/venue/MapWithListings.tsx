@@ -92,21 +92,24 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
       `)
       .eq("event_id", event_id)
       .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        const flat = (data ?? []).map((r: any) => ({
-          ...r,
-          event_name: r.event_analysis_logs?.event_name ?? "-",
-          venue_name: r.event_analysis_logs?.venue_name ?? "-",
-          primary_performer_name: r.event_analysis_logs?.primary_performer_name ?? "-",
-          llm_result: r.event_analysis_logs?.llm_result ?? null,
-          vs_web_path: r.events?.web_path ?? null,
-          local_date: r.events?.local_date ?? null,
-          sell_source: null, buy_source: null, llm_matched_section: null,
-        }));
-        setAllTrades(flat as Trade[]);
-      }).catch((err) => {
-        console.warn("[Trades] Failed:", err?.message);
-      });
+      .then(
+        ({ data }) => {
+          const flat = (data ?? []).map((r: any) => ({
+            ...r,
+            event_name: r.event_analysis_logs?.event_name ?? "-",
+            venue_name: r.event_analysis_logs?.venue_name ?? "-",
+            primary_performer_name: r.event_analysis_logs?.primary_performer_name ?? "-",
+            llm_result: r.event_analysis_logs?.llm_result ?? null,
+            vs_web_path: r.events?.web_path ?? null,
+            local_date: r.events?.local_date ?? null,
+            sell_source: null, buy_source: null, llm_matched_section: null,
+          }));
+          setAllTrades(flat as Trade[]);
+        },
+        (err: any) => {
+          console.warn("[Trades] Failed:", err?.message);
+        }
+      );
 
     Promise.allSettled([listingsPromise, tfsPromise, tradesPromise])
       .finally(() => setLoading(false));
@@ -255,13 +258,50 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
   });
 
   const handleSectionClick = React.useCallback((sectionName: string, sectionId: number) => {
-    setSelectedSections((prev) => { const n = new Set(prev); const k = sectionName.toLowerCase(); n.has(k) ? n.delete(k) : n.add(k); return n; });
-    setSelectedSectionIds((prev) => { const n = new Set(prev); n.has(sectionId) ? n.delete(sectionId) : n.add(sectionId); return n; });
+    setSelectedSections((prev) => {
+      const n = new Set(prev);
+      const k = sectionName.toLowerCase();
+      if (n.has(k)) {
+        // Deselecting — clear and restore all sources
+        n.delete(k);
+        if (n.size === 0) {
+          setSourceFilter(["recommendations", "vivid", "tfs"]);
+        }
+      } else {
+        // Selecting a section — show only Vivid, uncheck recommendations overlay
+        n.add(k);
+        setShowRecommendedSections(false);
+        setSourceFilter(["vivid"]);
+      }
+      return n;
+    });
+    setSelectedSectionIds((prev) => {
+      const n = new Set(prev);
+      n.has(sectionId) ? n.delete(sectionId) : n.add(sectionId);
+      return n;
+    });
     setHighlightedGroup(new Set());
   }, []);
 
   const handleGroupClick = React.useCallback((groupId: number | null) => {
-    setHighlightedGroup((prev) => { if (groupId == null) return new Set(); const n = new Set(prev); n.has(groupId) ? n.delete(groupId) : n.add(groupId); return n; });
+    setHighlightedGroup((prev) => {
+      if (groupId == null) {
+        setSourceFilter(["recommendations", "vivid", "tfs"]);
+        return new Set();
+      }
+      const n = new Set(prev);
+      if (n.has(groupId)) {
+        n.delete(groupId);
+        if (n.size === 0) {
+          setSourceFilter(["recommendations", "vivid", "tfs"]);
+        }
+      } else {
+        n.add(groupId);
+        setShowRecommendedSections(false);
+        setSourceFilter(["vivid"]);
+      }
+      return n;
+    });
     setSelectedSections(new Set());
     setSelectedSectionIds(new Set());
   }, []);
@@ -272,15 +312,13 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
       const recNames = new Set(allTrades.map((t) => (t.vs_section || "").toLowerCase()).filter(Boolean));
       const sIds = new Set<number>(); const gIds = new Set<number>();
       mapData.sections.forEach((s) => { if (recNames.has(s.name.toLowerCase())) { sIds.add(s.id); if (s.groupId != null) gIds.add(s.groupId); } });
+      // Restore all sources when showing recommended sections
+      setSourceFilter(["recommendations", "vivid", "tfs"]);
       setSelectedSections(new Set()); setSelectedSectionIds(sIds); setHighlightedGroup(gIds);
     } else {
       setSelectedSections(new Set()); setSelectedSectionIds(new Set()); setHighlightedGroup(new Set());
     }
   }, [mapData, allTrades]);
-
-  const handleSourceFilterChange = React.useCallback((_e: React.MouseEvent<HTMLElement>, v: SourceFilter[]) => {
-    if (v.length > 0) setSourceFilter(v);
-  }, []);
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 

@@ -333,7 +333,7 @@ export default function EventsPage() {
       headerName: "Monitor Level",
       minWidth: 150,
       type: "singleSelect",
-      valueOptions: ["none", "low", "medium", "high", "critical"],
+      valueOptions: ["low", "medium", "high", "critical"],
       renderCell: (params) => {
         const level = params.value;
         if (!level || level === "none") {

@@ -77,7 +77,7 @@ export default function CustomDataGrid({
   paginationMode = "server",
   sortingMode = "server",
   isFullHeight = false,
-  initialShowFilters = false,
+  initialShowFilters = true,
 }: CustomDataGridProps) {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const handleFullscreenChange = (fullscreenMode: boolean) => {
