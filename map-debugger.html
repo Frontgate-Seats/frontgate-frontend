@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Venue Map Debugger</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+/* ── Top bar ── */
+#topbar { background: #16213e; border-bottom: 2px solid #e94560; padding: 8px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+#topbar label { font-size: 11px; color: #aaa; white-space: nowrap; }
+#topbar input { background: #0f3460; border: 1px solid #555; color: #e0e0e0; border-radius: 4px; padding: 4px 7px; font-size: 12px; }
+.sep { width: 1px; height: 28px; background: #444; margin: 0 4px; flex-shrink: 0; }
+button { border: none; border-radius: 4px; padding: 6px 14px; cursor: pointer; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.btn-red { background: #e94560; color: #fff; }
+.btn-red:hover { background: #c73652; }
+.btn-dark { background: #0f3460; color: #e0e0e0; border: 1px solid #555; }
+.btn-dark:hover { background: #1a4a80; }
+
+/* ── Main layout ── */
+#main { flex: 1; display: flex; min-height: 0; }
+#mapWrap { flex: 1; position: relative; overflow: hidden; background: #111; cursor: grab; }
+#mapWrap:active { cursor: grabbing; }
+#mapSvg { width: 100%; height: 100%; }
+#zoomBtns { position: absolute; bottom: 10px; right: 10px; display: flex; gap: 4px; }
+#zoomBtns button { background: rgba(22,33,62,0.92); color: #e0e0e0; border: 1px solid #444; font-size: 16px; padding: 4px 10px; border-radius: 4px; cursor: pointer; }
+#overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; flex-direction: column; gap: 8px; font-size: 15px; }
+.spin { width: 34px; height: 34px; border: 3px solid #333; border-top-color: #e94560; border-radius: 50%; animation: s 0.8s linear infinite; }
+@keyframes s { to { transform: rotate(360deg); } }
+
+/* ── Sidebar ── */
+#sidebar { width: 300px; background: #16213e; border-left: 1px solid #333; overflow-y: auto; padding: 10px; font-size: 12px; flex-shrink: 0; }
+#sidebar h3 { color: #e94560; font-size: 12px; border-bottom: 1px solid #333; padding-bottom: 3px; margin: 10px 0 6px; }
+#sidebar h3:first-child { margin-top: 0; }
+.card { background: #0f3460; border-radius: 5px; padding: 7px; margin-bottom: 8px; line-height: 1.6; }
+#labelOut, #rawOut, #logOut { font-family: monospace; font-size: 10px; white-space: pre-wrap; word-break: break-all; color: #a0cfff; max-height: 160px; overflow-y: auto; }
+#logOut .ok  { color: #4caf50; }
+#logOut .warn { color: #ff9800; }
+#logOut .err  { color: #f44336; }
+.swatch { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: middle; margin-right: 5px; border: 1px solid rgba(255,255,255,0.2); }
+</style>
+</head>
+<body>
+
+<!-- ── Top bar ──────────────────────────────────────────────────────────────── -->
+<div id="topbar">
+  <label>Event ID</label>
+  <input id="evtId" type="number" value="7108666" style="width:110px" />
+
+  <label>Anon key</label>
+  <input id="anonKey" style="width:200px"
+    value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ6cHliYmZ0Z2JtZnRrZmJveWhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc3ODI3MzgsImV4cCI6MjA4MzM1ODczOH0.N1j_7S4vT7zXSpb6CuqYeUnRaDRqDzSlvFv-D7Mr7Pc" />
+
+  <button class="btn-red" id="loadBtn" onclick="loadFromAPI()">▶ Load Event</button>
+
+  <div class="sep"></div>
+
+  <label>jsonMapUrl</label>
+  <input id="manualUrl" style="width:280px" placeholder="https://…cloudfront.net/….json" />
+  <button class="btn-dark" onclick="loadManual()">Load URL</button>
+
+  <div class="sep"></div>
+
+  <label>Font size override</label>
+  <input id="fsOverride" type="number" value="0" step="1" min="0" max="60" style="width:55px"
+         title="0 = use JSON value. Increase until labels appear." />
+  <button class="btn-dark" onclick="rerenderLabels()">Apply</button>
+</div>
+<div id="main">
+
+  <!-- Map canvas -->
+  <div id="mapWrap">
+    <div id="overlay"><div class="spin"></div><span id="overlayMsg">Loading…</span></div>
+    <svg id="mapSvg" xmlns="http://www.w3.org/2000/svg">
+      <g id="gDeco"></g>
+      <g id="gSec"></g>
+      <g id="gLbl"></g>
+    </svg>
+    <div id="zoomBtns">
+      <button onclick="zoom(1.3)">＋</button>
+      <button onclick="zoom(1/1.3)">－</button>
+      <button onclick="resetView()">⟲</button>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+
+    <h3>Selected Section</h3>
+    <div class="card" id="selInfo" style="color:#666;min-height:50px">Click a section</div>
+
+    <h3>Stats</h3>
+    <div class="card" id="statsOut">—</div>
+
+    <h3>Legend</h3>
+    <div class="card" id="legendOut">—</div>
+
+    <h3>Label Inspector <button class="btn-dark" style="padding:2px 8px;font-size:10px;margin-left:6px" onclick="showLabels()">Inspect</button></h3>
+    <div class="card"><div id="labelOut">Click Inspect after loading a map</div></div>
+
+    <h3>Raw (click section)</h3>
+    <div class="card"><div id="rawOut">—</div></div>
+
+    <h3>Log</h3>
+    <div class="card"><div id="logOut"></div></div>
+
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────────
+let sc = 1, px = 0, py = 0, panning = false, psx = 0, psy = 0, ddist = 0;
+let parsedSections = [], decopaths = [], textLabels = [];
+let groups = [], sections = [];
+let selId = null;
+let _raw = null;
+const groupMap = new Map(), sectionMap = new Map();
+
+const svg   = document.getElementById('mapSvg');
+const gDeco = document.getElementById('gDeco');
+const gSec  = document.getElementById('gSec');
+const gLbl  = document.getElementById('gLbl');
+
+// ── Log ────────────────────────────────────────────────────────────────────────
+function log(msg, type='ok') {
+  const el = document.getElementById('logOut');
+  const d = document.createElement('div');
+  d.className = type;
+  d.textContent = new Date().toLocaleTimeString() + ' ' + msg;
+  el.prepend(d);
+  while (el.children.length > 50) el.removeChild(el.lastChild);
+}
+
+// ── Color ──────────────────────────────────────────────────────────────────────
+function nc(c) {
+  if (!c) return null;
+  if (/^0x/i.test(c)) return '#' + c.slice(2);
+  if (/^[0-9a-f]{6}$/i.test(c)) return '#' + c;
+  return c;
+}
+function fillFor(ps, sel, hov) {
+  if (sel) return '#c62828';
+  if (hov) return '#ef5350';
+  const ms = sectionMap.get(ps.id);
+  const gid = ms?.groupId ?? ps.groupId;
+  if (gid != null) { const c = nc(groupMap.get(gid)?.color); if (c) return c; }
+  return '#ffcdd2';
+}
+
+// ── Build lookups ──────────────────────────────────────────────────────────────
+function buildLookups() {
+  groupMap.clear(); sectionMap.clear();
+  groups.forEach(g => groupMap.set(g.id, g));
+  sections.forEach(s => sectionMap.set(s.id, s));
+}
+
+// ── Parse transform: extract tx,ty from any 6-number matrix ──────────────────
+function parseTx(t) {
+  const nums = []; let m;
+  const rx = /[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?/g;
+  while ((m = rx.exec(t)) !== null) nums.push(+m[0]);
+  if (nums.length >= 6) return { x: nums[4], y: nums[5] };
+  if (nums.length >= 2) return { x: nums[0], y: nums[1] };
+  return { x: 0, y: 0 };
+}
+
+// ── Parse map JSON (all VS formats) ──────────────────────────────────────────
+function parseJson(data) {
+  _raw = data;
+  parsedSections = []; decopath = decopath || []; decopath = []; textLabels = [];
+  let vb = '0 0 1000 800';
+
+  if (Array.isArray(data?.elements)) {
+    vb = `0 0 ${data.width||1000} ${data.height||800}`;
+    for (const el of data.elements) {
+      if (el.type === 'path') {
+        const d = el.path || el.d || '';
+        if (!d) continue;
+        if (el.id != null) {
+          const nid = +el.id;
+          const ms = sectionMap.get(nid);
+          parsedSections.push({ id: nid, path: d,
+            name: ms?.name || el.name || el.sectionName || String(el.id),
+            groupId: ms?.groupId ?? el.groupId });
+        } else {
+          decopath.push({ path: d, fill: nc(el.fill)||'#2a2a3a',
+            stroke: el.stroke === 'none' ? 'none' : (nc(el.stroke)||'#444') });
+        }
+      } else if (el.type === 'text') {
+        const txt = el.text || el.name || el.sectionName || '';
+        if (!txt) continue;
+        // VS JSON stores position in el.x / el.y directly.
+        // el.transform is a rotation matrix (e.g. "m0,-1,1,0,0,0"), NOT a translation.
+        const x = parseFloat(el.x) || 0;
+        const y = parseFloat(el.y) || 0;
+        const fsRaw = el['font-size'] || el.fontSize || '5';
+        const fontSize = parseFloat(String(fsRaw)) || 5;
+        // VS JSON has two formats for text position:
+        // Old: position in transform as "m1,0,0,1,tx,ty", el.x/el.y = 0
+        // New: position in el.x/el.y, transform = rotation only "m0,-1,1,0,0,0"
+        // Detect: if el.x and el.y are both 0 or missing, use transform for position
+        const hasDirectPos = (Math.abs(x) > 0.001 || Math.abs(y) > 0.001);
+        let svgTransform = '';
+        if (el.transform && el.transform !== 'm1,0,0,1,0,0') {
+          const nums = [];
+          const rx = /[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?/g;
+          let nm;
+          while ((nm = rx.exec(el.transform)) !== null) nums.push(+nm[0]);
+          if (nums.length >= 4) {
+            const [a, b, c, d] = nums;
+            if (!hasDirectPos && nums.length >= 6) {
+              // Old format: full translation in transform (m1,0,0,1,tx,ty)
+              svgTransform = `matrix(${a},${b},${c},${d},${nums[4]},${nums[5]})`;
+            } else {
+              // New format: rotation only, position in el.x/el.y
+              // Transform point (x,y) through rotation matrix to get world tx,ty
+              const tx = a * x + c * y;
+              const ty = b * x + d * y;
+              svgTransform = `matrix(${a},${b},${c},${d},${tx},${ty})`;
+            }
+          }
+        }
+        textLabels.push({
+          text: txt, x, y, fontSize,
+          fontWeight: el['font-weight'] || el.fontWeight || '600',
+          anchor: el['text-anchor'] || el.textAnchor || 'start',
+          fill: el.fill || '#000000',
+          svgTransform
+        });
+      }
+    }
+    log(`Format v2: ${parsedSections.length} sec, ${decopath.length} deco, ${textLabels.length} labels`);
+
+  } else if (Array.isArray(data?.sections)) {
+    if (data.viewBox) vb = data.viewBox;
+    for (const s of data.sections) parsedSections.push(
+      { id: +( s.id||s.sectionId||0), path: s.d||s.path||'', name: s.name||s.sectionName||'', groupId: s.groupId });
+    log(`Format 2: ${parsedSections.length} sections`);
+
+  } else if (Array.isArray(data?.svg?.paths)) {
+    if (data.svg.viewBox) vb = data.svg.viewBox;
+    for (const p of data.svg.paths) parsedSections.push(
+      { id: +(p.id||0), path: p.d||'', name: p.name||p.label||'', groupId: p.groupId });
+    log(`Format 3: ${parsedSections.length} sections`);
+
+  } else if (Array.isArray(data)) {
+    for (const s of data) parsedSections.push(
+      { id: +(s.id||s.sectionId||0), path: s.d||s.path||'', name: s.name||s.sectionName||'', groupId: s.groupId });
+    log(`Format 4: ${parsedSections.length} sections`);
+
+  } else {
+    log('Unknown format. Keys: ' + Object.keys(data||{}).join(', '), 'err');
+  }
+  return vb;
+}
+
+// ── Centroid ──────────────────────────────────────────────────────────────────
+function centroid(d) {
+  const n = []; let m;
+  const r = /[-+]?[0-9]*\.?[0-9]+/g;
+  while ((m = r.exec(d)) !== null) n.push(+m[0]);
+  const xs = n.filter((_,i)=>i%2===0), ys = n.filter((_,i)=>i%2!==0);
+  return { x: xs.length ? xs.reduce((a,b)=>a+b,0)/xs.length : 0,
+           y: ys.length ? ys.reduce((a,b)=>a+b,0)/ys.length : 0 };
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────────
+function render(vb) {
+  svg.setAttribute('viewBox', vb);
+  gDeco.innerHTML = ''; gSec.innerHTML = ''; gLbl.innerHTML = '';
+  selId = null;
+  decopath = decopath || [];
+
+  // Decorative
+  (decopath||[]).forEach(dp => {
+    const p = mkEl('path');
+    p.setAttribute('d', dp.path); p.setAttribute('fill', dp.fill);
+    p.setAttribute('stroke', dp.stroke); p.setAttribute('stroke-width','0.2');
+    p.style.pointerEvents='none'; gDeco.appendChild(p);
+  });
+
+  // Sections
+  parsedSections.forEach(ps => {
+    const p = mkEl('path');
+    p.setAttribute('d', ps.path);
+    p.setAttribute('fill', fillFor(ps,false,false));
+    p.setAttribute('stroke','#1a1a2e'); p.setAttribute('stroke-width','0.3');
+    p.setAttribute('opacity','0.85'); p.style.cursor='pointer';
+    p.style.transition='fill .1s,opacity .1s';
+    p._ps = ps;
+    p.addEventListener('mouseenter',()=>{ if(ps.id!==selId){p.setAttribute('fill',fillFor(ps,false,true));p.setAttribute('opacity','1');p.setAttribute('stroke-width','1');}});
+    p.addEventListener('mouseleave',()=>{ if(ps.id!==selId){p.setAttribute('fill',fillFor(ps,false,false));p.setAttribute('opacity','0.85');p.setAttribute('stroke-width','0.3');}});
+    p.addEventListener('click', e => { if(ddist>5)return; e.stopPropagation(); selectSec(ps,p); });
+    gSec.appendChild(p);
+  });
+
+  renderLabels();
+  updateStats();
+  updateLegend();
+}
+
+function renderLabels() {
+  gLbl.innerHTML = '';
+  const fsOv = parseFloat(document.getElementById('fsOverride').value)||0;
+
+  // If override is set, always use computed centroids (ignores potentially broken JSON coords)
+  // If override is 0, use JSON labels if available, otherwise compute centroids
+  let lbls;
+  if (fsOv > 0) {
+    // Force centroid-based labels so we can see them regardless of JSON coordinate issues
+    lbls = parsedSections.map(ps => {
+      const c = centroid(ps.path);
+      return { text: ps.name, x: c.x, y: c.y, fontSize: fsOv, fontWeight: '700', anchor: 'middle' };
+    });
+  } else if (textLabels.length > 0) {
+    lbls = textLabels;
+  } else {
+    lbls = parsedSections.map(ps => {
+      const c = centroid(ps.path);
+      return { text: ps.name, x: c.x, y: c.y, fontSize: 5, fontWeight: '700', anchor: 'middle' };
+    });
+  }
+
+  lbls.forEach(l => {
+    const t = mkEl('text');
+    if (l.svgTransform) {
+      t.setAttribute('transform', l.svgTransform);
+      t.setAttribute('x', '0');
+      t.setAttribute('y', '0');
+    } else {
+      t.setAttribute('x', l.x);
+      t.setAttribute('y', l.y);
+    }
+    t.setAttribute('font-size', l.fontSize);
+    t.setAttribute('font-weight', l.fontWeight);
+    t.setAttribute('text-anchor', l.anchor);
+    t.setAttribute('fill', l.fill || '#000000');
+    t.style.pointerEvents = 'none';
+    t.style.userSelect = 'none';
+    t.textContent = l.text;
+    gLbl.appendChild(t);
+  });
+}
+
+function rerenderLabels() { renderLabels(); log(`Labels re-rendered (font-size override=${document.getElementById('fsOverride').value})`); }
+
+function mkEl(tag) { return document.createElementNS('http://www.w3.org/2000/svg', tag); }
+
+// ── Select section ─────────────────────────────────────────────────────────────
+function selectSec(ps, el) {
+  gSec.querySelectorAll('path').forEach(p => {
+    if (p._ps && p._ps.id!==ps.id) { p.setAttribute('fill',fillFor(p._ps,false,false)); p.setAttribute('stroke-width','0.3'); p.setAttribute('opacity','0.85'); }
+  });
+  selId = ps.id;
+  el.setAttribute('fill','#c62828'); el.setAttribute('stroke','#fff'); el.setAttribute('stroke-width','2'); el.setAttribute('opacity','1');
+  const ms = sectionMap.get(ps.id);
+  const g  = ms?.groupId != null ? groupMap.get(ms.groupId) : null;
+  document.getElementById('selInfo').innerHTML =
+    `<b>${ps.name}</b><br>` +
+    `ID: ${ps.id}<br>` +
+    `In API sections: <span style="color:${ms?'#4caf50':'#f44336'}">${ms?'✅ yes':'❌ NO'}</span><br>` +
+    `groupId: ${ps.groupId ?? ms?.groupId ?? '—'}<br>` +
+    `Group: ${g ? g.name : '—'}<br>` +
+    (ms ? `minPrice: $${ms.minPrice??'—'}  qty: ${ms.quantity??'—'}` : '');
+  document.getElementById('rawOut').textContent =
+    '// JSON:\n'+JSON.stringify(ps,null,2)+'\n\n// API:\n'+JSON.stringify(ms??null,null,2);
+}
+
+// ── Stats & Legend ─────────────────────────────────────────────────────────────
+function updateStats() {
+  const unmatched = parsedSections.filter(ps=>!sectionMap.has(ps.id));
+  const noGrp     = parsedSections.filter(ps=>{ const ms=sectionMap.get(ps.id); return ms&&ms.groupId==null; });
+  document.getElementById('statsOut').innerHTML =
+    `<b>JSON sections:</b> ${parsedSections.length}<br>` +
+    `<b>API sections:</b> ${sections.length}<br>` +
+    `<b>Groups:</b> ${groups.length}<br>` +
+    `<b>Deco paths:</b> ${(decopath||[]).length}<br>` +
+    `<b>Labels:</b> ${textLabels.length>0?textLabels.length+' (JSON)':parsedSections.length+' (computed)'}<br>` +
+    `<span style="color:${unmatched.length>0?'#f44336':'#4caf50'}"><b>ID mismatches:</b> ${unmatched.length}</span>` +
+    (unmatched.length>0?'<br><span style="color:#f44336;font-size:10px">'+unmatched.slice(0,8).map(p=>p.id).join(', ')+(unmatched.length>8?'…':'')+'</span>':'') +
+    (noGrp.length>0?`<br><span style="color:#ff9800"><b>No groupId:</b> ${noGrp.length}</span>`:'');
+}
+
+function updateLegend() {
+  const el = document.getElementById('legendOut');
+  if (!groups.length) { el.innerHTML='<span style="color:#666">No groups</span>'; return; }
+  el.innerHTML = groups.map(g => {
+    const c = nc(g.color)||'#888';
+    return `<span class="swatch" style="background:${c}"></span>${g.name||g.id}`;
+  }).join('<br>');
+}
+
+// ── Label inspector ────────────────────────────────────────────────────────────
+function showLabels() {
+  const out = document.getElementById('labelOut');
+  let txt = '';
+
+  if (textLabels.length > 0) {
+    txt += `=== PARSED LABELS (${textLabels.length}) ===\n`;
+    txt += textLabels.slice(0,20).map((l,i)=>`[${i}] "${l.text}" x=${l.x.toFixed(1)} y=${l.y.toFixed(1)} size=${l.fontSize}`).join('\n');
+    if (textLabels.length>20) txt += `\n…+${textLabels.length-20} more`;
+  } else {
+    txt += 'No labels parsed from JSON.\n';
+  }
+
+  if (_raw?.elements) {
+    const rawTxts = _raw.elements.filter(e=>e.type==='text');
+    const allKeys = [...new Set(rawTxts.flatMap(t=>Object.keys(t)))];
+    txt += `\n\n=== RAW text elements: ${rawTxts.length} ===\n`;
+    txt += `Keys: ${allKeys.join(', ')}\n\n`;
+    txt += '--- First 3 raw ---\n' + JSON.stringify(rawTxts.slice(0,3), null, 2);
+
+    if (rawTxts.length === 0) {
+      const types = [...new Set(_raw.elements.map(e=>e.type))];
+      txt += `\nElement types in JSON: ${types.join(', ')}`;
+      const other = _raw.elements.find(e=>e.type!=='path');
+      if (other) txt += '\n\nFirst non-path element:\n'+JSON.stringify(other,null,2);
+    }
+  } else if (_raw) {
+    txt += '\n\nJSON top-level keys: ' + Object.keys(_raw).join(', ');
+  }
+
+  out.textContent = txt;
+}
+
+// ── Load from API ──────────────────────────────────────────────────────────────
+async function loadFromAPI() {
+  const evtId   = document.getElementById('evtId').value.trim();
+  const anonKey = document.getElementById('anonKey').value.trim();
+  if (!evtId)   { log('Enter an event ID', 'warn'); return; }
+  if (!anonKey) { log('Enter the anon key', 'warn'); return; }
+
+  showOverlay('Calling events-api…');
+  try {
+    const res = await fetch(
+      `https://rzpybbftgbmftkfboyhq.supabase.co/functions/v1/events-api/listings/${evtId}`,
+      { headers: { Authorization: `Bearer ${anonKey}` } }
+    );
+    if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    log(`API: ${data.listings?.length??0} listings, map=${!!data.map}`);
+
+    const map = data.map;
+    if (!map?.jsonMapUrl) throw new Error('No jsonMapUrl in response');
+
+    document.getElementById('manualUrl').value = map.jsonMapUrl;
+    groups   = map.groups   || [];
+    sections = map.sections || [];
+    buildLookups();
+    log(`Lookups: ${groups.length} groups, ${sections.length} sections`);
+
+    showOverlay('Fetching map JSON…');
+    const mr = await fetch(map.jsonMapUrl);
+    if (!mr.ok) throw new Error(`Map fetch ${mr.status}`);
+    const mj = await mr.json();
+    log(`Map JSON: ${JSON.stringify(mj).length.toLocaleString()} chars`);
+
+    const vb = parseJson(mj);
+    render(vb);
+    resetView();
+  } catch(e) {
+    log('❌ ' + e.message, 'err');
+  } finally {
+    hideOverlay();
+  }
+}
+
+// ── Load manual URL ─────────────────────────────────────────────────────────────
+async function loadManual() {
+  const url = document.getElementById('manualUrl').value.trim();
+  if (!url) { log('No URL entered', 'warn'); return; }
+
+  try {
+    const gRaw = document.getElementById('groupsInput')?.value?.trim();
+    const sRaw = document.getElementById('sectionsInput')?.value?.trim();
+    if (gRaw) { groups = JSON.parse(gRaw); }
+    if (sRaw) { sections = JSON.parse(sRaw); }
+    buildLookups();
+  } catch(e) { log('JSON parse error: ' + e.message, 'err'); return; }
+
+  showOverlay('Fetching map…');
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    const vb = parseJson(d);
+    render(vb);
+    resetView();
+  } catch(e) {
+    log('❌ ' + e.message, 'err');
+  } finally {
+    hideOverlay();
+  }
+}
+
+function showOverlay(msg) { document.getElementById('overlayMsg').textContent=msg; document.getElementById('overlay').style.display='flex'; }
+function hideOverlay()    { document.getElementById('overlay').style.display='none'; }
+
+// ── Pan & Zoom ─────────────────────────────────────────────────────────────────
+const mw = document.getElementById('mapWrap');
+mw.addEventListener('mousedown', e=>{ if(e.button!==0)return; panning=true; ddist=0; psx=e.clientX-px; psy=e.clientY-py; });
+window.addEventListener('mousemove', e=>{ if(!panning)return; ddist+=Math.abs(e.clientX-psx-px)+Math.abs(e.clientY-psy-py); px=e.clientX-psx; py=e.clientY-psy; applyT(); });
+window.addEventListener('mouseup', ()=>panning=false);
+mw.addEventListener('wheel', e=>{ e.preventDefault(); sc=Math.min(Math.max(sc*(e.deltaY>0?.88:1.14),.15),12); applyT(); },{passive:false});
+
+function applyT() { svg.style.transform=`scale(${sc}) translate(${px/sc}px,${py/sc}px)`; }
+function zoom(f) { sc=Math.min(Math.max(sc*f,.15),12); applyT(); }
+function resetView() { sc=1; px=0; py=0; applyT(); }
+
+// init
+let decopath = [];
+</script>
+</body>
+</html>

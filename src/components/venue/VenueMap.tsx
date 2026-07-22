@@ -67,6 +67,7 @@ interface ParsedLabel {
   fontSize: number;
   fontWeight: string;
   anchor: string;
+  svgTransform?: string;
 }
 
 // Decorative path (no id, not interactive)
@@ -92,16 +93,24 @@ function normalizeColor(color: string | undefined): string | undefined {
 
 /**
  * Parse the transform attribute from text elements to extract x,y position.
- * Format: "m1,0,0,1,x,y" (matrix transform)
+ * Handles all VividSeats matrix formats:
+ *   "m1,0,0,1,tx,ty"  "m(1,0,0,1,tx,ty)"  "m 1 0 0 1 tx ty"  mixed separators
+ * Extracts all numbers and uses index 4=tx, 5=ty (standard matrix [a,b,c,d,tx,ty]).
+ * NOTE: VS JSON v2 format stores position in el.x/el.y, not the transform.
+ * This function is kept for legacy format fallback only.
  */
 function parseTransform(transform: string): { x: number; y: number } {
-  // matrix: m(a,b,c,d,tx,ty)
-  const parts = transform.replace(/[m()]/gi, "").split(",");
-  if (parts.length >= 6) {
-    return { x: parseFloat(parts[4]) || 0, y: parseFloat(parts[5]) || 0 };
-  }
+  const nums: number[] = [];
+  const rx = /[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?/g;
+  let m: RegExpExecArray | null;
+  while ((m = rx.exec(transform)) !== null) nums.push(parseFloat(m[0]));
+  if (nums.length >= 6) return { x: nums[4], y: nums[5] };
+  if (nums.length >= 2) return { x: nums[0], y: nums[1] };
   return { x: 0, y: 0 };
 }
+
+// Keep for legacy map format fallback usage
+void parseTransform;
 
 export default function VenueMap({
   mapData,
@@ -185,14 +194,45 @@ export default function VenueMap({
                 });
               }
             } else if (el.type === "text" && el.text && el.transform) {
-              const pos = parseTransform(el.transform);
+              // VS JSON stores position in el.x / el.y directly.
+              // el.transform is a rotation matrix, NOT a translation.
+              const x = parseFloat(String((el as any).x)) || 0;
+              const y = parseFloat(String((el as any).y)) || 0;
+              const fsRaw = el["font-size"] ?? (el as any).fontSize ?? "5";
+              const fontSize = parseFloat(String(fsRaw)) || 5;
+              // Build SVG transform: rotation from matrix + position from x/y
+              // VS JSON: el.transform = rotation only (e.g. "m0,-1,1,0,0,0")
+              //          el.x / el.y  = position in the ROTATED coordinate space
+              // Correct SVG: matrix(a,b,c,d, a*x+c*y, b*x+d*y)
+              // Old format: position baked into transform as m1,0,0,1,tx,ty with x/y=0
+              const hasDirectPos = Math.abs(x) > 0.001 || Math.abs(y) > 0.001;
+              let svgTransform: string | undefined;
+              if (el.transform !== "m1,0,0,1,0,0") {
+                const nums: number[] = [];
+                const rx2 = /[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?/g;
+                let m2: RegExpExecArray | null;
+                while ((m2 = rx2.exec(el.transform)) !== null) nums.push(parseFloat(m2[0]));
+                if (nums.length >= 4) {
+                  const [a, b, c, d] = nums;
+                  if (!hasDirectPos && nums.length >= 6) {
+                    // Old format: full translation in transform
+                    svgTransform = `matrix(${a},${b},${c},${d},${nums[4]},${nums[5]})`;
+                  } else {
+                    // New format: rotation only, position in el.x/el.y
+                    const tx = a * x + c * y;
+                    const ty = b * x + d * y;
+                    svgTransform = `matrix(${a},${b},${c},${d},${tx},${ty})`;
+                  }
+                }
+              }
               textLabels.push({
                 text: el.text,
-                x: pos.x,
-                y: pos.y,
-                fontSize: parseFloat(el["font-size"] || "4"),
+                x,
+                y,
+                fontSize,
                 fontWeight: el["font-weight"] || "400",
-                anchor: el["text-anchor"] || "middle",
+                anchor: el["text-anchor"] || "start",
+                svgTransform,
               });
             }
           }
@@ -680,8 +720,10 @@ export default function VenueMap({
           {labels.map((label, i) => (
             <text
               key={`label-${i}`}
-              x={label.x}
-              y={label.y}
+              {...(label.svgTransform
+                ? { transform: label.svgTransform, x: 0, y: 0 }
+                : { x: label.x, y: label.y }
+              )}
               fontSize={label.fontSize}
               fontWeight={label.fontWeight}
               textAnchor={label.anchor as "start" | "middle" | "end"}
