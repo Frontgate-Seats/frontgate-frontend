@@ -17,7 +17,7 @@ import MapIcon from "@mui/icons-material/Map";
 import type { GridFilterModel } from "@mui/x-data-grid";
 
 import listingsApi from "../../apis/listings.api";
-import tfsListingsApi from "../../apis/tfsListings.api";
+import hermesListingsApi from "../../apis/tfsListings.api";
 import stubhubListingsApi from "../../apis/stubhubListings.api";
 import seatgeekListingsApi from "../../apis/seatgeekListings.api";
 import ToggleFullscreen from "../common/ToggleFullscreen";
@@ -61,7 +61,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
   stubhubEventId: stubhubEventIdProp,
 }) => {
   const [listings, setListings] = React.useState<any[]>([]);
-  const [tfsListings, setTfsListings] = React.useState<any[]>([]);
+  const [hermesListings, setHermesListings] = React.useState<any[]>([]);
   const [stubhubListings, setStubhubListings] = React.useState<any[]>([]);
   const [seatgeekListings, setSeatgeekListings] = React.useState<any[]>([]);
   const [mapData, setMapData] = React.useState<VenueMapData | null>(null);
@@ -90,10 +90,10 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
       console.warn("[Listings] Failed:", err?.message);
     });
 
-    const tfsPromise = tfsListingsApi.fetchTfsListings(event_id).then((res) => {
-      setTfsListings(res ?? []);
+    const hermesPromise = hermesListingsApi.fetchHermesListings(event_id).then((res) => {
+      setHermesListings(res ?? []);
     }).catch((err) => {
-      console.warn("[TFS] Failed:", err?.message);
+      console.warn("[Hermes] Failed:", err?.message);
     });
 
     // StubHub: use pre-resolved ID from props (TradeDetailPanel) or resolve inline
@@ -171,7 +171,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
         }
       );
 
-    Promise.allSettled([listingsPromise, tfsPromise, stubhubPromise, seatgeekPromise, tradesPromise])
+    Promise.allSettled([listingsPromise, hermesPromise, stubhubPromise, seatgeekPromise, tradesPromise])
       .finally(() => setLoading(false));
   }, [event_id, sgEventIdProp, stubhubEventIdProp]);
 
@@ -243,11 +243,11 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
       _source: "vivid" as const,
     }));
 
-    const tfsRows = tfsListings.map((l: any) => ({
+    const hermesRows = hermesListings.map((l: any) => ({
       ...l, listingId: l.listingId || "", isRecommendation: false,
       isListingAvailable: true, _trade: null,
       isInRecommendedSection: recSections.has((l.section_name || "").toLowerCase()),
-      _source: "tfs" as const,
+      _source: "hermes" as const,
     }));
 
     const stubhubRows = stubhubListings.map((l: any) => ({
@@ -272,8 +272,8 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
       _source: "seatgeek" as const,
     }));
 
-    return [...tradeRows, ...listingRows, ...tfsRows, ...stubhubRows, ...seatgeekRows];
-  }, [listings, tfsListings, stubhubListings, seatgeekListings, filteredTradesByTime, sectionToZone, trade?.id]);
+    return [...tradeRows, ...listingRows, ...hermesRows, ...stubhubRows, ...seatgeekRows];
+  }, [listings, hermesListings, stubhubListings, seatgeekListings, filteredTradesByTime, sectionToZone, trade?.id]);
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
 
@@ -324,7 +324,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
     }
 
     // Total number of source options — if all are selected, no source filter is needed
-    const TOTAL_SOURCES = 5; // recommendations, vivid, tfs, stubhub, seatgeek
+    const TOTAL_SOURCES = 5; // recommendations, vivid, hermes, stubhub, seatgeek
     if (sourceValues.length < TOTAL_SOURCES) {
       // Not all sources — set a source filter visible in the _source column header
       items.push({
@@ -426,7 +426,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
       setSelectedSections(new Set(recNames));
       setHighlightedGroup(gIds);
       // Set DataGrid filter — show all sources for recommended sections
-      applySectionFilter(recNames, ["recommendations", "vivid", "tfs", "stubhub", "seatgeek"]);
+      applySectionFilter(recNames, ["recommendations", "vivid", "hermes", "stubhub", "seatgeek"]);
     } else {
       setSelectedSections(new Set());
       setHighlightedGroup(new Set());
@@ -534,7 +534,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
                   if (row.isListingAvailable === false) return "recommendation-row-unavailable";
                   return "recommendation-row-available";
                 }
-                if (row._source === "tfs") return "tfs-row";
+                if (row._source === "hermes") return "hermes-row";
                 if (row._source === "stubhub") return "stubhub-row";
                 return "";
               }}
