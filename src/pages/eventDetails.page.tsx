@@ -17,18 +17,11 @@ import {
 } from "@mui/material";
 import { PlayArrow, Stop } from "@mui/icons-material";
 import moment from "moment";
-import type {
-  GridPaginationModel,
-  GridSortModel,
-  GridFilterModel,
-} from "@mui/x-data-grid";
-
 import { formatDateTime } from "../shared/utils/dateTime.util";
 import { useAppDispatch } from "../store/reducers/root.reducer";
 import type { RootState } from "../store";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import type { CustomGridColDef } from "../shared/types/mui.type";
-import { getEventAnalysisLogs } from "../store/slices/eventAnalysisLogs.slice";
 import {
   startEventMonitoring,
   stopEventMonitoring,
@@ -115,7 +108,6 @@ export default function EventDetailsPage() {
     stubhubSales,
     listingTrends,
     loading,
-    error,
     refetch,
   } = useEventData(eventId);
   // Each chart has its own default, but once the user changes any one of them
@@ -307,49 +299,12 @@ export default function EventDetailsPage() {
     [priceSeries],
   );
 
-
-  const analysisLogsFromRedux = useSelector((state: RootState) => state.eventAnalysisLogs);
-  const [analysisLogsPaginationModel, setAnalysisLogsPaginationModel] =
-    React.useState<GridPaginationModel>({ page: 0, pageSize: 25 });
-  const [analysisLogsSortModel, setAnalysisLogsSortModel] =
-    React.useState<GridSortModel>([{ field: "created_at", sort: "desc" }]);
-  const [analysisLogsFilterModel, setAnalysisLogsFilterModel] =
-    React.useState<GridFilterModel>({ items: [] });
-
   // Monitor Dialog State
   const [confirmStopDialog, setConfirmStopDialog] = React.useState(false);
   const [startMonitorDialog, setStartMonitorDialog] = React.useState(false);
 
   const isMonitoring = selectedEvent?.is_monitored || false;
   const monitorLevel = selectedEvent?.monitor_level || "none";
-
-  // Edit Dialog Handlers — removed (event_analysis_logs is read-only)
-
-  // Fetch analysis logs with server-side pagination/sorting/filtering
-  React.useEffect(() => {
-    if (!eventId) return;
-
-    dispatch(
-      getEventAnalysisLogs({
-        page: analysisLogsPaginationModel.page,
-        pageSize: analysisLogsPaginationModel.pageSize,
-        sortFields: analysisLogsSortModel,
-        filters: {
-          items: [
-            { field: "event_id", operator: "equals", value: eventId },
-            ...analysisLogsFilterModel.items,
-          ],
-        },
-      }),
-    );
-  }, [
-    dispatch,
-    eventId,
-    analysisLogsPaginationModel.page,
-    analysisLogsPaginationModel.pageSize,
-    analysisLogsSortModel,
-    analysisLogsFilterModel,
-  ]);
 
   // Fetch availability data — clear stale data first so old time range doesn't linger
   React.useEffect(() => {
@@ -373,30 +328,6 @@ export default function EventDetailsPage() {
     dispatch(clearAvailability());
     dispatch(getAvailability({ eventId, lastHoursCount }));
   }, [dispatch, eventId, activeTimeRange]);
-
-  const handleRefreshAnalysisLogs = React.useCallback(() => {
-    if (!eventId) return;
-    dispatch(
-      getEventAnalysisLogs({
-        page: analysisLogsPaginationModel.page,
-        pageSize: analysisLogsPaginationModel.pageSize,
-        sortFields: analysisLogsSortModel,
-        filters: {
-          items: [
-            { field: "event_id", operator: "equals", value: eventId },
-            ...analysisLogsFilterModel.items,
-          ],
-        },
-      }),
-    );
-  }, [
-    dispatch,
-    eventId,
-    analysisLogsPaginationModel.page,
-    analysisLogsPaginationModel.pageSize,
-    analysisLogsSortModel,
-    analysisLogsFilterModel,
-  ]);
 
   // Monitor Handlers
   const handleStartMonitor = () => {
@@ -673,39 +604,6 @@ export default function EventDetailsPage() {
     });
   }, [timeRangeCutoffDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync analysis logs date filter when global time range changes
-  React.useEffect(() => {
-    setAnalysisLogsFilterModel((prev) => {
-      const otherItems = prev.items.filter((item) => item.field !== "created_at");
-      if (!timeRangeCutoffDate) {
-        return { ...prev, items: otherItems };
-      }
-      return {
-        ...prev,
-        items: [
-          ...otherItems,
-          { field: "created_at", operator: "onOrAfter", value: timeRangeCutoffDate.toISOString() },
-        ],
-      };
-    });
-  }, [timeRangeCutoffDate]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Calculate sales summary statistics — based on filtered rows so header stats match the table
-  const salesSummary = React.useMemo(() => {
-    const totalSales = filteredSales.length;
-    const totalQuantity = filteredSales.reduce((sum: number, sale: any) => sum + (sale.quantity || 0), 0);
-    return { totalSales, totalQuantity };
-  }, [filteredSales]);
-  // Determine which sources are present in filtered sales data
-  const activeSourcesInFilter = React.useMemo(() => {
-    const sources = new Set(filteredSales.map((sale: any) => sale.source));
-    return {
-      hasSeatGeek: sources.has("SeatGeek"),
-      hasVivid: sources.has("Vivid"),
-      hasStubHub: sources.has("StubHub"),
-    };
-  }, [filteredSales]);
-
   // Re-bucket filtered sales for the chart using the shared hook — reuses the same
   // time-range/interval logic from useChartData, no duplication.
   const filteredCombinedSalesChartDataset = useCombinedSalesChartDataFromRows(
@@ -731,175 +629,6 @@ export default function EventDetailsPage() {
     initialSortModel: [{ field: "bucketStartUTC", sort: "desc" }],
   });
 
-  // Analysis Logs Data Grid Columns
-  const analysisLogsColumns: CustomGridColDef[] = [
-    {
-      field: "created_at",
-      headerName: "Date & Time",
-      minWidth: 180,
-      flex: 1,
-      type: "dateTime",
-      valueGetter: (value) => (value ? new Date(value) : null),
-      valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
-    },
-    {
-      field: "llm_action",
-      headerName: "Action",
-      minWidth: 120,
-      flex: 1,
-      type: "string",
-    },
-    {
-      field: "recommendation_count",
-      headerName: "Recommendations",
-      minWidth: 140,
-      flex: 1,
-      type: "number",
-      valueFormatter: (value: any) =>
-        typeof value === "number" ? value.toString() : "-",
-    },
-    {
-      field: "monitor_level",
-      headerName: "Monitor Level",
-      minWidth: 130,
-      flex: 1,
-      type: "string",
-    },
-    {
-      field: "days_to_event",
-      headerName: "Days to Event",
-      minWidth: 130,
-      flex: 1,
-      type: "number",
-      valueFormatter: (value: any) =>
-        typeof value === "number" ? value.toString() : "-",
-    },
-    {
-      field: "event_assessment_action",
-      headerName: "Assessment",
-      minWidth: 150,
-      flex: 1,
-      type: "string",
-      sortable: false,
-      filterable: false,
-      valueGetter: (_value: any, row: any) =>
-        row?.llm_result?.event_assessment?.recommended_action ?? "-",
-    },
-    {
-      field: "demand_signal",
-      headerName: "Demand Signal",
-      minWidth: 140,
-      flex: 1,
-      type: "string",
-      sortable: false,
-      filterable: false,
-      valueGetter: (_value: any, row: any) =>
-        row?.llm_result?.event_assessment?.demand_signal ?? "-",
-    },
-    {
-      field: "reasoning",
-      headerName: "Reasoning",
-      minWidth: 300,
-      flex: 2,
-      type: "string",
-      sortable: false,
-      filterable: false,
-      valueGetter: (_value: any, row: any) =>
-        row?.llm_result?.event_assessment?.reasoning ?? "-",
-    },
-  ];
-
-  // Custom header components with logos
-  const salesHeaderComponent = (
-    <Stack direction="column" width="100%" spacing={0.5}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" width="100%">
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Tooltip title={
-            [
-              activeSourcesInFilter.hasSeatGeek && "SeatGeek",
-              activeSourcesInFilter.hasVivid && "Vivid Seats",
-              activeSourcesInFilter.hasStubHub && "StubHub",
-            ].filter(Boolean).join(" & ") || "No Sources"
-          }>
-            <Stack direction="row" spacing={0.5}>
-              {activeSourcesInFilter.hasSeatGeek && (
-                <Box
-                  component="img"
-                  src={SEATGEEK_LOGO}
-                  alt="SeatGeek Logo"
-                  sx={{
-                    width: 24,
-                    height: 24,
-                    objectFit: "contain",
-                  }}
-                />
-              )}
-              {activeSourcesInFilter.hasVivid && (
-                <Box
-                  component="img"
-                  src={VIVID_LOGO}
-                  alt="Vivid Seats Logo"
-                  sx={{
-                    width: 24,
-                    height: 24,
-                    objectFit: "contain",
-                  }}
-                />
-              )}
-              {activeSourcesInFilter.hasStubHub && (
-                <Box
-                  component="img"
-                  src={STUBHUB_LOGO}
-                  alt="StubHub Logo"
-                  sx={{
-                    width: 24,
-                    height: 24,
-                    objectFit: "contain",
-                  }}
-                />
-              )}
-            </Stack>
-          </Tooltip>
-          <Typography variant="h6" fontWeight={600}>
-            Sales Data
-          </Typography>
-        </Stack>
-        <Stack direction="row" spacing={3} alignItems="center">
-          <Box>
-            <Typography variant="body2" color="text.secondary">
-              Total Sales:
-            </Typography>
-            <Typography variant="h6" fontWeight={600}>
-              {salesSummary.totalSales}
-            </Typography>
-          </Box>
-          <Box>
-            <Typography variant="body2" color="text.secondary">
-              Total sold QTY:
-            </Typography>
-            <Typography variant="h6" fontWeight={600}>
-              {salesSummary.totalQuantity}
-            </Typography>
-          </Box>
-        </Stack>
-      </Stack>
-      {/* Per-source partial failure warnings — grid still shows data from successful sources */}
-      {(error.sales || error.vividSales || error.stubhubSales) && (
-        <Stack direction="row" spacing={1} flexWrap="wrap">
-          {error.sales && (
-            <Typography variant="caption" color="warning.main">⚠ SeatGeek sales unavailable</Typography>
-          )}
-          {error.vividSales && (
-            <Typography variant="caption" color="warning.main">⚠ Vivid Seats sales unavailable</Typography>
-          )}
-          {error.stubhubSales && (
-            <Typography variant="caption" color="warning.main">⚠ StubHub sales unavailable</Typography>
-          )}
-        </Stack>
-      )}
-    </Stack>
-  );
-
   const capacityHeaderComponent = (
     <Stack direction="row" alignItems="center" spacing={1}>
       <Tooltip title={PRIMARY_LABEL}>
@@ -915,18 +644,11 @@ export default function EventDetailsPage() {
         />
       </Tooltip>
       <Typography variant="h6" fontWeight={600} gutterBottom>
-        {PRIMARY_LABEL} - Capacity Trends
+        Availability Trends
       </Typography>
     </Stack>
   );
 
-  const analysisLogsHeaderComponent = (
-    <Stack direction="row" alignItems="center" spacing={1}>
-      <Typography variant="h6" fontWeight={600} gutterBottom>
-        Buy Recommendations
-      </Typography>
-    </Stack>
-  );
 
   return (
     <Stack
@@ -1194,7 +916,7 @@ export default function EventDetailsPage() {
             {/* Price Point Distribution */}
             <Grid size={{ xs: 12 }}>
               <DynamicChart
-                title={`${PRIMARY_LABEL} - Price Points Availability`}
+                title={`Price Points`}
                 dataset={availabilityData.priceChart}
                 chartConfig={priceChartConfig}
                 loading={availabilityFromRedux.loading}
@@ -1213,7 +935,7 @@ export default function EventDetailsPage() {
             {/* Capacity Table */}
             <Grid size={{ xs: 12, md: 6 }}>
               <CustomDataGrid
-                title={`${PRIMARY_LABEL} - Capacity Trends`}
+                title={`Availability Trends`}
                 rows={paginatedCapacity}
                 rowCount={capacityTotalFiltered}
                 columns={capacityColumns}
@@ -1254,7 +976,7 @@ export default function EventDetailsPage() {
             {/* Section Breakdown */}
             <Grid size={{ xs: 12, md: 6 }}>
               <DynamicChart
-                title={`${PRIMARY_LABEL} - Sections Availability`}
+                title={`Sections`}
                 dataset={availabilityData.sectionChart}
                 chartConfig={sectionChartConfig}
                 loading={availabilityFromRedux.loading}
@@ -1322,36 +1044,6 @@ export default function EventDetailsPage() {
             intervalOptionsMap={INTERVAL_OPTIONS_MAP}
             height={400}
             logo={undefined}
-            customLogoComponent={
-              (activeSourcesInFilter.hasSeatGeek || activeSourcesInFilter.hasVivid || activeSourcesInFilter.hasStubHub) ? (
-                <Stack direction="row" spacing={0.5}>
-                  {activeSourcesInFilter.hasSeatGeek && (
-                    <Box
-                      component="img"
-                      src={SEATGEEK_LOGO}
-                      alt="SeatGeek Logo"
-                      sx={{ width: 24, height: 24, objectFit: "contain" }}
-                    />
-                  )}
-                  {activeSourcesInFilter.hasVivid && (
-                    <Box
-                      component="img"
-                      src={VIVID_LOGO}
-                      alt="Vivid Seats Logo"
-                      sx={{ width: 24, height: 24, objectFit: "contain" }}
-                    />
-                  )}
-                  {activeSourcesInFilter.hasStubHub && (
-                    <Box
-                      component="img"
-                      src={STUBHUB_LOGO}
-                      alt="StubHub Logo"
-                      sx={{ width: 24, height: 24, objectFit: "contain" }}
-                    />
-                  )}
-                </Stack>
-              ) : undefined
-            }
           />
         </Grid>
 
@@ -1377,29 +1069,6 @@ export default function EventDetailsPage() {
               refetch.stubhubSales();
             }}
             height={400}
-            headerComponent={salesHeaderComponent}
-            logo={SEATGEEK_LOGO}
-          />
-        </Grid>
-
-        {/* Analysis Logs Data Grid */}
-        <Grid size={{ xs: 12 }}>
-          <CustomDataGrid
-            title="Buy Recommendations"
-            rows={analysisLogsFromRedux.rows.data}
-            rowCount={analysisLogsFromRedux.rows.total}
-            columns={analysisLogsColumns}
-            isLoading={analysisLogsFromRedux.loading}
-            error={analysisLogsFromRedux.error}
-            paginationModel={analysisLogsPaginationModel}
-            setPaginationModel={setAnalysisLogsPaginationModel}
-            sortingModel={analysisLogsSortModel}
-            setSortingModel={setAnalysisLogsSortModel}
-            filterModel={analysisLogsFilterModel}
-            setFilterModel={setAnalysisLogsFilterModel}
-            onRefresh={handleRefreshAnalysisLogs}
-            height={400}
-            headerComponent={analysisLogsHeaderComponent}
           />
         </Grid>
       </Grid>

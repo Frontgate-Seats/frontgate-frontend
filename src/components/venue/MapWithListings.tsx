@@ -18,6 +18,8 @@ import type { GridFilterModel } from "@mui/x-data-grid";
 
 import listingsApi from "../../apis/listings.api";
 import tfsListingsApi from "../../apis/tfsListings.api";
+import stubhubListingsApi from "../../apis/stubhubListings.api";
+import seatgeekListingsApi from "../../apis/seatgeekListings.api";
 import ToggleFullscreen from "../common/ToggleFullscreen";
 import CustomDataGrid from "../common/datagrid/CustomDatagrid";
 import VenueMap from "./VenueMap";
@@ -35,6 +37,17 @@ export interface MapWithListingsProps {
   trade?: Trade | null;
   onBuyClick?: (listing: { id: string; row: string; section_name: string; price: number; quantity: number; splits?: number[] }) => void;
   height?: number;
+  /**
+   * Pre-resolved SeatGeek external event ID. When provided (e.g. from
+   * TradeDetailPanel which already fetches the mapping), the component skips
+   * its own DB lookup. `null` means the event has no SeatGeek mapping.
+   * `undefined` means not yet resolved / not provided (do the lookup internally).
+   */
+  sgEventId?: string | null;
+  /**
+   * Pre-resolved StubHub external event ID. Same semantics as sgEventId.
+   */
+  stubhubEventId?: string | null;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -44,9 +57,13 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
   trade,
   onBuyClick,
   height = 450,
+  sgEventId: sgEventIdProp,
+  stubhubEventId: stubhubEventIdProp,
 }) => {
   const [listings, setListings] = React.useState<any[]>([]);
   const [tfsListings, setTfsListings] = React.useState<any[]>([]);
+  const [stubhubListings, setStubhubListings] = React.useState<any[]>([]);
+  const [seatgeekListings, setSeatgeekListings] = React.useState<any[]>([]);
   const [mapData, setMapData] = React.useState<VenueMapData | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -79,6 +96,51 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
       console.warn("[TFS] Failed:", err?.message);
     });
 
+    // StubHub: use pre-resolved ID from props (TradeDetailPanel) or resolve inline
+    // (standalone listings page). `null` prop = no mapping; `undefined` = not provided.
+    const stubhubPromise = stubhubEventIdProp !== undefined
+      ? (stubhubEventIdProp
+          ? stubhubListingsApi.fetchStubHubListings(stubhubEventIdProp)
+              .then((res) => setStubhubListings(res ?? []))
+              .catch((err: any) => console.warn("[StubHub Listings] Failed:", err?.message))
+          : Promise.resolve())
+      : Promise.resolve(
+          supabaseClient
+            .from("events_external_mapping")
+            .select("external_event_id")
+            .eq("event_id", event_id)
+            .eq("external_platform", "stubhub")
+            .maybeSingle()
+        )
+          .then(({ data: mapping }) => {
+            if (!mapping?.external_event_id) return;
+            return stubhubListingsApi.fetchStubHubListings(String(mapping.external_event_id))
+              .then((res) => setStubhubListings(res ?? []));
+          })
+          .catch((err: any) => console.warn("[StubHub Listings] Failed:", err?.message));
+
+    // SeatGeek: same pattern — use prop when available, resolve inline otherwise
+    const seatgeekPromise = sgEventIdProp !== undefined
+      ? (sgEventIdProp
+          ? seatgeekListingsApi.fetchSeatGeekListings(sgEventIdProp)
+              .then((res) => setSeatgeekListings(res ?? []))
+              .catch((err: any) => console.warn("[SeatGeek Listings] Failed:", err?.message))
+          : Promise.resolve())
+      : Promise.resolve(
+          supabaseClient
+            .from("events_external_mapping")
+            .select("external_event_id")
+            .eq("event_id", event_id)
+            .eq("external_platform", "seatgeek")
+            .maybeSingle()
+        )
+          .then(({ data: mapping }) => {
+            if (!mapping?.external_event_id) return;
+            return seatgeekListingsApi.fetchSeatGeekListings(String(mapping.external_event_id))
+              .then((res) => setSeatgeekListings(res ?? []));
+          })
+          .catch((err: any) => console.warn("[SeatGeek Listings] Failed:", err?.message));
+
     const tradesPromise = supabaseClient
       .from("event_buy_listings_logs")
       .select(`
@@ -109,9 +171,9 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
         }
       );
 
-    Promise.allSettled([listingsPromise, tfsPromise, tradesPromise])
+    Promise.allSettled([listingsPromise, tfsPromise, stubhubPromise, seatgeekPromise, tradesPromise])
       .finally(() => setLoading(false));
-  }, [event_id]);
+  }, [event_id, sgEventIdProp, stubhubEventIdProp]);
 
   React.useEffect(() => { fetchListingsWithMap(); }, [fetchListingsWithMap]);
 
@@ -188,8 +250,30 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
       _source: "tfs" as const,
     }));
 
-    return [...tradeRows, ...listingRows, ...tfsRows];
-  }, [listings, tfsListings, filteredTradesByTime, sectionToZone, trade?.id]);
+    const stubhubRows = stubhubListings.map((l: any) => ({
+      ...l,
+      id: `stubhub-${l.listingId || Math.random()}`,
+      listingId: l.listingId || "",
+      isRecommendation: false,
+      isListingAvailable: true,
+      _trade: null,
+      isInRecommendedSection: recSections.has((l.section_name || "").toLowerCase()),
+      _source: "stubhub" as const,
+    }));
+
+    const seatgeekRows = seatgeekListings.map((l: any) => ({
+      ...l,
+      id: `seatgeek-${l.listingId || Math.random()}`,
+      listingId: l.listingId || "",
+      isRecommendation: false,
+      isListingAvailable: true,
+      _trade: null,
+      isInRecommendedSection: recSections.has((l.section_name || "").toLowerCase()),
+      _source: "seatgeek" as const,
+    }));
+
+    return [...tradeRows, ...listingRows, ...tfsRows, ...stubhubRows, ...seatgeekRows];
+  }, [listings, tfsListings, stubhubListings, seatgeekListings, filteredTradesByTime, sectionToZone, trade?.id]);
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
 
@@ -239,7 +323,9 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
       });
     }
 
-    if (sourceValues.length < 3) {
+    // Total number of source options — if all are selected, no source filter is needed
+    const TOTAL_SOURCES = 5; // recommendations, vivid, tfs, stubhub, seatgeek
+    if (sourceValues.length < TOTAL_SOURCES) {
       // Not all sources — set a source filter visible in the _source column header
       items.push({
         id: "source-filter",
@@ -331,16 +417,16 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
         new Set(allTrades.map((t) => (t.vs_section || "").toLowerCase()).filter(Boolean))
       );
       // Highlight on map
-      const sIds = new Set<number>(); const gIds = new Set<number>();
+      const gIds = new Set<number>();
       mapData.sections.forEach((s) => {
         if (recNames.includes(s.name.toLowerCase())) {
-          sIds.add(s.id); if (s.groupId != null) gIds.add(s.groupId);
+          if (s.groupId != null) gIds.add(s.groupId);
         }
       });
       setSelectedSections(new Set(recNames));
       setHighlightedGroup(gIds);
       // Set DataGrid filter — show all sources for recommended sections
-      applySectionFilter(recNames, ["recommendations", "vivid", "tfs"]);
+      applySectionFilter(recNames, ["recommendations", "vivid", "tfs", "stubhub", "seatgeek"]);
     } else {
       setSelectedSections(new Set());
       setHighlightedGroup(new Set());
@@ -449,16 +535,9 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
                   return "recommendation-row-available";
                 }
                 if (row._source === "tfs") return "tfs-row";
+                if (row._source === "stubhub") return "stubhub-row";
                 return "";
               }}
-              headerComponent={
-                <Typography variant="subtitle1" fontWeight={600}>
-                  Listings
-                  <Typography component="span" variant="caption" color="text.secondary" ml={1}>
-                    ({totalFilteredRows} of {mergedRows.length})
-                  </Typography>
-                </Typography>
-              }
             />
           </Paper>
         </Box>

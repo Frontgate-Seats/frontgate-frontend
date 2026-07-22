@@ -2,8 +2,8 @@ import type { LineSeriesType } from "@mui/x-charts";
 
 // Generate colors for chart series
 const CHART_COLORS = [
-  "#1976d2", "#ff7043", "#26a69a", "#9c27b0", "#ff9800",
-  "#4caf50", "#f44336", "#2196f3", "#ffeb3b", "#e91e63",
+  "#c62828", "#ff7043", "#26a69a", "#9c27b0", "#ff9800",
+  "#4caf50", "#b71c1c", "#ef9a9a", "#ffeb3b", "#e91e63",
 ];
 
 // Maximum number of series to show by default (top sections/price points)

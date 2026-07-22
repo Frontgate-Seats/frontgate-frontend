@@ -1,10 +1,12 @@
 import { Box, Alert, Stack, Divider, Grid } from "@mui/material";
+import * as React from "react";
 
 import SalesTable from "../sales/SalesTable";
 import MapWithListings from "../venue/MapWithListings";
 import AvailabilityCharts from "../availability/AvailabilityCharts";
 import EventMappingCard from "./EventMappingCard";
 import type { Trade } from "../../shared/types/trade.types";
+import supabaseClient from "../../clients/supabase.client";
 
 export interface TradeDetailPanelProps {
   trade: Trade;
@@ -20,6 +22,41 @@ export const TRADE_DETAIL_PANEL_HEIGHT = 32 + 80 + 180 + 2 + 450 + PANEL_SECTION
 
 export default function TradeDetailPanel({ trade, onBuyClick }: TradeDetailPanelProps) {
   const eventId = trade.event_id ? String(trade.event_id) : null;
+
+  // Resolve external mappings once here so MapWithListings doesn't need its own
+  // DB calls — EventMappingCard does the same query, but it's a sibling and
+  // doesn't expose the resolved IDs as props. Fetching here is a single round-trip
+  // that both MapWithListings and (implicitly) the sales/listings fetches share.
+  const [sgEventId, setSgEventId] = React.useState<string | null | undefined>(undefined);
+  const [stubhubEventId, setStubhubEventId] = React.useState<string | null | undefined>(undefined);
+
+  React.useEffect(() => {
+    if (!eventId) return;
+    setSgEventId(undefined);
+    setStubhubEventId(undefined);
+
+    Promise.all([
+      supabaseClient
+        .from("events_external_mapping")
+        .select("external_event_id")
+        .eq("event_id", eventId)
+        .eq("external_platform", "seatgeek")
+        .maybeSingle(),
+      supabaseClient
+        .from("events_external_mapping")
+        .select("external_event_id")
+        .eq("event_id", eventId)
+        .eq("external_platform", "stubhub")
+        .maybeSingle(),
+    ]).then(([sgRes, shRes]) => {
+      setSgEventId(sgRes.data?.external_event_id ? String(sgRes.data.external_event_id) : null);
+      setStubhubEventId(shRes.data?.external_event_id ? String(shRes.data.external_event_id) : null);
+    }).catch(() => {
+      // Fall back to null so children resolve internally via their own fallback path
+      setSgEventId(null);
+      setStubhubEventId(null);
+    });
+  }, [eventId]);
 
   return (
     <Box
@@ -52,6 +89,8 @@ export default function TradeDetailPanel({ trade, onBuyClick }: TradeDetailPanel
             trade={trade}
             onBuyClick={onBuyClick}
             height={450}
+            sgEventId={sgEventId}
+            stubhubEventId={stubhubEventId}
           />
         )}
 
@@ -61,7 +100,12 @@ export default function TradeDetailPanel({ trade, onBuyClick }: TradeDetailPanel
         <Grid container spacing={2} alignItems="flex-start">
           <Grid size={{ xs: 12, md: 5 }}>
             <Box sx={{ minHeight: PANEL_SECTION_HEIGHT }}>
-              <SalesTable eventId={eventId || ""} height={PANEL_SECTION_HEIGHT} />
+              <SalesTable
+                eventId={eventId || ""}
+                height={PANEL_SECTION_HEIGHT}
+                sgEventId={sgEventId}
+                stubhubEventId={stubhubEventId}
+              />
             </Box>
           </Grid>
           <Grid size={{ xs: 12, md: 7 }}>

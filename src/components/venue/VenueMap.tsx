@@ -289,11 +289,11 @@ export default function VenueMap({
       // Unavailable — transparent/invisible
       if (!hasListings) return isDark ? "#2c2c2c" : "#f5f5f5";
 
-      // Selected section — strong blue
-      if (isSelected) return "#1565c0";
+      // Selected section — strong red
+      if (isSelected) return "#c62828";
 
       // Hovered section
-      if (hoveredSection === section.id) return "#42a5f5";
+      if (hoveredSection === section.id) return "#ef5350";
 
       // Highlighted group/zone
       if (highlightedGroup && highlightedGroup.size > 0 && groupId != null && highlightedGroup.has(groupId)) {
@@ -307,7 +307,7 @@ export default function VenueMap({
         if (color) return color;
       }
 
-      return isDark ? "#1a3a5c" : "#bbdefb";
+      return isDark ? "#4a1010" : "#ffcdd2";
     },
     [selectedSections, hoveredSection, highlightedGroup, sectionById, groupLookup, availableSectionIds, isDark],
   );
@@ -353,10 +353,10 @@ export default function VenueMap({
       if (!hasListings) return { color: isDark ? "#444" : "#e0e0e0", width: 0.2 };
 
       if (selectedSections.has(section.name.toLowerCase())) {
-        return { color: "#0d47a1", width: 2.5 };
+        return { color: "#b71c1c", width: 2.5 };
       }
       if (hoveredSection === section.id) {
-        return { color: "#1976d2", width: 1.5 };
+        return { color: "#c62828", width: 1.5 };
       }
       return { color: isDark ? "#666" : "#9e9e9e", width: 0.3 };
     },
