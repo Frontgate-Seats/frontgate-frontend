@@ -26,14 +26,14 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
       field: "_source",
       headerName: "Source",
       type: "singleSelect",
-      valueOptions: ["recommendations", "vivid", "tfs", "stubhub", "seatgeek"],
-      width: 75,
+      valueOptions: ["recommendations", "vivid", "hermes", "stubhub", "seatgeek"],
+      width: 100,
       renderCell: (params: any) => {
         const source = params.value || (params.row.isRecommendation ? "recommendations" : "vivid");
-        if (source === "tfs") {
+        if (source === "hermes") {
           return (
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}>
-              <Chip label="TFS" size="small" color="secondary" variant="filled" sx={{ fontSize: "0.65rem", height: 20, fontWeight: 600 }} />
+              <Chip label="Hermes" size="small" color="warning" variant="filled" sx={{ height: 20, fontWeight: 600 }} />
             </Box>
           );
         }
@@ -160,8 +160,8 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
       sortable: false,
       filterable: false,
       getActions: (params: any) => {
-        // No buy button for TFS, StubHub, or SeatGeek listings
-        if (params.row._source === "tfs" || params.row._source === "stubhub" || params.row._source === "seatgeek") return [];
+        // No buy button for Hermes, StubHub, or SeatGeek listings
+        if (params.row._source === "hermes" || params.row._source === "stubhub" || params.row._source === "seatgeek") return [];
 
         if (params.row.isRecommendation && params.row.isListingAvailable === false) {
           return [<Typography key={params.row.id} variant="caption" color="error" fontWeight={600} sx={{ fontSize: "0.65rem" }}>Not Available</Typography>];
