@@ -5,6 +5,8 @@ import TradeInfoButton from "../components/trades/TradeInfoButton";
 import type { Trade } from "../shared/types/trade.types";
 
 const VIVID_LOGO = "/vivid-logo.ico";
+const STUBHUB_LOGO = "/stubhub-logo.ico";
+const SEATGEEK_LOGO = "/seatgeek-logo.ico";
 
 export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColDef[] {
   return [
@@ -24,7 +26,7 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
       field: "_source",
       headerName: "Source",
       type: "singleSelect",
-      valueOptions: ["recommendations", "vivid", "tfs"],
+      valueOptions: ["recommendations", "vivid", "tfs", "stubhub", "seatgeek"],
       width: 75,
       renderCell: (params: any) => {
         const source = params.value || (params.row.isRecommendation ? "recommendations" : "vivid");
@@ -33,6 +35,24 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}>
               <Chip label="TFS" size="small" color="secondary" variant="filled" sx={{ fontSize: "0.65rem", height: 20, fontWeight: 600 }} />
             </Box>
+          );
+        }
+        if (source === "stubhub") {
+          return (
+            <Tooltip title="StubHub">
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}>
+                <Box component="img" src={STUBHUB_LOGO} alt="StubHub" sx={{ width: 18, height: 18, objectFit: "contain" }} />
+              </Box>
+            </Tooltip>
+          );
+        }
+        if (source === "seatgeek") {
+          return (
+            <Tooltip title="SeatGeek">
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}>
+                <Box component="img" src={SEATGEEK_LOGO} alt="SeatGeek" sx={{ width: 18, height: 18, objectFit: "contain" }} />
+              </Box>
+            </Tooltip>
           );
         }
         // Vivid and Recommendations both show Vivid logo
@@ -140,8 +160,8 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
       sortable: false,
       filterable: false,
       getActions: (params: any) => {
-        // No buy button for TFS listings
-        if (params.row._source === "tfs") return [];
+        // No buy button for TFS, StubHub, or SeatGeek listings
+        if (params.row._source === "tfs" || params.row._source === "stubhub" || params.row._source === "seatgeek") return [];
 
         if (params.row.isRecommendation && params.row.isListingAvailable === false) {
           return [<Typography key={params.row.id} variant="caption" color="error" fontWeight={600} sx={{ fontSize: "0.65rem" }}>Not Available</Typography>];

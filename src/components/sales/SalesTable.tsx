@@ -1,9 +1,21 @@
 import * as React from "react";
-import { Box, Stack, Tooltip, Typography } from "@mui/material";
 import CustomDataGrid from "../common/datagrid/CustomDatagrid";
+import { Box, Tooltip } from "@mui/material";
 import { useClientFilters } from "../../hooks/useClientFilters";
 import { formatDateTime } from "../../shared/utils/dateTime.util";
 import type { CustomGridColDef } from "../../shared/types/mui.type";
+import salesApi from "../../apis/sales.api";
+import vividSalesApi from "../../apis/vividSales.api";
+import stubhubSalesApi from "../../apis/stubhubSales.api";
+import supabaseHttpClient from "../../clients/supabaseHttp.client";
+import supabaseClient from "../../clients/supabase.client";
+import moment from "moment";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const SEATGEEK_LOGO = "/seatgeek-logo.ico";
+const VIVID_LOGO = "/vivid-logo.ico";
+const STUBHUB_LOGO = "/stubhub-logo.ico";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,16 +34,17 @@ export interface SalesTableProps {
   eventId: string;
   height?: number;
   onRefresh?: (refresh: () => void) => void;
+  /**
+   * Pre-resolved SeatGeek external event ID from the parent (e.g. TradeDetailPanel).
+   * `null` = no mapping. `undefined` = not provided, resolve internally.
+   */
+  sgEventId?: string | null;
+  /**
+   * Pre-resolved StubHub external event ID from the parent.
+   * `null` = no mapping. `undefined` = not provided, resolve internally.
+   */
+  stubhubEventId?: string | null;
 }
-
-// ─── API Helpers ─────────────────────────────────────────────────────────────
-
-import salesApi from "../../apis/sales.api";
-import vividSalesApi from "../../apis/vividSales.api";
-import stubhubSalesApi from "../../apis/stubhubSales.api";
-import supabaseHttpClient from "../../clients/supabaseHttp.client";
-import supabaseClient from "../../clients/supabase.client";
-import moment from "moment";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -47,56 +60,73 @@ import moment from "moment";
 const SalesTable: React.FC<SalesTableProps> = ({
   eventId,
   height = 220,
+  sgEventId: sgEventIdProp,
+  stubhubEventId: stubhubEventIdProp,
 }) => {
   const [sales, setSales] = React.useState<any[]>([]);
   const [vividSales, setVividSales] = React.useState<any[]>([]);
   const [stubhubSales, setStubhubSales] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
-  // Track per-source errors independently so one failure doesn't block the others
-  const [sourceErrors, setSourceErrors] = React.useState<{ sg: boolean; vivid: boolean; stubhub: boolean }>({
-    sg: false, vivid: false, stubhub: false,
-  });
 
   // Fetch sales data
   const fetchSalesData = React.useCallback(() => {
     if (!eventId) return;
     setLoading(true);
-    setSourceErrors({ sg: false, vivid: false, stubhub: false });
 
     // Fetch VividSeats sales directly
     const vividPromise = vividSalesApi.fetchVividSales(eventId)
       .then((res) => setVividSales(res.data ?? []))
-      .catch(() => { setVividSales([]); setSourceErrors((p) => ({ ...p, vivid: true })); });
+      .catch(() => { setVividSales([]) });
 
-    // Fetch SeatGeek sales via mapping (resolve SeatGeek event ID first)
-    const sgPromise = supabaseHttpClient
-      .get(`/functions/v1/events-api/seatgeekEvent/${eventId}`)
-      .then((mappingRes) => {
-        const sgEventId = mappingRes.data?.data?.id;
-        if (!sgEventId) return;
-        return salesApi.fetchSales(String(sgEventId)).then((res) => setSales(res.data ?? []));
-      })
-      .catch(() => { setSales([]); setSourceErrors((p) => ({ ...p, sg: true })); });
+    // SeatGeek: use pre-resolved ID from props, or resolve via the seatgeekEvent endpoint
+    const sgPromise = (() => {
+      if (sgEventIdProp !== undefined) {
+        // Prop provided: null = no mapping, skip; string = use directly
+        if (!sgEventIdProp) return Promise.resolve();
+        return salesApi.fetchSales(sgEventIdProp)
+          .then((res) => setSales(res.data ?? []))
+          .catch(() => { setSales([]); });
+      }
+      // Not provided: resolve internally
+      return supabaseHttpClient
+        .get(`/functions/v1/events-api/seatgeekEvent/${eventId}`)
+        .then((mappingRes) => {
+          const sgEventId = mappingRes.data?.data?.id;
+          if (!sgEventId) return;
+          return salesApi.fetchSales(String(sgEventId)).then((res) => setSales(res.data ?? []));
+        })
+        .catch(() => { setSales([]); });
+    })();
 
-    // Fetch StubHub sales via mapping (resolve StubHub event ID first)
-    const stubhubPromise = Promise.resolve(
-      supabaseClient
-        .from("events_external_mapping")
-        .select("external_event_id")
-        .eq("event_id", eventId)
-        .eq("external_platform", "stubhub")
-        .maybeSingle()
-    )
-      .then(({ data: mapping }) => {
-        if (!mapping?.external_event_id) return;
-        return stubhubSalesApi.fetchStubhubSales(String(mapping.external_event_id))
-          .then((res) => setStubhubSales(res.data ?? []));
-      })
-      .catch(() => { setStubhubSales([]); setSourceErrors((p) => ({ ...p, stubhub: true })); });
+    // StubHub: use pre-resolved ID from props, or resolve via Supabase mapping query
+    const stubhubPromise = (() => {
+      if (stubhubEventIdProp !== undefined) {
+        // Prop provided: null = no mapping, skip; string = use directly
+        if (!stubhubEventIdProp) return Promise.resolve();
+        return stubhubSalesApi.fetchStubhubSales(stubhubEventIdProp)
+          .then((res) => setStubhubSales(res.data ?? []))
+          .catch(() => { setStubhubSales([]); });
+      }
+      // Not provided: resolve internally
+      return Promise.resolve(
+        supabaseClient
+          .from("events_external_mapping")
+          .select("external_event_id")
+          .eq("event_id", eventId)
+          .eq("external_platform", "stubhub")
+          .maybeSingle()
+      )
+        .then(({ data: mapping }) => {
+          if (!mapping?.external_event_id) return;
+          return stubhubSalesApi.fetchStubhubSales(String(mapping.external_event_id))
+            .then((res) => setStubhubSales(res.data ?? []));
+        })
+        .catch(() => { setStubhubSales([]);});
+    })();
 
     Promise.all([vividPromise, sgPromise, stubhubPromise])
       .finally(() => setLoading(false));
-  }, [eventId]);
+  }, [eventId, sgEventIdProp, stubhubEventIdProp]);
 
   // Initial fetch
   React.useEffect(() => {
@@ -148,11 +178,6 @@ const SalesTable: React.FC<SalesTableProps> = ({
       moment.utc(b.purchased_at).valueOf() - moment.utc(a.purchased_at).valueOf()
     );
   }, [sales, vividSales, stubhubSales]);
-
-  // Logo paths
-  const SEATGEEK_LOGO = "/seatgeek-logo.ico";
-  const VIVID_LOGO = "/vivid-logo.ico";
-  const STUBHUB_LOGO = "/stubhub-logo.ico";
 
   // Sales columns
   const salesColumns: CustomGridColDef[] = React.useMemo(() => [
@@ -279,54 +304,6 @@ const SalesTable: React.FC<SalesTableProps> = ({
         height={height}
         paginationMode="server"
         sortingMode="client"
-        headerComponent={
-          <Stack direction="column" width="100%" spacing={0.5}>
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Stack direction="row" spacing={0.5}>
-                {sales.length > 0 && (
-                  <Tooltip title="SeatGeek">
-                    <Box component="img" src={SEATGEEK_LOGO} alt="SeatGeek"
-                      sx={{ width: 20, height: 20, objectFit: "contain" }} />
-                  </Tooltip>
-                )}
-                {vividSales.length > 0 && (
-                  <Tooltip title="Vivid Seats">
-                    <Box component="img" src={VIVID_LOGO} alt="Vivid Seats"
-                      sx={{ width: 20, height: 20, objectFit: "contain" }} />
-                  </Tooltip>
-                )}
-                {stubhubSales.length > 0 && (
-                  <Tooltip title="StubHub">
-                    <Box component="img" src={STUBHUB_LOGO} alt="StubHub"
-                      sx={{ width: 20, height: 20, objectFit: "contain" }} />
-                  </Tooltip>
-                )}
-              </Stack>
-              <Typography variant="subtitle1" fontWeight={600}>
-                Sales Data
-                {!loading && combinedSalesTableData.length > 0 && (
-                  <Typography component="span" variant="caption" color="text.secondary" ml={1}>
-                    ({totalFilteredRows} sales)
-                  </Typography>
-                )}
-              </Typography>
-            </Stack>
-            {/* Per-source partial failure warnings — grid still shows data from successful sources */}
-            {(sourceErrors.sg || sourceErrors.vivid || sourceErrors.stubhub) && (
-              <Stack direction="row" spacing={1} flexWrap="wrap">
-                {sourceErrors.sg && (
-                  <Typography variant="caption" color="warning.main">⚠ SeatGeek sales unavailable</Typography>
-                )}
-                {sourceErrors.vivid && (
-                  <Typography variant="caption" color="warning.main">⚠ Vivid Seats sales unavailable</Typography>
-                )}
-                {sourceErrors.stubhub && (
-                  <Typography variant="caption" color="warning.main">⚠ StubHub sales unavailable</Typography>
-                )}
-              </Stack>
-            )}
-          </Stack>
-        }
       />
     </Box>
   );

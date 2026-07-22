@@ -46,25 +46,25 @@ function parseIntervalMs(interval: string): number {
 }
 
 /**
- * Extract BLUE seat sections from a snapshot in the standard
+ * Extract RED seat sections from a snapshot in the standard
  * { name, available, pricePoints: [{ price, available }] }[] shape.
  *
  * Handles the new compact format:
- *   summary.blueSeats = [[sectionName, available, [[price, available], ...]], ...]
- * and legacy fallbacks (greenSeats object, combined sections).
+ *   summary.redSeats = [[sectionName, available, [[price, available], ...]], ...]
+ * and legacy fallbacks (combined sections).
  *
- * NOTE: We intentionally read ONLY blue seats (primary/non-resale) here.
+ * NOTE: We intentionally read ONLY red seats (resale) here.
  */
-function getBlueSections(
+function getRedSections(
   snapshot: any
 ): Array<{ name: string; available: number; pricePoints: Array<{ price: number; available: number }> }> {
   const summary = snapshot?.summary;
   if (!summary) return [];
 
   // New compact array format
-  const blue = summary.blueSeats;
-  if (Array.isArray(blue) && blue.length > 0 && Array.isArray(blue[0])) {
-    return blue.map((s: any) => {
+  const red = summary.redSeats;
+  if (Array.isArray(red) && red.length > 0 && Array.isArray(red[0])) {
+    return red.map((s: any) => {
       const [name, available, pps] = s;
       return {
         name,
@@ -76,30 +76,25 @@ function getBlueSections(
     });
   }
 
-  // Legacy greenSeats object format (pre-migration): { sections, pricePoints }
-  if (summary.greenSeats?.sections) {
-    return summary.greenSeats.sections;
-  }
-
   // Final fallback: combined sections (oldest format)
   return summary.sections || [];
 }
 
 /**
- * Aggregate BLUE seat price points across all sections into
+ * Aggregate RED seat price points across all sections into
  * { price, available }[] (summing availability per price).
  */
-function getBluePricePoints(
+function getRedPricePoints(
   snapshot: any
 ): Array<{ price: number; available: number }> {
   const summary = snapshot?.summary;
   if (!summary) return [];
 
   // New compact array format — aggregate price points across sections
-  const blue = summary.blueSeats;
-  if (Array.isArray(blue) && blue.length > 0 && Array.isArray(blue[0])) {
+  const red = summary.redSeats;
+  if (Array.isArray(red) && red.length > 0 && Array.isArray(red[0])) {
     const priceMap = new Map<number, number>();
-    for (const s of blue) {
+    for (const s of red) {
       const pps = s[2];
       if (Array.isArray(pps)) {
         for (const [price, available] of pps) {
@@ -112,22 +107,17 @@ function getBluePricePoints(
       .sort((a, b) => a.price - b.price);
   }
 
-  // Legacy greenSeats object format
-  if (summary.greenSeats?.pricePoints) {
-    return summary.greenSeats.pricePoints;
-  }
-
   // Final fallback
   return summary.pricePoints || [];
 }
 
-/** Blue-seat available count for a snapshot's capacity. Falls back to overall available. */
-function getBlueAvailable(snapshot: any): number {
+/** Red-seat available count for a snapshot's capacity. Falls back to overall available. */
+function getRedAvailable(snapshot: any): number {
   const cap = snapshot?.capacity;
   if (!cap) return 0;
-  if (typeof cap.blueSeats === "number") return cap.blueSeats;
-  // Legacy fallback: derive from blue sections, else overall available
-  const sections = getBlueSections(snapshot);
+  if (typeof cap.redSeats === "number") return cap.redSeats;
+  // Legacy fallback: derive from red sections, else overall available
+  const sections = getRedSections(snapshot);
   if (sections.length > 0) {
     return sections.reduce((sum, s) => sum + (s.available || 0), 0);
   }
@@ -478,10 +468,10 @@ export const useAvailabilityCapacityChartData = (
     let lastValue = lastBefore
       ? {
           totalCapacity: lastBefore.capacity?.total ?? 0,
-          available: getBlueAvailable(lastBefore),
-          sold: (lastBefore.capacity?.total ?? 0) - getBlueAvailable(lastBefore),
+          available: getRedAvailable(lastBefore),
+          sold: (lastBefore.capacity?.total ?? 0) - getRedAvailable(lastBefore),
           sellThroughRate: lastBefore.capacity?.total > 0 
-            ? (((lastBefore.capacity?.total ?? 0) - getBlueAvailable(lastBefore)) / (lastBefore.capacity?.total ?? 0)) * 100 
+            ? (((lastBefore.capacity?.total ?? 0) - getRedAvailable(lastBefore)) / (lastBefore.capacity?.total ?? 0)) * 100 
             : 0,
         }
       : null;
@@ -499,10 +489,10 @@ export const useAvailabilityCapacityChartData = (
           // No lastValue, but we have first snapshot in range - use it as "next data"
           values = {
             totalCapacity: firstSnapshotInRange.capacity?.total ?? 0,
-            available: getBlueAvailable(firstSnapshotInRange),
-            sold: (firstSnapshotInRange.capacity?.total ?? 0) - getBlueAvailable(firstSnapshotInRange),
+            available: getRedAvailable(firstSnapshotInRange),
+            sold: (firstSnapshotInRange.capacity?.total ?? 0) - getRedAvailable(firstSnapshotInRange),
             sellThroughRate: firstSnapshotInRange.capacity?.total > 0 
-              ? (((firstSnapshotInRange.capacity?.total ?? 0) - getBlueAvailable(firstSnapshotInRange)) / (firstSnapshotInRange.capacity?.total ?? 0)) * 100 
+              ? (((firstSnapshotInRange.capacity?.total ?? 0) - getRedAvailable(firstSnapshotInRange)) / (firstSnapshotInRange.capacity?.total ?? 0)) * 100 
               : 0,
           };
         } else {
@@ -521,9 +511,9 @@ export const useAvailabilityCapacityChartData = (
           bucketStartUTC: moment.utc(t).toISOString(),
         });
       } else {
-        // Calculate averages for this bucket (blue seats only for "available")
+        // Calculate averages for this bucket (red seats only for "available")
         const totalCapacityAvg = bucketSnapshots.reduce((sum, s) => sum + s.capacity.total, 0) / bucketSnapshots.length;
-        const availableAvg = bucketSnapshots.reduce((sum, s) => sum + getBlueAvailable(s), 0) / bucketSnapshots.length;
+        const availableAvg = bucketSnapshots.reduce((sum, s) => sum + getRedAvailable(s), 0) / bucketSnapshots.length;
         const soldAvg = totalCapacityAvg - availableAvg;
         const sellThroughRateAvg = totalCapacityAvg > 0 ? (soldAvg / totalCapacityAvg) * 100 : 0;
 
@@ -601,13 +591,13 @@ export const useAvailabilityData = (
     const allPrices = new Set<number>();
     
     snapshotsInRange.forEach((snapshot: any) => {
-      const sections = getBlueSections(snapshot);
+      const sections = getRedSections(snapshot);
       sections.forEach((section: any) => {
         if (section.available > 0) {
           allSections.add(section.name);
         }
       });
-      const pps = getBluePricePoints(snapshot);
+      const pps = getRedPricePoints(snapshot);
       pps.forEach((pp: any) => {
         if (pp.available > 0) {
           allPrices.add(pp.price);
@@ -638,12 +628,12 @@ export const useAvailabilityData = (
     // Initialize last values
     let lastCapacity = lastBefore ? {
       totalCapacity: lastBefore.capacity?.total ?? 0,
-      available: getBlueAvailable(lastBefore),
+      available: getRedAvailable(lastBefore),
     } : null;
 
     let lastSections: Record<string, number> = {};
     if (lastBefore) {
-      const lastBeforeSections = getBlueSections(lastBefore);
+      const lastBeforeSections = getRedSections(lastBefore);
       sectionNames.forEach((sectionName) => {
         const section = lastBeforeSections.find((s: any) => s.name === sectionName);
         lastSections[sectionName] = section?.available || 0;
@@ -652,7 +642,7 @@ export const useAvailabilityData = (
 
     let lastPrices: Record<string, number> = {};
     if (lastBefore) {
-      const lastBeforePPs = getBluePricePoints(lastBefore);
+      const lastBeforePPs = getRedPricePoints(lastBefore);
       pricePoints.forEach((price) => {
         const priceKey = `${price.toFixed(2)}`;
         const pricePoint = lastBeforePPs.find((pp: any) => pp.price === price);
@@ -665,10 +655,10 @@ export const useAvailabilityData = (
       const timeStr = formatDateTime(moment.utc(t).local());
       const bucketStartUTC = moment.utc(t).toISOString();
 
-      // Capacity Table Data (blue seats only for "available")
+      // Capacity Table Data (red seats only for "available")
       if (bucketSnapshots.length > 0) {
         const totalCapacityAvg = bucketSnapshots.reduce((sum, s) => sum + (s.capacity?.total ?? 0), 0) / bucketSnapshots.length;
-        const availableAvg = bucketSnapshots.reduce((sum, s) => sum + getBlueAvailable(s), 0) / bucketSnapshots.length;
+        const availableAvg = bucketSnapshots.reduce((sum, s) => sum + getRedAvailable(s), 0) / bucketSnapshots.length;
 
         lastCapacity = {
           totalCapacity: Math.round(totalCapacityAvg),
@@ -685,7 +675,7 @@ export const useAvailabilityData = (
       } else {
         const values = lastCapacity || (firstSnapshotInRange ? {
           totalCapacity: firstSnapshotInRange.capacity?.total ?? 0,
-          available: getBlueAvailable(firstSnapshotInRange),
+          available: getRedAvailable(firstSnapshotInRange),
         } : { totalCapacity: 0, available: 0 });
 
         capacityTable.push({
@@ -709,7 +699,7 @@ export const useAvailabilityData = (
           let count = 0;
           
           bucketSnapshots.forEach((snapshot: any) => {
-            const sections = getBlueSections(snapshot);
+            const sections = getRedSections(snapshot);
             const section = sections.find((s: any) => s.name === sectionName);
             if (section) {
               totalAvailability += section.available;
@@ -726,7 +716,7 @@ export const useAvailabilityData = (
           if (lastSections[sectionName] !== undefined) {
             sectionDataPoint[sectionName] = lastSections[sectionName];
           } else if (firstSnapshotInRange) {
-            const sections = getBlueSections(firstSnapshotInRange);
+            const sections = getRedSections(firstSnapshotInRange);
             const section = sections.find((s: any) => s.name === sectionName);
             sectionDataPoint[sectionName] = section?.available || 0;
           } else {
@@ -749,7 +739,7 @@ export const useAvailabilityData = (
           let count = 0;
 
           bucketSnapshots.forEach((snapshot: any) => {
-            const pps = getBluePricePoints(snapshot);
+            const pps = getRedPricePoints(snapshot);
             const pricePoint = pps.find((pp: any) => pp.price === price);
             if (pricePoint) {
               totalAvailability += pricePoint.available;
@@ -768,7 +758,7 @@ export const useAvailabilityData = (
           if (lastPrices[priceKey] !== undefined) {
             priceDataPoint[priceKey] = lastPrices[priceKey];
           } else if (firstSnapshotInRange) {
-            const pps = getBluePricePoints(firstSnapshotInRange);
+            const pps = getRedPricePoints(firstSnapshotInRange);
             const pricePoint = pps.find((pp: any) => pp.price === price);
             priceDataPoint[priceKey] = pricePoint?.available || 0;
           } else {
@@ -822,7 +812,7 @@ export const useAvailabilitySectionChartData = (
     snapshots.forEach((snapshot: any) => {
       const time = moment.utc(snapshot.timestamp).valueOf();
       if (time >= rangeStart && time <= rangeEnd) {
-        const sections = getBlueSections(snapshot);
+        const sections = getRedSections(snapshot);
         sections.forEach((section: any) => {
           if (section.available > 0) {
             allSections.add(section.name);
@@ -889,7 +879,7 @@ export const useAvailabilitySectionChartData = (
     // If we have lastBefore data, populate lastValue with it
     if (lastBefore) {
       topSections.forEach((sectionName) => {
-        const sections = getBlueSections(lastBefore);
+        const sections = getRedSections(lastBefore);
         const section = sections.find(
           (s: any) => s.name === sectionName
         );
@@ -911,7 +901,7 @@ export const useAvailabilitySectionChartData = (
           let count = 0;
           
           bucketSnapshots.forEach((snapshot: any) => {
-            const sections = getBlueSections(snapshot);
+            const sections = getRedSections(snapshot);
             const section = sections.find(
               (s: any) => s.name === sectionName
             );
@@ -933,7 +923,7 @@ export const useAvailabilitySectionChartData = (
             dataPoint[sectionName] = lastValue[sectionName];
           } else if (firstSnapshotInRange) {
             // No lastValue, but we have first snapshot in range - use it as "next data"
-            const sections = getBlueSections(firstSnapshotInRange);
+            const sections = getRedSections(firstSnapshotInRange);
             const section = sections.find(
               (s: any) => s.name === sectionName
             );
@@ -985,7 +975,7 @@ export const useAvailabilityPriceChartData = (
     snapshots.forEach((snapshot: any) => {
       const time = moment.utc(snapshot.timestamp).valueOf();
       if (time >= rangeStart && time <= rangeEnd) {
-        const pps = getBluePricePoints(snapshot);
+        const pps = getRedPricePoints(snapshot);
         pps.forEach((pp: any) => {
           if (pp.available > 0) {
             allPrices.add(pp.price);
@@ -1053,7 +1043,7 @@ export const useAvailabilityPriceChartData = (
     if (lastBefore) {
       topPrices.forEach((price) => {
         const priceKey = `${price.toFixed(2)}`;
-        const pps = getBluePricePoints(lastBefore);
+        const pps = getRedPricePoints(lastBefore);
         const pricePoint = pps.find(
           (pp: any) => pp.price === price
         );
@@ -1075,7 +1065,7 @@ export const useAvailabilityPriceChartData = (
           let count = 0;
 
           bucketSnapshots.forEach((snapshot: any) => {
-            const pps = getBluePricePoints(snapshot);
+            const pps = getRedPricePoints(snapshot);
             const pricePoint = pps.find(
               (pp: any) => pp.price === price
             );
@@ -1099,7 +1089,7 @@ export const useAvailabilityPriceChartData = (
             dataPoint[priceKey] = lastValue[priceKey];
           } else if (firstSnapshotInRange) {
             // No lastValue, but we have first snapshot in range - use it as "next data"
-            const pps = getBluePricePoints(firstSnapshotInRange);
+            const pps = getRedPricePoints(firstSnapshotInRange);
             const pricePoint = pps.find(
               (pp: any) => pp.price === price
             );
