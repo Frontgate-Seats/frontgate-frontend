@@ -654,17 +654,35 @@ export default function VenueMap({
           }}
           preserveAspectRatio="xMidYMid meet"
         >
-          {/* Decorative background paths */}
-          {decorativePaths.map((dp, i) => (
-            <path
-              key={`bg-${i}`}
-              d={dp.path}
-              fill={dp.fill}
-              stroke={dp.stroke === "none" ? "none" : dp.stroke || (isDark ? "#444" : "#ddd")}
-              strokeWidth={0.2}
-              pointerEvents="none"
-            />
-          ))}
+          {/* Decorative background paths — replace near-black fills with neutral grey */}
+          {decorativePaths.map((dp, i) => {
+            // Check if fill is very dark (near black) and lighten it so it doesn't
+            // overwhelm the map on light backgrounds.
+            let fill = dp.fill;
+            if (fill && fill !== "none") {
+              const h = fill.replace(/^#/, "");
+              if (/^[0-9a-fA-F]{6}$/.test(h)) {
+                const r = parseInt(h.slice(0, 2), 16);
+                const g = parseInt(h.slice(2, 4), 16);
+                const b = parseInt(h.slice(4, 6), 16);
+                const lum = 0.2126 * (r / 255) + 0.7152 * (g / 255) + 0.0722 * (b / 255);
+                if (lum < 0.08) {
+                  // Very dark — replace with a visible neutral grey
+                  fill = isDark ? "#555" : "#999";
+                }
+              }
+            }
+            return (
+              <path
+                key={`bg-${i}`}
+                d={dp.path}
+                fill={fill}
+                stroke={dp.stroke === "none" ? "none" : dp.stroke || (isDark ? "#444" : "#ddd")}
+                strokeWidth={0.2}
+                pointerEvents="none"
+              />
+            );
+          })}
 
           {/* Interactive section paths */}
           {parsedSections.map((section) => {
@@ -716,7 +734,7 @@ export default function VenueMap({
             );
           })}
 
-          {/* Text labels */}
+          {/* Text labels — color adapts to whether the map background is dark */}
           {labels.map((label, i) => (
             <text
               key={`label-${i}`}

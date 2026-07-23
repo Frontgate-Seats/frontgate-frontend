@@ -515,9 +515,11 @@ export default function EventDetailsPage() {
     });
 
     const vividData = (vividSales || []).map((sale: any, index: number) => {
-      // Parse section name to extract row if it's a number at the end
-      let sectionName = sale.sectionName || "-";
-      let rowName = "-";
+      // Normalize to short section name (extract trailing number if present,
+      // e.g. "Lower Level 138" → "138") to match the id-based map filter values.
+      const rawName = sale.sectionName || "-";
+      const match = rawName.match(/(\d+)\s*$/);
+      const sectionName = match ? match[1] : rawName;
       
       const basePrice = sale.totalTickets > 0 ? sale.totalSalePrice / sale.totalTickets : 0;
       
@@ -525,7 +527,7 @@ export default function EventDetailsPage() {
         id: `vivid-${index}`,
         purchased_at: sale.saleDate,
         section_name: sectionName,
-        row_name: rowName,
+        row_name: "-",
         base_price: basePrice,
         quantity: sale.totalTickets,
         total_price: sale.totalSalePrice,

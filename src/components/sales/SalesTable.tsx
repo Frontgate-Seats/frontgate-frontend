@@ -44,6 +44,12 @@ export interface SalesTableProps {
    * `null` = no mapping. `undefined` = not provided, resolve internally.
    */
   stubhubEventId?: string | null;
+  /**
+   * When provided, the table filters to show only rows whose section_name
+   * matches one of these names (case-insensitive). Empty array = no filter.
+   * Driven by zone/section selection on the venue map.
+   */
+  zoneSectionFilter?: string[];
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -62,6 +68,7 @@ const SalesTable: React.FC<SalesTableProps> = ({
   height = 220,
   sgEventId: sgEventIdProp,
   stubhubEventId: stubhubEventIdProp,
+  zoneSectionFilter,
 }) => {
   const [sales, setSales] = React.useState<any[]>([]);
   const [vividSales, setVividSales] = React.useState<any[]>([]);
@@ -281,6 +288,23 @@ const SalesTable: React.FC<SalesTableProps> = ({
     initialPaginationModel: { page: 0, pageSize: 10 },
     initialSortModel: [{ field: "purchased_at", sort: "desc" }],
   });
+
+  // Sync zone/section filter from the venue map into the DataGrid filter model
+  React.useEffect(() => {
+    setFilterModel((prev) => {
+      const otherItems = prev.items.filter((item) => item.id !== "zone-section-filter");
+      if (!zoneSectionFilter || zoneSectionFilter.length === 0) {
+        return { ...prev, items: otherItems };
+      }
+      const filterItem = {
+          id: "zone-section-filter",
+          field: "section_name",
+          operator: "anyOfContains" as const,
+          value: zoneSectionFilter,
+        };
+      return { ...prev, items: [...otherItems, filterItem] };
+    });
+  }, [zoneSectionFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // onRefresh prop is unused — SalesTable exposes fetchSalesData directly via onRefresh on the grid below
 
