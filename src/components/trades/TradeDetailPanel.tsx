@@ -30,6 +30,10 @@ export default function TradeDetailPanel({ trade, onBuyClick }: TradeDetailPanel
   const [sgEventId, setSgEventId] = React.useState<string | null | undefined>(undefined);
   const [stubhubEventId, setStubhubEventId] = React.useState<string | null | undefined>(undefined);
 
+  // Section names (lowercase) selected via zone/section click on the venue map.
+  // Passed to SalesTable so the sales chart/table shows only that zone's data.
+  const [zoneSectionFilter, setZoneSectionFilter] = React.useState<string[]>([]);
+
   React.useEffect(() => {
     if (!eventId) return;
     setSgEventId(undefined);
@@ -91,6 +95,7 @@ export default function TradeDetailPanel({ trade, onBuyClick }: TradeDetailPanel
             height={450}
             sgEventId={sgEventId}
             stubhubEventId={stubhubEventId}
+            onSectionFilterChange={setZoneSectionFilter}
           />
         )}
 
@@ -105,6 +110,7 @@ export default function TradeDetailPanel({ trade, onBuyClick }: TradeDetailPanel
                 height={PANEL_SECTION_HEIGHT}
                 sgEventId={sgEventId}
                 stubhubEventId={stubhubEventId}
+                zoneSectionFilter={zoneSectionFilter}
               />
             </Box>
           </Grid>

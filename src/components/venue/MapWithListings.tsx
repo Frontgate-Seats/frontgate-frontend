@@ -48,6 +48,12 @@ export interface MapWithListingsProps {
    * Pre-resolved StubHub external event ID. Same semantics as sgEventId.
    */
   stubhubEventId?: string | null;
+  /**
+   * Called whenever the active zone/section selection changes.
+   * Receives the list of section names (lowercase) that are currently selected,
+   * or an empty array when the selection is cleared.
+   */
+  onSectionFilterChange?: (sectionNames: string[]) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -59,6 +65,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
   height = 450,
   sgEventId: sgEventIdProp,
   stubhubEventId: stubhubEventIdProp,
+  onSectionFilterChange,
 }) => {
   const [listings, setListings] = React.useState<any[]>([]);
   const [hermesListings, setHermesListings] = React.useState<any[]>([]);
@@ -212,10 +219,26 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
   }, [allTrades, recommendationTime]);
 
   const mergedRows = React.useMemo(() => {
+    // Build a long-name → short-name lookup from Vivid listings.
+    // VS listings carry section.name (short) and optionally section.longSectionName (long).
+    // Hermes returns the long name via t.sectionName fallback; t.d is already short.
+    const longToShortSection = new Map<string, string>();
+    listings.forEach((l: any) => {
+      const short = l.section?.name;
+      const long = l.section?.longSectionName;
+      if (short && long) longToShortSection.set(long.toLowerCase(), short);
+    });
+    const toShortSection = (name: string): string => {
+      if (!name || name === "—") return name;
+      return longToShortSection.get(name.toLowerCase()) ?? name;
+    };
+
+    // Vivid listings: show section.name as-is from the API.
+    // id-in-name normalization only applies when building filter values on map click.
     const enrichedListings = listings.map((l: any) => ({
       ...l,
       zone_name: sectionToZone[l.section?.id] || "—",
-      section_name: l.section_name ?? l.section?.name ?? "—",
+      section_name: l.section?.name ?? l.section_name ?? "—",
     }));
 
     const availableIds = new Set<string>();
@@ -244,9 +267,11 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
     }));
 
     const hermesRows = hermesListings.map((l: any) => ({
-      ...l, listingId: l.listingId || "", isRecommendation: false,
+      ...l,
+      section_name: toShortSection(l.section_name || "—"),
+      listingId: l.listingId || "", isRecommendation: false,
       isListingAvailable: true, _trade: null,
-      isInRecommendedSection: recSections.has((l.section_name || "").toLowerCase()),
+      isInRecommendedSection: recSections.has(toShortSection(l.section_name || "").toLowerCase()),
       _source: "hermes" as const,
     }));
 
@@ -299,34 +324,33 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
    * Build a filterModel that filters by section name(s) and source.
    * Uses the DataGrid's own filterModel so the filters are visible in the header inputs.
    */
+  /**
+   * Returns the filter value for a section — mirrors the row normalization:
+   * if the section id (as string) appears in the name, use the id string;
+   * otherwise use the name as-is (lowercased for consistent matching).
+   */
+  const sectionFilterValue = React.useCallback((name: string, id: number): string => {
+    const idStr = String(id);
+    return name.includes(idStr) ? idStr : name.toLowerCase();
+  }, []);
+
   const applySectionFilter = React.useCallback((
-    sectionNames: string[],   // exact names (case-insensitive match via "contains" per name)
-    sourceValues: string[],   // e.g. ["vivid"] or ["recommendations","vivid","tfs"]
+    sectionNames: string[],
+    sourceValues: string[],
   ) => {
     const items: GridFilterModel["items"] = [];
 
-    if (sectionNames.length === 1) {
-      // Single section — use "contains" so it shows in the text filter input
+    if (sectionNames.length > 0) {
       items.push({
         id: "section-filter",
         field: "section_name",
-        operator: "contains",
-        value: sectionNames[0],
-      });
-    } else if (sectionNames.length > 1) {
-      // Multiple sections (group click) — use isAnyOf
-      items.push({
-        id: "section-filter",
-        field: "section_name",
-        operator: "isAnyOf",
+        operator: "anyOfContains",
         value: sectionNames,
       });
     }
 
-    // Total number of source options — if all are selected, no source filter is needed
-    const TOTAL_SOURCES = 5; // recommendations, vivid, hermes, stubhub, seatgeek
+    const TOTAL_SOURCES = 5;
     if (sourceValues.length < TOTAL_SOURCES) {
-      // Not all sources — set a source filter visible in the _source column header
       items.push({
         id: "source-filter",
         field: "_source",
@@ -347,68 +371,97 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
     }));
   }, [setFilterModel]);
 
-  const handleSectionClick = React.useCallback((sectionName: string, _sectionId: number) => {
+  const handleSectionClick = React.useCallback((sectionName: string, sectionId: number) => {
     const k = sectionName.toLowerCase();
+    const fv = sectionFilterValue(sectionName, sectionId);
 
     setSelectedSections((prev) => {
       const n = new Set(prev);
+
+      // Rebuild filter values for a set of selected keys.
+      // For each key look up the section in mapData to get its id;
+      // fall back to sectionFilterValue with id=0 (uses name) only when mapData is absent.
+      const filterValuesForKeys = (keys: string[]): string[] =>
+        keys.map((key) => {
+          const sec = mapData?.sections.find((s) => s.name.toLowerCase() === key);
+          return sec ? sectionFilterValue(sec.name, sec.id) : key;
+        });
+
       if (n.has(k)) {
         n.delete(k);
         if (n.size === 0) {
-          // Fully deselected — clear the DataGrid filters
           clearSectionFilter();
+          onSectionFilterChange?.([]);
         } else {
-          // Still have other sections selected — update filter
-          applySectionFilter(Array.from(n), ["vivid"]);
+          const fvs = filterValuesForKeys(Array.from(n));
+          applySectionFilter(fvs, ["vivid"]);
+          onSectionFilterChange?.(fvs);
         }
       } else {
         n.add(k);
-        // Section selected: filter to Vivid only for this section
         setShowRecommendedSections(false);
-        applySectionFilter(Array.from(n), ["vivid"]);
+        // Build filter values: use the already-known fv for the newly added key,
+        // look up the rest from mapData.
+        const allKeys = Array.from(n);
+        const fvs = allKeys.map((key) =>
+          key === k
+            ? fv
+            : (mapData?.sections.find((s) => s.name.toLowerCase() === key)
+                ? sectionFilterValue(
+                    mapData!.sections.find((s) => s.name.toLowerCase() === key)!.name,
+                    mapData!.sections.find((s) => s.name.toLowerCase() === key)!.id,
+                  )
+                : key)
+        );
+        applySectionFilter(fvs, ["vivid"]);
+        onSectionFilterChange?.(fvs);
       }
       return n;
     });
     setHighlightedGroup(new Set());
-  }, [applySectionFilter, clearSectionFilter]);
+  }, [applySectionFilter, clearSectionFilter, onSectionFilterChange, sectionFilterValue, mapData]);
 
   const handleGroupClick = React.useCallback((groupId: number | null) => {
     setHighlightedGroup((prev) => {
       if (groupId == null) {
         clearSectionFilter();
         setSelectedSections(new Set());
+        onSectionFilterChange?.([]);
         return new Set();
       }
       const n = new Set(prev);
+
+      // Helper: build filter values for all sections belonging to the active groups
+      const filterValuesForGroups = (gIds: Set<number>) => {
+        if (!mapData) return [];
+        return Array.from(gIds).flatMap((gId) =>
+          mapData.sections
+            .filter((s) => s.groupId === gId)
+            .map((s) => sectionFilterValue(s.name, s.id))
+        );
+      };
+
       if (n.has(groupId)) {
         n.delete(groupId);
         if (n.size === 0) {
           clearSectionFilter();
+          onSectionFilterChange?.([]);
         } else {
-          // Remaining groups — rebuild section names for those groups
-          if (mapData) {
-            const names = mapData.sections
-              .filter((s) => s.groupId != null && n.has(s.groupId!))
-              .map((s) => s.name.toLowerCase());
-            applySectionFilter(names, ["vivid"]);
-          }
+          const fvs = filterValuesForGroups(n);
+          applySectionFilter(fvs, ["vivid"]);
+          onSectionFilterChange?.(fvs);
         }
       } else {
         n.add(groupId);
         setShowRecommendedSections(false);
-        if (mapData) {
-          const names = Array.from(n).flatMap((gId) =>
-            mapData.sections
-              .filter((s) => s.groupId === gId)
-              .map((s) => s.name.toLowerCase())
-          );
-          applySectionFilter(names, ["vivid"]);
-        }
+        const fvs = filterValuesForGroups(n);
+        applySectionFilter(fvs, ["vivid"]);
+        onSectionFilterChange?.(fvs);
       }
       setSelectedSections(new Set());
       return n;
     });
-  }, [mapData, applySectionFilter, clearSectionFilter]);
+  }, [mapData, applySectionFilter, clearSectionFilter, onSectionFilterChange, sectionFilterValue]);
 
   const handleShowRecommendedSectionsChange = React.useCallback((checked: boolean) => {
     setShowRecommendedSections(checked);
@@ -425,14 +478,21 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
       });
       setSelectedSections(new Set(recNames));
       setHighlightedGroup(gIds);
-      // Set DataGrid filter — show all sources for recommended sections
-      applySectionFilter(recNames, ["recommendations", "vivid", "hermes", "stubhub", "seatgeek"]);
+      // Build filter values the same way as map section/zone clicks:
+      // resolve each rec section name through mapData to apply the id-in-name logic.
+      const fvs = recNames.map((name) => {
+        const sec = mapData.sections.find((s) => s.name.toLowerCase() === name);
+        return sec ? sectionFilterValue(sec.name, sec.id) : name;
+      });
+      applySectionFilter(fvs, ["recommendations", "vivid", "hermes", "stubhub", "seatgeek"]);
+      onSectionFilterChange?.(fvs);
     } else {
       setSelectedSections(new Set());
       setHighlightedGroup(new Set());
       clearSectionFilter();
+      onSectionFilterChange?.([]);
     }
-  }, [mapData, allTrades, applySectionFilter, clearSectionFilter]);
+  }, [mapData, allTrades, applySectionFilter, clearSectionFilter, onSectionFilterChange, sectionFilterValue]);
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 

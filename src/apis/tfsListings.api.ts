@@ -37,7 +37,7 @@ export const fetchHermesListings = async (productionId: string): Promise<HermesL
       row: t.row || t.r || "—",
       quantity: parseInt(t.quantity || t.q) || 1,
       price: parseFloat(t.allInPricePerTicket || t.p) || 0,
-      dealScore: parseFloat(t.dealScore || t.d) || 0,
+      dealScore: parseFloat(t.dealScore) || 0,
       source: "hermes" as const,
     }));
   } catch (err) {

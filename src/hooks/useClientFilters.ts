@@ -113,9 +113,15 @@ export function useClientFilters<T = any>({
           // -------------------- TEXT --------------------
           default: {
             if (operator === "contains") {
-              return String(fieldValue ?? "")
-                .toLowerCase()
-                .includes(String(value).toLowerCase());
+              const haystack = String(fieldValue ?? "").toLowerCase();
+              // Support comma-separated values: "102, 101" matches if the field
+              // contains ANY of the terms (OR logic).
+              const terms = String(value)
+                .split(",")
+                .map((t) => t.trim().toLowerCase())
+                .filter(Boolean);
+              if (terms.length === 0) return true;
+              return terms.some((term) => haystack.includes(term));
             }
             if (operator === "equals") {
               return (
@@ -132,6 +138,16 @@ export function useClientFilters<T = any>({
               return String(fieldValue ?? "")
                 .toLowerCase()
                 .endsWith(String(value).toLowerCase());
+            }
+            if (operator === "isAnyOf") {
+              const arr = Array.isArray(value) ? value : [value];
+              const fvLower = String(fieldValue ?? "").toLowerCase();
+              return arr.some((v) => String(v).toLowerCase() === fvLower);
+            }
+            if (operator === "anyOfContains") {
+              const arr = Array.isArray(value) ? value : [value];
+              const fvLower = String(fieldValue ?? "").toLowerCase();
+              return arr.some((v) => fvLower.includes(String(v).toLowerCase()));
             }
             if (operator === "isEmpty") {
               return !fieldValue || String(fieldValue).trim() === "";
