@@ -1,6 +1,6 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Typography, Grid, Alert, Link, Stack } from "@mui/material";
+import { Typography, Grid, Alert, Link, Stack, Chip } from "@mui/material";
 import type { AppDispatch, RootState } from "../store";
 import { getPurchases } from "../store/slices/purchases.slice";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
@@ -33,6 +33,7 @@ const PurchasesPage: React.FC = () => {
         { field: "status", type: "string" },
         { field: "purchase_status", type: "string" },
         { field: "inventory_status", type: "string" },
+        { field: "is_auto_trade", type: "singleSelect" },
       ],
       defaultPaginationModel: { page: 0, pageSize: 25 },
       defaultSortModel: [],
@@ -193,6 +194,31 @@ const columns: CustomGridColDef[] = [
     align: "center",
     width: 160,
     type: "string",
+  },
+  {
+    field: "is_auto_trade",
+    headerName: "Trade Type",
+    width: 120,
+    type: "singleSelect",
+    valueOptions: [
+      { value: "true", label: "Auto Trade" },
+      { value: "false", label: "Manual" },
+    ],
+    valueGetter: (value: any) => (value ? "true" : "false"),
+    headerAlign: "center",
+    align: "center",
+    renderCell: (params) => {
+      const isAuto = params.row.is_auto_trade;
+      return (
+        <Chip
+          label={isAuto ? "Auto Trade" : "Manual"}
+          size="small"
+          color={isAuto ? "primary" : "default"}
+          variant={isAuto ? "filled" : "outlined"}
+          sx={{ fontWeight: 600, fontSize: "0.75rem" }}
+        />
+      );
+    },
   },
 ];
 
