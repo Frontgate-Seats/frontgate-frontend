@@ -9,6 +9,7 @@ import {
   Tooltip,
   IconButton,
   Box,
+  Chip,
   GlobalStyles,
 } from "@mui/material";
 import {
@@ -79,6 +80,7 @@ export default function TradesPage() {
       { field: "projected_sell_price", type: "number" },
       { field: "estimated_margin_percent", type: "number" },
       { field: "confidence_level", type: "singleSelect" },
+      { field: "is_auto_trade", type: "singleSelect" },
       { field: "created_at", type: "dateTime" },
     ],
     defaultPaginationModel: { page: 0, pageSize: 25 },
@@ -114,7 +116,7 @@ export default function TradesPage() {
   }, [handleRefresh]);
 
   // ── Build display rows: inject a detail row after each expanded parent ────
-  const totalColumns = 14; // expand+view+info col + 13 data cols
+  const totalColumns = 15; // expand+view+info col + 14 data cols
 
   const displayRows = React.useMemo<DisplayRow[]>(() => {
     const rows: DisplayRow[] = [];
@@ -401,6 +403,31 @@ export default function TradesPage() {
           <Typography variant="body2" fontWeight={600} color={color}>
             {confidence ?? "-"}
           </Typography>
+        );
+      },
+    },
+    {
+      field: "is_auto_trade",
+      headerName: "Trade Type",
+      width: 110,
+      type: "singleSelect",
+      valueOptions: [
+        { value: true, label: "Auto Trade" },
+        { value: false, label: "Rec" },
+      ],
+      headerAlign: "center",
+      align: "center",
+      renderCell: (params) => {
+        if (params.row._rowType === "detail") return null;
+        const isAuto = params.row.is_auto_trade;
+        return (
+          <Chip
+            label={isAuto ? "Auto Trade" : "Rec"}
+            size="small"
+            color={isAuto ? "primary" : "default"}
+            variant={isAuto ? "filled" : "outlined"}
+            sx={{ fontWeight: 600, fontSize: "0.75rem" }}
+          />
         );
       },
     },

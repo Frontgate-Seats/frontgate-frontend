@@ -154,8 +154,8 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
         id, event_id, listing_id, vs_section, row, quantity,
         max_buy_price, projected_sell_price, estimated_margin_percent,
         confidence_level, created_at, llm_result_comment,
-        event_analysis_logs!inner (event_name, venue_name, primary_performer_name, llm_result),
-        events (web_path, local_date)
+        event_analysis_logs!inner (llm_result),
+        events (name, venue_name, primary_performer_name, web_path, local_date)
       `)
       .eq("event_id", event_id)
       .order("created_at", { ascending: false })
@@ -163,9 +163,9 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
         ({ data }) => {
           const flat = (data ?? []).map((r: any) => ({
             ...r,
-            event_name: r.event_analysis_logs?.event_name ?? "-",
-            venue_name: r.event_analysis_logs?.venue_name ?? "-",
-            primary_performer_name: r.event_analysis_logs?.primary_performer_name ?? "-",
+            event_name: r.events?.name ?? "-",
+            venue_name: r.events?.venue_name ?? "-",
+            primary_performer_name: r.events?.primary_performer_name ?? "-",
             llm_result: r.event_analysis_logs?.llm_result ?? null,
             vs_web_path: r.events?.web_path ?? null,
             local_date: r.events?.local_date ?? null,

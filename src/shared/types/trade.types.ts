@@ -45,4 +45,6 @@ export interface Trade {
   sell_source: string | null;
   buy_source: string | null;
   llm_matched_section: Record<string, unknown> | null;
+  // Auto-trade flag — true when this trade was executed by the auto-trader
+  is_auto_trade: boolean;
 }

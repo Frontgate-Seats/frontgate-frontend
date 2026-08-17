@@ -54,6 +54,8 @@ export const createOrder = async (payload: {
   quantity: number;
   price_per: number;
 
+  // Auto trade flag
+  is_auto_trade?: boolean;
 
   currency?: string;
 }) => {
