@@ -299,7 +299,7 @@ const SalesTable: React.FC<SalesTableProps> = ({
       const filterItem = {
           id: "zone-section-filter",
           field: "section_name",
-          operator: "anyOfContains" as const,
+          operator: "anyOfContainsWord" as const,
           value: zoneSectionFilter,
         };
       return { ...prev, items: [...otherItems, filterItem] };

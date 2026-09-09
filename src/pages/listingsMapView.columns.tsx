@@ -82,9 +82,7 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
       field: "quantity",
       headerName: "Qty",
       type: "number",
-      width: 50,
-      min: 1,
-      max: 60,
+      width: 50
     },
     {
       field: "price",

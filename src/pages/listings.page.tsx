@@ -128,8 +128,6 @@ export default function ListingsPage() {
       flex: 0.4,
       minWidth: 60,
       type: "number",
-      min: 0,
-      max: 10000,
     },
     {
       field: "price",
@@ -210,6 +208,7 @@ export default function ListingsPage() {
   }, [event_id]);
 
   const handleRefresh = () => {
+    queryState.setFilterModel({ items: [] });
     if (event_id) dispatch(getListings(event_id));
   };
 

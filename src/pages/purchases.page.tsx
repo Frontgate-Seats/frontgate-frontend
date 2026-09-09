@@ -36,7 +36,7 @@ const PurchasesPage: React.FC = () => {
         { field: "is_auto_trade", type: "singleSelect" },
       ],
       defaultPaginationModel: { page: 0, pageSize: 25 },
-      defaultSortModel: [],
+      defaultSortModel: [{ field: "created_at", sort: "desc" }],
       defaultFilterModel: { items: [] },
     });
 
