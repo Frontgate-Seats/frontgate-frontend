@@ -123,6 +123,47 @@ export function useClientFilters<T = any>({
               if (terms.length === 0) return true;
               return terms.some((term) => haystack.includes(term));
             }
+            if (operator === "containsAll") {
+              const haystack = String(fieldValue ?? "").toLowerCase();
+              // Comma-separated values: the field must contain ALL terms (AND logic).
+              const terms = String(value)
+                .split(",")
+                .map((t) => t.trim().toLowerCase())
+                .filter(Boolean);
+              if (terms.length === 0) return true;
+              return terms.every((term) => haystack.includes(term));
+            }
+            if (operator === "containsWord") {
+              // Split the field value into tokens (by whitespace and common
+              // delimiters like , / - _) then check if ANY comma-separated
+              // filter term exactly matches one of those tokens (case-insensitive).
+              // e.g. field="Section 1" → tokens=["section","1"]
+              //      filter="1"        → matches "section 1" but NOT "section 10"
+              const tokens = String(fieldValue ?? "")
+                .toLowerCase()
+                .split(/[\s,\-_/]+/)
+                .filter(Boolean);
+              const terms = String(value)
+                .split(",")
+                .map((t) => t.trim().toLowerCase())
+                .filter(Boolean);
+              if (terms.length === 0) return true;
+              return terms.some((term) => tokens.includes(term));
+            }
+            if (operator === "containsAllWords") {
+              // Like containsWord but ALL comma-separated terms must each match
+              // a token in the field value (AND logic).
+              const tokens = String(fieldValue ?? "")
+                .toLowerCase()
+                .split(/[\s,\-_/]+/)
+                .filter(Boolean);
+              const terms = String(value)
+                .split(",")
+                .map((t) => t.trim().toLowerCase())
+                .filter(Boolean);
+              if (terms.length === 0) return true;
+              return terms.every((term) => tokens.includes(term));
+            }
             if (operator === "equals") {
               return (
                 String(fieldValue ?? "").toLowerCase() ===
@@ -148,6 +189,20 @@ export function useClientFilters<T = any>({
               const arr = Array.isArray(value) ? value : [value];
               const fvLower = String(fieldValue ?? "").toLowerCase();
               return arr.some((v) => fvLower.includes(String(v).toLowerCase()));
+            }
+            if (operator === "anyOfContainsWord") {
+              // Like anyOfContains but uses word-level exact matching:
+              // the field value is tokenized (whitespace + common delimiters),
+              // and the row matches if ANY of the filter terms exactly equals
+              // one of those tokens (case-insensitive).
+              // e.g. field="Section 1" → tokens=["section","1"]
+              //      filter=["1"]      → matches "Section 1" ✓ but NOT "Section 10" ✗
+              const arr = Array.isArray(value) ? value : [value];
+              const tokens = String(fieldValue ?? "")
+                .toLowerCase()
+                .split(/[\s,\-_/]+/)
+                .filter(Boolean);
+              return arr.some((v) => tokens.includes(String(v).toLowerCase()));
             }
             if (operator === "isEmpty") {
               return !fieldValue || String(fieldValue).trim() === "";

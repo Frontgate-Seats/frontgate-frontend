@@ -25,6 +25,8 @@ interface VenueMapProps {
   highlightedGroup?: Set<number>;
   /** Set of section IDs that have available listings */
   availableSectionIds?: Set<number>;
+  /** Called when the user clicks the reset/refresh button on the map controls */
+  onReset?: () => void;
 }
 
 // Raw element from VividSeats JSON map
@@ -118,6 +120,7 @@ export default function VenueMap({
   onSectionClick,
   highlightedGroup,
   availableSectionIds,
+  onReset,
 }: VenueMapProps) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -409,6 +412,7 @@ export default function VenueMap({
   const handleReset = () => {
     setScale(1);
     setPan({ x: 0, y: 0 });
+    onReset?.();
   };
 
   // Pan handlers — track if mouse moved (to distinguish click from drag)

@@ -83,6 +83,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
   const [showRecommendedSections, setShowRecommendedSections] = React.useState(false);
   const [recommendationTime, setRecommendationTime] = React.useState<"all" | "today" | "thisWeek">("all");
 
+
   // ─── Data Fetching ──────────────────────────────────────────────────────────
 
   const fetchListingsWithMap = React.useCallback(() => {
@@ -344,13 +345,14 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
       items.push({
         id: "section-filter",
         field: "section_name",
-        operator: "anyOfContains",
+        operator: "anyOfContainsWord",
         value: sectionNames,
       });
     }
 
     const TOTAL_SOURCES = 5;
-    if (sourceValues.length < TOTAL_SOURCES) {
+    // Empty array means no source restriction — show all sources.
+    if (sourceValues.length > 0 && sourceValues.length < TOTAL_SOURCES) {
       items.push({
         id: "source-filter",
         field: "_source",
@@ -370,6 +372,17 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
       ),
     }));
   }, [setFilterModel]);
+
+
+  // Called when the user clicks the reset button on the map (next to zoom controls).
+  // Clears section/zone selection, filters, and notifies the parent.
+  const handleMapReset = React.useCallback(() => {
+    setSelectedSections(new Set());
+    setHighlightedGroup(new Set());
+    setShowRecommendedSections(false);
+    setFilterModel({ items: [] });
+    onSectionFilterChange?.([]);
+  }, [setFilterModel, onSectionFilterChange]);
 
   const handleSectionClick = React.useCallback((sectionName: string, sectionId: number) => {
     const k = sectionName.toLowerCase();
@@ -394,7 +407,8 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
           onSectionFilterChange?.([]);
         } else {
           const fvs = filterValuesForKeys(Array.from(n));
-          applySectionFilter(fvs, ["vivid"]);
+          // When manually selecting sections, show all sources (no source filter)
+          applySectionFilter(fvs, []);
           onSectionFilterChange?.(fvs);
         }
       } else {
@@ -413,7 +427,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
                   )
                 : key)
         );
-        applySectionFilter(fvs, ["vivid"]);
+        applySectionFilter(fvs, []);
         onSectionFilterChange?.(fvs);
       }
       return n;
@@ -448,14 +462,14 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
           onSectionFilterChange?.([]);
         } else {
           const fvs = filterValuesForGroups(n);
-          applySectionFilter(fvs, ["vivid"]);
+          applySectionFilter(fvs, []);
           onSectionFilterChange?.(fvs);
         }
       } else {
         n.add(groupId);
         setShowRecommendedSections(false);
         const fvs = filterValuesForGroups(n);
-        applySectionFilter(fvs, ["vivid"]);
+        applySectionFilter(fvs, []);
         onSectionFilterChange?.(fvs);
       }
       setSelectedSections(new Set());
@@ -517,7 +531,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
                   </Box>
                   <Divider sx={{ margin: 1 }} />
                   <Box sx={{ flex: 1, minHeight: 0 }}>
-                    <VenueMap mapData={mapData} selectedSections={selectedSections} onSectionClick={handleSectionClick} highlightedGroup={highlightedGroup} availableSectionIds={availableSectionIds} />
+                    <VenueMap mapData={mapData} selectedSections={selectedSections} onSectionClick={handleSectionClick} highlightedGroup={highlightedGroup} availableSectionIds={availableSectionIds} onReset={handleMapReset} />
                   </Box>
                 </>
               ) : (
