@@ -113,9 +113,7 @@ const PurchasesPage: React.FC = () => {
       defaultPaginationModel: { page: 0, pageSize: 25 },
       // Soonest events first so the most urgent purchases are at the top.
       defaultSortModel: [{ field: "event_utc_date", sort: "asc" }],
-      // Defaults: show only unsold inventory and hide past events. Both are
-      // ordinary filter items, so the filter UI reflects them and the user can
-      // change them directly.
+      // Defaults: show only unsold inventory and future events
       defaultFilterModel: {
         items: [
           {
@@ -128,13 +126,13 @@ const PurchasesPage: React.FC = () => {
             id: "event_utc_date-default",
             field: "event_utc_date",
             operator: "onOrAfter",
-            value: new Date().toISOString(),
+            value: new Date().toISOString(), // Current time in UTC
           },
         ],
       },
     });
 
-  // "Show Past Events" toggle: ON when there is no event_utc_date lower-bound
+  // "Show Past Events" toggle: OFF when there IS an event_utc_date lower-bound
   // filter. Toggling it just adds/removes that one filter item.
   const showPastEvents = !filterModel.items.some(
     (i) => i.field === "event_utc_date" && i.operator === "onOrAfter",
@@ -155,7 +153,7 @@ const PurchasesPage: React.FC = () => {
         items: [
           ...withoutDate,
           {
-            id: "event_utc_date-default",
+            id: "event_utc_date-filter",
             field: "event_utc_date",
             operator: "onOrAfter",
             value: new Date().toISOString(),
@@ -239,6 +237,14 @@ const PurchasesPage: React.FC = () => {
       flex: 1,
       minWidth: 160,
       type: "string",
+    },
+    {
+      field: "event_utc_date",
+      headerName: "Event Date (UTC)",
+      width: 170,
+      type: "dateTime",
+      valueGetter: (value: any) => (value ? new Date(value) : null),
+      valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
     },
     {
       field: "days_to_event",
