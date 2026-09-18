@@ -131,7 +131,17 @@ function filterModelToParams(
       const item = items[0];
       if (item?.value != null && item.value !== "") {
         const defaultItem = defaultModel.items.find((i) => i.field === field);
-        if (defaultItem?.value !== item.value) {
+        
+        // Handle isAnyOf operator (multi-select) - serialize array as comma-separated
+        if (item.operator === "isAnyOf" && Array.isArray(item.value)) {
+          const serialized = item.value.join(",");
+          const defaultSerialized = Array.isArray(defaultItem?.value) 
+            ? defaultItem.value.join(",") 
+            : "";
+          if (serialized !== defaultSerialized) {
+            params.set(paramKey, serialized);
+          }
+        } else if (defaultItem?.value !== item.value) {
           params.set(paramKey, String(item.value));
         }
       }
@@ -179,8 +189,14 @@ function paramsToFilterItems(
         items.push({ field, operator, value: Number(value) });
       }
     } else if (colType === "singleSelect") {
-      const operator = col?.filterOperator ?? "is";
-      items.push({ field, operator, value });
+      // Check if value contains comma (multi-select with isAnyOf)
+      if (value.includes(",")) {
+        const values = value.split(",").filter(v => v.trim());
+        items.push({ field, operator: "isAnyOf", value: values });
+      } else {
+        const operator = col?.filterOperator ?? "is";
+        items.push({ field, operator, value });
+      }
     } else {
       // string — use filterOperator if set, otherwise "contains"
       const operator = col?.filterOperator ?? "contains";
