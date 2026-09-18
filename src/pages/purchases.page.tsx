@@ -35,14 +35,21 @@ function getDaysToEvent(eventUtcDate: string | null | undefined): number | null 
 }
 
 /**
- * Urgency row-background class based on days-to-event.
- * critical (red)   = less than 1 day out (or already past)
- * warning (yellow) = less than 3 days out
+ * Urgency row-background class based on days-to-event and inventory status.
+ * win (green)      = sold inventory with past event (successful sale)
+ * critical (red)   = less than 1 day out (or already past) and not sold
+ * warning (yellow) = less than 3 days out and not sold
  * safe (green)     = 3+ days out (future events)
  * "" (none)        = no event date
  */
-function getUrgencyRowClass(days: number | null): string {
+function getUrgencyRowClass(days: number | null, inventoryStatus?: string): string {
   if (days === null) return "";
+  
+  // Win situation: sold inventory with past event
+  if (days < 0 && inventoryStatus === "DEPLETED") {
+    return "urgency-row-win";
+  }
+  
   if (days < 1) return "urgency-row-critical";
   if (days < 3) return "urgency-row-warning";
   return "urgency-row-safe";
@@ -426,7 +433,10 @@ const PurchasesPage: React.FC = () => {
               rowCount={total}
               columns={columns}
               getRowClassName={(params) =>
-                getUrgencyRowClass(getDaysToEvent(params.row.event_utc_date))
+                getUrgencyRowClass(
+                  getDaysToEvent(params.row.event_utc_date),
+                  params.row.inventory_status
+                )
               }
               isLoading={purchasesLoading}
               error={purchasesError as any}
