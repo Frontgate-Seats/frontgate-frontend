@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import purchasesApi from "../../apis/purchases.api";
 import { setSnackbar } from "./snackbar.slice";
 import type { DataGridQueryOptions } from "../../shared/types/mui.type";
+import type { LlmResultComment } from "../../shared/types/trade.types";
 import { getErrorMessage } from "../../shared/utils/error.util";
 
 export interface PurchasesState {
@@ -112,6 +113,25 @@ export const createOrder = createAsyncThunk(
   },
 );
 
+// 🔹 Update human feedback comment on a purchase
+export const updatePurchaseComment = createAsyncThunk(
+  "purchases/updatePurchaseComment",
+  async (
+    { purchaseRowId, comment }: { purchaseRowId: string; comment: LlmResultComment },
+    { dispatch, rejectWithValue },
+  ) => {
+    try {
+      const result = await purchasesApi.updatePurchaseComment(purchaseRowId, comment);
+      dispatch(setSnackbar({ message: "Comment saved successfully.", severity: "success" }));
+      return { purchaseRowId, llm_result_comment: result.llm_result_comment };
+    } catch (err: any) {
+      const message = `[Purchases] ${getErrorMessage(err)}`;
+      dispatch(setSnackbar({ message, severity: "error" }));
+      return rejectWithValue(message);
+    }
+  },
+);
+
 const purchasesSlice = createSlice({
   name: "purchases",
   initialState,
@@ -164,6 +184,18 @@ const purchasesSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
         state.success = false;
+      })
+      // 🔹 updatePurchaseComment — patch comment in local rows
+      .addCase(updatePurchaseComment.fulfilled, (state, action) => {
+        const idx = state.rows.data.findIndex(
+          (r) => r.id === action.payload.purchaseRowId,
+        );
+        if (idx !== -1) {
+          state.rows.data[idx] = {
+            ...state.rows.data[idx],
+            llm_result_comment: action.payload.llm_result_comment,
+          };
+        }
       });
   },
 });

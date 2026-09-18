@@ -269,6 +269,25 @@ export default function CustomDataGrid({
                 {...(getRowStyle ? { getRowStyle } : {})}
                 sx={{
                   height: "100%",
+                  // Urgency row backgrounds (days-to-event) via className
+                  "& .urgency-row-critical": {
+                    backgroundColor: "rgba(244, 67, 54, 0.14) !important",
+                    "&:hover": {
+                      backgroundColor: "rgba(244, 67, 54, 0.22) !important",
+                    },
+                  },
+                  "& .urgency-row-warning": {
+                    backgroundColor: "rgba(255, 193, 7, 0.16) !important",
+                    "&:hover": {
+                      backgroundColor: "rgba(255, 193, 7, 0.26) !important",
+                    },
+                  },
+                  "& .urgency-row-safe": {
+                    backgroundColor: "rgba(76, 175, 80, 0.12) !important",
+                    "&:hover": {
+                      backgroundColor: "rgba(76, 175, 80, 0.2) !important",
+                    },
+                  },
                   // Row background styles via className
                   "& .recommendation-row-available": {
                     backgroundColor: "rgba(76, 175, 80, 0.15) !important",
