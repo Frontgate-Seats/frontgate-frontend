@@ -113,6 +113,25 @@ export const createOrder = createAsyncThunk(
   },
 );
 
+// 🔹 Update SkyBox list price for a single inventory item
+export const updateInventoryPrice = createAsyncThunk(
+  "purchases/updateInventoryPrice",
+  async (
+    { inventoryId, listPrice, rowId }: { inventoryId: number; listPrice: number; rowId: string },
+    { dispatch, rejectWithValue },
+  ) => {
+    try {
+      await purchasesApi.updateInventoryPrice({ inventoryId, listPrice });
+      dispatch(setSnackbar({ message: "Price updated successfully.", severity: "success" }));
+      return { rowId, listPrice };
+    } catch (err: any) {
+      const message = `[Price Update] ${getErrorMessage(err)}`;
+      dispatch(setSnackbar({ message, severity: "error" }));
+      return rejectWithValue(message);
+    }
+  },
+);
+
 // 🔹 Update human feedback comment on a purchase
 export const updatePurchaseComment = createAsyncThunk(
   "purchases/updatePurchaseComment",
@@ -194,6 +213,18 @@ const purchasesSlice = createSlice({
           state.rows.data[idx] = {
             ...state.rows.data[idx],
             llm_result_comment: action.payload.llm_result_comment,
+          };
+        }
+      })
+      // 🔹 updateInventoryPrice — patch list_price in local rows
+      .addCase(updateInventoryPrice.fulfilled, (state, action) => {
+        const idx = state.rows.data.findIndex(
+          (r) => r.id === action.payload.rowId,
+        );
+        if (idx !== -1) {
+          state.rows.data[idx] = {
+            ...state.rows.data[idx],
+            list_price: action.payload.listPrice,
           };
         }
       });

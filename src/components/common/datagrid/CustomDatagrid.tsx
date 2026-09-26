@@ -276,6 +276,12 @@ export default function CustomDataGrid({
                       backgroundColor: "rgba(76, 175, 80, 0.3) !important",
                     },
                   },
+                  "& .urgency-row-loss": {
+                    backgroundColor: "rgba(244, 67, 54, 0.14) !important",
+                    "&:hover": {
+                      backgroundColor: "rgba(244, 67, 54, 0.22) !important",
+                    },
+                  },
                   "& .urgency-row-critical": {
                     backgroundColor: "rgba(244, 67, 54, 0.14) !important",
                     "&:hover": {

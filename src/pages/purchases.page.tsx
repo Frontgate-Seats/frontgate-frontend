@@ -7,13 +7,12 @@ import {
   Link,
   Stack,
   Chip,
-  FormControlLabel,
-  Switch,
 } from "@mui/material";
 import type { AppDispatch, RootState } from "../store";
 import { getPurchases } from "../store/slices/purchases.slice";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import PurchaseCommentCell from "../components/purchases/PurchaseCommentCell";
+import UpdatePriceCell from "../components/purchases/UpdatePriceCell";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
 import { formatDateTime } from "../shared/utils/dateTime.util";
@@ -36,20 +35,26 @@ function getDaysToEvent(eventUtcDate: string | null | undefined): number | null 
 
 /**
  * Urgency row-background class based on days-to-event and inventory status.
- * win (green)      = sold inventory with past event (successful sale)
- * critical (red)   = less than 1 day out (or already past) and not sold
- * warning (yellow) = less than 3 days out and not sold
- * safe (green)     = 3+ days out (future events)
- * "" (none)        = no event date
+ * win (green)         = sold inventory with past event (successful sale)
+ * win-future (green)  = sold inventory with future event (sold early — great outcome)
+ * critical (red)      = less than 1 day out (or already past) and not sold
+ * warning (yellow)    = less than 3 days out and not sold
+ * safe (green)        = 3+ days out (future events)
+ * "" (none)           = no event date
  */
-function getUrgencyRowClass(days: number | null, inventoryStatus?: string): string {
+function getUrgencyRowClass(days: number | null, inventoryStatus?: string, profit?: number | null): string {
   if (days === null) return "";
-  
-  // Win situation: sold inventory with past event
-  if (days < 0 && inventoryStatus === "DEPLETED") {
-    return "urgency-row-win";
+
+  // Sold inventory — check profit to decide color
+  if (inventoryStatus === "DEPLETED") {
+    return (profit != null && profit < 0) ? "urgency-row-loss" : "urgency-row-win";
   }
-  
+
+  // Unsold past event — full loss, always red
+  if (inventoryStatus === "UNSOLD") {
+    return "urgency-row-loss";
+  }
+
   if (days < 1) return "urgency-row-critical";
   if (days < 3) return "urgency-row-warning";
   return "urgency-row-safe";
@@ -77,10 +82,11 @@ const INVENTORY_STATUS_OPTIONS = [
   { value: "ON_HOLD", label: "ON_HOLD" },
   // DB value stays DEPLETED; shown as SOLD for clarity.
   { value: "DEPLETED", label: "SOLD" },
+  { value: "UNSOLD", label: "UNSOLD" },
 ];
 
-// "Unsold" = everything except DEPLETED. Pre-selected by default so the grid
-// opens showing only unsold inventory; the user can change the selection.
+// Default: only active future-event statuses. UNSOLD rows are past-event by
+// definition and become visible when "Show All" is toggled on.
 const UNSOLD_INVENTORY_STATUSES = ["AVAILABLE", "ON_HOLD"];
 
 const PurchasesPage: React.FC = () => {
@@ -106,6 +112,9 @@ const PurchasesPage: React.FC = () => {
         { field: "row", type: "string" },
         { field: "quantity", type: "number" },
         { field: "total_amount", type: "number" },
+        { field: "list_price", type: "number" },
+        { field: "sold_price", type: "number" },
+        { field: "profit", type: "number" },
         { field: "status", type: "singleSelect" },
         { field: "inventory_status", type: "singleSelect" },
         { field: "is_auto_trade", type: "singleSelect" },
@@ -126,42 +135,11 @@ const PurchasesPage: React.FC = () => {
             id: "event_utc_date-default",
             field: "event_utc_date",
             operator: "onOrAfter",
-            value: new Date().toISOString(), // Current time in UTC
+            value: new Date().toISOString(),
           },
         ],
       },
     });
-
-  // "Show Past Events" toggle: OFF when there IS an event_utc_date lower-bound
-  // filter. Toggling it just adds/removes that one filter item.
-  const showPastEvents = !filterModel.items.some(
-    (i) => i.field === "event_utc_date" && i.operator === "onOrAfter",
-  );
-
-  const handleTogglePastEvents = (checked: boolean) => {
-    setFilterModel((prev) => {
-      const withoutDate = prev.items.filter(
-        (i) => !(i.field === "event_utc_date" && i.operator === "onOrAfter"),
-      );
-      if (checked) {
-        // Show past events → remove the "from now" lower bound.
-        return { ...prev, items: withoutDate };
-      }
-      // Hide past events → add the "from now" lower bound back.
-      return {
-        ...prev,
-        items: [
-          ...withoutDate,
-          {
-            id: "event_utc_date-filter",
-            field: "event_utc_date",
-            operator: "onOrAfter",
-            value: new Date().toISOString(),
-          },
-        ],
-      };
-    });
-  };
 
   // "Days to Event" is derived from event_utc_date, so a sort on that column
   // is translated to the real event_utc_date column. Fewer days = sooner event
@@ -323,7 +301,7 @@ const PurchasesPage: React.FC = () => {
     },
     {
       field: "total_amount",
-      headerName: "Total",
+      headerName: "Total Cost",
       width: 110,
       type: "number",
       min: 0,
@@ -335,6 +313,93 @@ const PurchasesPage: React.FC = () => {
           ${params.value?.toFixed?.(2) || 0}
         </Typography>
       ),
+    },
+    {
+      field: "list_price",
+      headerName: "List Price",
+      width: 150,
+      type: "number",
+      sortable: true,
+      filterable: false,
+      align: "right",
+      headerAlign: "right",
+      renderCell: (params) => (
+        <UpdatePriceCell
+          rowId={params.row.id}
+          inventoryId={params.row.inventory_id}
+          currentPrice={params.row.list_price}
+          eventUtcDate={params.row.event_utc_date}
+          inventoryStatus={params.row.inventory_status}
+        />
+      ),
+    },
+    {
+      field: "sold_price",
+      headerName: "Sold Price",
+      width: 110,
+      type: "number",
+      sortable: true,
+      filterable: true,
+      align: "right",
+      headerAlign: "right",
+      renderCell: (params) => {
+        const soldPrice = params.value;
+        if (soldPrice == null) return <Typography variant="body2" color="text.disabled">—</Typography>;
+        return (
+          <Typography variant="body2" fontWeight={600} color="text.primary">
+            ${soldPrice.toFixed(2)}
+          </Typography>
+        );
+      },
+    },
+    {
+      field: "profit",
+      headerName: "Profit",
+      width: 110,
+      type: "number",
+      sortable: true,
+      filterable: true,
+      align: "right",
+      headerAlign: "right",
+      renderCell: (params) => {
+        const profit = params.value;
+        if (profit == null) return <Typography variant="body2" color="text.disabled">—</Typography>;
+        const isNegative = profit < 0;
+        return (
+          <Typography
+            variant="body2"
+            fontWeight={600}
+            sx={{ color: isNegative ? "error.main" : "success.main" }}
+          >
+            {isNegative ? "-" : ""}${Math.abs(profit).toFixed(2)}
+          </Typography>
+        );
+      },
+    },
+    {
+      field: "profit_pct",
+      headerName: "Margin %",
+      width: 100,
+      sortable: false,
+      filterable: false,
+      align: "right",
+      headerAlign: "right",
+      renderCell: (params) => {
+        const profit = params.row.profit;
+        const totalAmount = params.row.total_amount;
+        if (profit == null || !totalAmount) return <Typography variant="body2" color="text.disabled">—</Typography>;
+        const pct = (profit / totalAmount) * 100;
+        const isNegative = pct < 0;
+        return (
+          <Typography
+            variant="body2"
+            fontWeight={600}
+            sx={{ color: isNegative ? "error.main" : "success.main" }}
+          >
+            {isNegative ? "" : "+"}{pct.toFixed(1)}%
+          </Typography>
+        );
+      },
     },
     {
       field: "status",
@@ -412,28 +477,9 @@ const PurchasesPage: React.FC = () => {
             <CustomDataGrid
               title="Purchases"
               headerComponent={
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  justifyContent="space-between"
-                  spacing={2}
-                  sx={{ width: "100%" }}
-                >
-                  <Typography component="h2" sx={{ m: 0, fontSize: "1.5rem", fontWeight: 700 }}>
-                    Purchases
-                  </Typography>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={showPastEvents}
-                        onChange={(e) => handleTogglePastEvents(e.target.checked)}
-                        size="small"
-                      />
-                    }
-                    label="Show Past Events"
-                    sx={{ mr: 0 }}
-                  />
-                </Stack>
+                <Typography component="h2" sx={{ m: 0, fontSize: "1.5rem", fontWeight: 700 }}>
+                  Purchases
+                </Typography>
               }
               rows={purchases}
               rowCount={total}
@@ -441,7 +487,8 @@ const PurchasesPage: React.FC = () => {
               getRowClassName={(params) =>
                 getUrgencyRowClass(
                   getDaysToEvent(params.row.event_utc_date),
-                  params.row.inventory_status
+                  params.row.inventory_status,
+                  params.row.profit,
                 )
               }
               isLoading={purchasesLoading}

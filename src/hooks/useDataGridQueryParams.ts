@@ -266,7 +266,16 @@ export function useDataGridQueryParams({
   const initialFilter = React.useMemo<GridFilterModel>(() => {
     const urlItems = paramsToFilterItems(searchParams, columnsRef.current);
     if (urlItems.length === 0) return defaultFilterRef.current;
-    return { items: urlItems };
+
+    // Merge: default items are the base, URL items override per field.
+    // Default items for fields NOT in the URL are always kept so that
+    // opening the page fresh always applies all defaults even when the
+    // URL only carries a subset of filter params.
+    const urlFields = new Set(urlItems.map((i) => i.field));
+    const defaultOnlyItems = defaultFilterRef.current.items.filter(
+      (i) => !urlFields.has(i.field),
+    );
+    return { items: [...defaultOnlyItems, ...urlItems] };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentionally run once on mount
 

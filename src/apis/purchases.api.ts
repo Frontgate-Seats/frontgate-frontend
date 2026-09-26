@@ -96,11 +96,29 @@ export const createOrder = async (payload: {
   }
 };
 
+export const updateInventoryPrice = async (payload: {
+  inventoryId: number;
+  listPrice: number;
+}) => {
+  try {
+    const { inventoryId, listPrice } = payload;
+    const response = await supabaseHttpClient.put(
+      `/functions/v1/events-api/inventory/${inventoryId}/price`,
+      { listPrice },
+    );
+    return response;
+  } catch (error: any) {
+    const message = getErrorMessage(error);
+    throw new Error(message);
+  }
+};
+
 const purchasesApi = {
   fetchPurchases,
   updatePurchaseComment,
   createQuote,
   createOrder,
+  updateInventoryPrice,
 };
 
 export default purchasesApi;
