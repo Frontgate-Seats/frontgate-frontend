@@ -11,6 +11,7 @@ import {
   type GridFilterModel,
   type GridEventListener,
   type GridRowHeightParams,
+  type GridColumnGroupingModel,
 } from "@mui/x-data-grid";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import FilterListIcon from "@mui/icons-material/FilterList";
@@ -50,6 +51,7 @@ interface CustomDataGridProps {
   sortingMode?: "client" | "server";
   isFullHeight?: boolean;
   initialShowFilters?: boolean;
+  columnGroupingModel?: GridColumnGroupingModel;
 }
 
 export default function CustomDataGrid({
@@ -78,6 +80,7 @@ export default function CustomDataGrid({
   sortingMode = "server",
   isFullHeight = false,
   initialShowFilters = true,
+  columnGroupingModel,
 }: CustomDataGridProps) {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const handleFullscreenChange = (fullscreenMode: boolean) => {
@@ -242,6 +245,7 @@ export default function CustomDataGrid({
                 getRowId={(row) => row._id || row.id}
                 rowCount={rowCount}
                 columns={customColumns}
+                columnGroupingModel={columnGroupingModel}
                 autoHeight={false}
                 initialState={{
                   pagination: {
@@ -269,6 +273,26 @@ export default function CustomDataGrid({
                 {...(getRowStyle ? { getRowStyle } : {})}
                 sx={{
                   height: "100%",
+                  // Disable skeleton/loading row animations
+                  "& .MuiDataGrid-loadingOverlay": {
+                    animation: "none",
+                  },
+                  "& .MuiSkeleton-root": {
+                    animation: "none",
+                    "&::after": { animation: "none" },
+                  },
+                  // Column group header — centered and bold
+                  "& .MuiDataGrid-columnGroupHeader": {
+                    justifyContent: "center",
+                    fontWeight: 700,
+                  },
+                  "& .MuiDataGrid-columnGroupHeader .MuiDataGrid-columnHeaderTitleContainer": {
+                    justifyContent: "center",
+                  },
+                  "& .MuiDataGrid-columnGroupHeader .MuiDataGrid-columnHeaderTitle": {
+                    fontWeight: 700,
+                    textAlign: "center",
+                  },
                   // Urgency row backgrounds (days-to-event) via className
                   "& .urgency-row-win": {
                     backgroundColor: "rgba(76, 175, 80, 0.2) !important",

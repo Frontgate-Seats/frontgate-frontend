@@ -68,6 +68,18 @@ function formatDaysLabel(days: number | null): string {
   return `${days} days`;
 }
 
+// ─── Cell renderers ───────────────────────────────────────────────────────────
+
+/** Renders a dollar amount, or a dash when the value is null/undefined. */
+function MoneyCell({ value, fontWeight = 500 }: { value: number | null | undefined; fontWeight?: number }) {
+  if (value == null) return <Typography variant="body2" color="text.disabled">—</Typography>;
+  return (
+    <Typography variant="body2" fontWeight={fontWeight} color="text.primary">
+      ${value.toFixed(2)}
+    </Typography>
+  );
+}
+
 // Multi-select filter options for the status columns.
 const STATUS_OPTIONS = [
   { value: "CREATED", label: "CREATED" },
@@ -83,11 +95,12 @@ const INVENTORY_STATUS_OPTIONS = [
   // DB value stays DEPLETED; shown as SOLD for clarity.
   { value: "DEPLETED", label: "SOLD" },
   { value: "UNSOLD", label: "UNSOLD" },
+  { value: "PARTIAL_SOLD", label: "PARTIAL_SOLD" },
 ];
 
 // Default: only active future-event statuses. UNSOLD rows are past-event by
 // definition and become visible when "Show All" is toggled on.
-const UNSOLD_INVENTORY_STATUSES = ["AVAILABLE", "ON_HOLD"];
+const UNSOLD_INVENTORY_STATUSES = ["AVAILABLE", "UNSOLD", "ON_HOLD", "PARTIAL_SOLD"];
 
 const PurchasesPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -114,6 +127,9 @@ const PurchasesPage: React.FC = () => {
         { field: "total_amount", type: "number" },
         { field: "list_price", type: "number" },
         { field: "sold_price", type: "number" },
+        { field: "sold_quantity", type: "number" },
+        { field: "sold_at", type: "dateTime" },
+        { field: "price_per", type: "number" },
         { field: "profit", type: "number" },
         { field: "status", type: "singleSelect" },
         { field: "inventory_status", type: "singleSelect" },
@@ -308,11 +324,21 @@ const PurchasesPage: React.FC = () => {
       max: 10000,
       align: "right",
       headerAlign: "right",
-      renderCell: (params) => (
-        <Typography fontWeight={600} color="text.primary">
-          ${params.value?.toFixed?.(2) || 0}
-        </Typography>
-      ),
+      headerClassName: "group-separator",
+      cellClassName: "group-separator",
+      renderCell: (params) => <MoneyCell value={params.value} fontWeight={600} />,
+    },
+    {
+      field: "price_per",
+      headerName: "Unit Cost",
+      width: 100,
+      type: "number",
+      sortable: false,
+      filterable: false,
+      align: "right",
+      headerAlign: "right",
+      valueGetter: (_, row) => (row.total_amount && row.quantity ? row.total_amount / row.quantity : null),
+      renderCell: (params) => <MoneyCell value={params.value} />,
     },
     {
       field: "list_price",
@@ -323,15 +349,21 @@ const PurchasesPage: React.FC = () => {
       filterable: false,
       align: "right",
       headerAlign: "right",
-      renderCell: (params) => (
-        <UpdatePriceCell
-          rowId={params.row.id}
-          inventoryId={params.row.inventory_id}
-          currentPrice={params.row.list_price}
-          eventUtcDate={params.row.event_utc_date}
-          inventoryStatus={params.row.inventory_status}
-        />
-      ),
+      renderCell: (params) => {
+        const isPastEvent = params.row.event_utc_date
+          ? new Date(params.row.event_utc_date).getTime() <= Date.now()
+          : false;
+        if (isPastEvent) return <Typography variant="body2" color="text.disabled">—</Typography>;
+        return (
+          <UpdatePriceCell
+            rowId={params.row.id}
+            inventoryId={params.row.inventory_id}
+            currentPrice={params.row.list_price}
+            eventUtcDate={params.row.event_utc_date}
+            inventoryStatus={params.row.inventory_status}
+          />
+        );
+      },
     },
     {
       field: "sold_price",
@@ -342,14 +374,21 @@ const PurchasesPage: React.FC = () => {
       filterable: true,
       align: "right",
       headerAlign: "right",
+      renderCell: (params) => <MoneyCell value={params.value} fontWeight={600} />,
+    },
+    {
+      field: "sold_quantity",
+      headerName: "Sold Qty",
+      width: 90,
+      type: "number",
+      sortable: true,
+      filterable: true,
+      align: "center",
+      headerAlign: "center",
       renderCell: (params) => {
-        const soldPrice = params.value;
-        if (soldPrice == null) return <Typography variant="body2" color="text.disabled">—</Typography>;
-        return (
-          <Typography variant="body2" fontWeight={600} color="text.primary">
-            ${soldPrice.toFixed(2)}
-          </Typography>
-        );
+        const soldQty = params.value;
+        if (soldQty == null) return <Typography variant="body2" color="text.disabled">—</Typography>;
+        return <Typography variant="body2" color="text.primary">{soldQty}</Typography>;
       },
     },
     {
@@ -361,6 +400,8 @@ const PurchasesPage: React.FC = () => {
       filterable: true,
       align: "right",
       headerAlign: "right",
+      headerClassName: "group-separator",
+      cellClassName: "group-separator",
       renderCell: (params) => {
         const profit = params.value;
         if (profit == null) return <Typography variant="body2" color="text.disabled">—</Typography>;
@@ -403,12 +444,14 @@ const PurchasesPage: React.FC = () => {
     },
     {
       field: "status",
-      headerName: "Status",
+      headerName: "Purchase Status",
       headerAlign: "center",
       align: "center",
       width: 160,
       type: "singleSelect",
       valueOptions: STATUS_OPTIONS,
+      headerClassName: "group-separator",
+      cellClassName: "group-separator",
     },
     {
       field: "inventory_status",
@@ -476,6 +519,64 @@ const PurchasesPage: React.FC = () => {
           ) : (
             <CustomDataGrid
               title="Purchases"
+              columnGroupingModel={[
+                {
+                  headerAlign: "center",
+                  groupId: "common",
+                  headerName: "Common",
+                  children: [
+                    { field: "llm_result_comment" },
+                    { field: "event_id" },
+                    { field: "event_name" },
+                    { field: "event_utc_date" },
+                    { field: "days_to_event" },
+                    { field: "created_at" },
+                    { field: "inventory_id" },
+                    { field: "purchase_id" },
+                    { field: "section" },
+                    { field: "row" },
+                    { field: "quantity" },
+                  ],
+                },
+                {
+                  headerAlign: "center",
+                  groupId: "purchase",
+                  headerName: "Purchase",
+                  children: [
+                    { field: "total_amount" },
+                    { field: "price_per" },
+                    { field: "list_price" },
+                  ],
+                },
+                {
+                  headerAlign: "center",
+                  groupId: "sold",
+                  headerName: "Sold",
+                  children: [
+                    { field: "sold_price" },
+                    { field: "sold_quantity" },
+                  ],
+                },
+                {
+                  headerAlign: "center",
+                  groupId: "profit_margin",
+                  headerName: "Profit & Margin",
+                  children: [
+                    { field: "profit" },
+                    { field: "profit_pct" },
+                  ],
+                },
+                {
+                  headerAlign: "center",
+                  groupId: "status_group",
+                  headerName: "Status",
+                  children: [
+                    { field: "status" },
+                    { field: "inventory_status" },
+                    { field: "is_auto_trade" },
+                  ],
+                },
+              ]}
               headerComponent={
                 <Typography component="h2" sx={{ m: 0, fontSize: "1.5rem", fontWeight: 700 }}>
                   Purchases
