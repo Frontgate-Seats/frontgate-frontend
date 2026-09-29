@@ -13,6 +13,7 @@ import { getPurchases } from "../store/slices/purchases.slice";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import PurchaseCommentCell from "../components/purchases/PurchaseCommentCell";
 import UpdatePriceCell from "../components/purchases/UpdatePriceCell";
+import PurchaseSummaryBar from "../components/purchases/PurchaseSummaryBar";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
 import { formatDateTime } from "../shared/utils/dateTime.util";
@@ -21,11 +22,6 @@ import { formatDateTime } from "../shared/utils/dateTime.util";
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
-/**
- * Whole days from now until the event.
- * Positive = upcoming, 0 = today, negative = past event.
- * null when there is no event date.
- */
 function getDaysToEvent(eventUtcDate: string | null | undefined): number | null {
   if (!eventUtcDate) return null;
   const eventMs = new Date(eventUtcDate).getTime();
@@ -33,28 +29,15 @@ function getDaysToEvent(eventUtcDate: string | null | undefined): number | null 
   return Math.ceil((eventMs - Date.now()) / MS_PER_DAY);
 }
 
-/**
- * Urgency row-background class based on days-to-event and inventory status.
- * win (green)         = sold inventory with past event (successful sale)
- * win-future (green)  = sold inventory with future event (sold early — great outcome)
- * critical (red)      = less than 1 day out (or already past) and not sold
- * warning (yellow)    = less than 3 days out and not sold
- * safe (green)        = 3+ days out (future events)
- * "" (none)           = no event date
- */
-function getUrgencyRowClass(days: number | null, inventoryStatus?: string, profit?: number | null): string {
+function getUrgencyRowClass(
+  days: number | null,
+  inventoryStatus?: string,
+  profit?: number | null,
+): string {
   if (days === null) return "";
-
-  // Sold inventory — check profit to decide color
-  if (inventoryStatus === "DEPLETED") {
-    return (profit != null && profit < 0) ? "urgency-row-loss" : "urgency-row-win";
-  }
-
-  // Unsold past event — full loss, always red
-  if (inventoryStatus === "UNSOLD") {
-    return "urgency-row-loss";
-  }
-
+  if (inventoryStatus === "DEPLETED")
+    return profit != null && profit < 0 ? "urgency-row-loss" : "urgency-row-win";
+  if (inventoryStatus === "UNSOLD") return "urgency-row-loss";
   if (days < 1) return "urgency-row-critical";
   if (days < 3) return "urgency-row-warning";
   return "urgency-row-safe";
@@ -70,9 +53,15 @@ function formatDaysLabel(days: number | null): string {
 
 // ─── Cell renderers ───────────────────────────────────────────────────────────
 
-/** Renders a dollar amount, or a dash when the value is null/undefined. */
-function MoneyCell({ value, fontWeight = 500 }: { value: number | null | undefined; fontWeight?: number }) {
-  if (value == null) return <Typography variant="body2" color="text.disabled">—</Typography>;
+function MoneyCell({
+  value,
+  fontWeight = 500,
+}: {
+  value: number | null | undefined;
+  fontWeight?: number;
+}) {
+  if (value == null)
+    return <Typography variant="body2" color="text.disabled">—</Typography>;
   return (
     <Typography variant="body2" fontWeight={fontWeight} color="text.primary">
       ${value.toFixed(2)}
@@ -80,7 +69,6 @@ function MoneyCell({ value, fontWeight = 500 }: { value: number | null | undefin
   );
 }
 
-// Multi-select filter options for the status columns.
 const STATUS_OPTIONS = [
   { value: "CREATED", label: "CREATED" },
   { value: "CONFIRMED", label: "CONFIRMED" },
@@ -92,15 +80,14 @@ const STATUS_OPTIONS = [
 const INVENTORY_STATUS_OPTIONS = [
   { value: "AVAILABLE", label: "AVAILABLE" },
   { value: "ON_HOLD", label: "ON_HOLD" },
-  // DB value stays DEPLETED; shown as SOLD for clarity.
   { value: "DEPLETED", label: "SOLD" },
   { value: "UNSOLD", label: "UNSOLD" },
   { value: "PARTIAL_SOLD", label: "PARTIAL_SOLD" },
 ];
 
-// Default: only active future-event statuses. UNSOLD rows are past-event by
-// definition and become visible when "Show All" is toggled on.
 const UNSOLD_INVENTORY_STATUSES = ["AVAILABLE", "UNSOLD", "ON_HOLD", "PARTIAL_SOLD"];
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 const PurchasesPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -110,56 +97,57 @@ const PurchasesPage: React.FC = () => {
     error: purchasesError,
   } = useSelector((state: RootState) => state.purchases);
 
-  const { paginationModel, setPaginationModel, sortModel, setSortModel, filterModel, setFilterModel } =
-    useDataGridQueryParams({
-      columns: [
-        { field: "event_id", type: "number" },
-        { field: "event_name", type: "string" },
-        { field: "event_utc_date", type: "dateTime" },
-        { field: "days_to_event", type: "number" },
-        { field: "created_at", type: "dateTime" },
-        { field: "listing_id", type: "string" },
-        { field: "purchase_id", type: "string" },
-        { field: "inventory_id", type: "string" },
-        { field: "section", type: "string" },
-        { field: "row", type: "string" },
-        { field: "quantity", type: "number" },
-        { field: "total_amount", type: "number" },
-        { field: "list_price", type: "number" },
-        { field: "sold_price", type: "number" },
-        { field: "sold_quantity", type: "number" },
-        { field: "sold_at", type: "dateTime" },
-        { field: "price_per", type: "number" },
-        { field: "profit", type: "number" },
-        { field: "status", type: "singleSelect" },
-        { field: "inventory_status", type: "singleSelect" },
-        { field: "is_auto_trade", type: "singleSelect" },
+  const {
+    paginationModel,
+    setPaginationModel,
+    sortModel,
+    setSortModel,
+    filterModel,
+    setFilterModel,
+  } = useDataGridQueryParams({
+    columns: [
+      { field: "event_id", type: "number" },
+      { field: "event_name", type: "string" },
+      { field: "event_utc_date", type: "dateTime" },
+      { field: "days_to_event", type: "number" },
+      { field: "created_at", type: "dateTime" },
+      { field: "listing_id", type: "string" },
+      { field: "purchase_id", type: "string" },
+      { field: "inventory_id", type: "string" },
+      { field: "section", type: "string" },
+      { field: "row", type: "string" },
+      { field: "quantity", type: "number" },
+      { field: "total_amount", type: "number" },
+      { field: "list_price", type: "number" },
+      { field: "sold_price", type: "number" },
+      { field: "sold_quantity", type: "number" },
+      { field: "sold_at", type: "dateTime" },
+      { field: "price_per", type: "number" },
+      { field: "profit", type: "number" },
+      { field: "status", type: "singleSelect" },
+      { field: "inventory_status", type: "singleSelect" },
+      { field: "is_auto_trade", type: "singleSelect" },
+    ],
+    defaultPaginationModel: { page: 0, pageSize: 25 },
+    defaultSortModel: [{ field: "event_utc_date", sort: "asc" }],
+    defaultFilterModel: {
+      items: [
+        {
+          id: "inventory_status-default",
+          field: "inventory_status",
+          operator: "isAnyOf",
+          value: UNSOLD_INVENTORY_STATUSES,
+        },
+        {
+          id: "event_utc_date-default",
+          field: "event_utc_date",
+          operator: "onOrAfter",
+          value: new Date().toISOString(),
+        },
       ],
-      defaultPaginationModel: { page: 0, pageSize: 25 },
-      // Soonest events first so the most urgent purchases are at the top.
-      defaultSortModel: [{ field: "event_utc_date", sort: "asc" }],
-      // Defaults: show only unsold inventory and future events
-      defaultFilterModel: {
-        items: [
-          {
-            id: "inventory_status-default",
-            field: "inventory_status",
-            operator: "isAnyOf",
-            value: UNSOLD_INVENTORY_STATUSES,
-          },
-          {
-            id: "event_utc_date-default",
-            field: "event_utc_date",
-            operator: "onOrAfter",
-            value: new Date().toISOString(),
-          },
-        ],
-      },
-    });
+    },
+  });
 
-  // "Days to Event" is derived from event_utc_date, so a sort on that column
-  // is translated to the real event_utc_date column. Fewer days = sooner event
-  // = earlier date, so the sort direction is the same.
   const effectiveSort = React.useMemo(
     () =>
       sortModel.map((s) =>
@@ -190,6 +178,7 @@ const PurchasesPage: React.FC = () => {
     );
   }, [dispatch, paginationModel, effectiveSort, filterModel]);
 
+  // ── Columns ────────────────────────────────────────────────────────────────
   const columns: CustomGridColDef[] = [
     {
       field: "llm_result_comment",
@@ -238,15 +227,12 @@ const PurchasesPage: React.FC = () => {
       width: 170,
       type: "dateTime",
       valueGetter: (value: any) => (value ? new Date(value) : null),
-      valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
+      valueFormatter: (value: any) => (value ? formatDateTime(value) : "-"),
     },
     {
       field: "days_to_event",
       headerName: "Days to Event",
       width: 130,
-      // Not a DB column — derived from event_utc_date. The header sort is
-      // translated to event_utc_date in effectiveSort (fewer days = earlier
-      // date, same direction). Filtering still targets event_utc_date.
       sortable: true,
       filterable: false,
       headerAlign: "center",
@@ -266,7 +252,7 @@ const PurchasesPage: React.FC = () => {
       width: 170,
       type: "dateTime",
       valueGetter: (value: any) => (value ? new Date(value) : null),
-      valueFormatter: (value) => (value ? formatDateTime(value) : "-"),
+      valueFormatter: (value: any) => (value ? formatDateTime(value) : "-"),
     },
     {
       field: "purchase_id",
@@ -337,7 +323,8 @@ const PurchasesPage: React.FC = () => {
       filterable: false,
       align: "right",
       headerAlign: "right",
-      valueGetter: (_, row) => (row.total_amount && row.quantity ? row.total_amount / row.quantity : null),
+      valueGetter: (_, row) =>
+        row.total_amount && row.quantity ? row.total_amount / row.quantity : null,
       renderCell: (params) => <MoneyCell value={params.value} />,
     },
     {
@@ -353,7 +340,8 @@ const PurchasesPage: React.FC = () => {
         const isPastEvent = params.row.event_utc_date
           ? new Date(params.row.event_utc_date).getTime() <= Date.now()
           : false;
-        if (isPastEvent) return <Typography variant="body2" color="text.disabled">—</Typography>;
+        if (isPastEvent)
+          return <Typography variant="body2" color="text.disabled">—</Typography>;
         return (
           <UpdatePriceCell
             rowId={params.row.id}
@@ -387,8 +375,9 @@ const PurchasesPage: React.FC = () => {
       headerAlign: "center",
       renderCell: (params) => {
         const soldQty = params.value;
-        if (soldQty == null) return <Typography variant="body2" color="text.disabled">—</Typography>;
-        return <Typography variant="body2" color="text.primary">{soldQty}</Typography>;
+        if (soldQty == null)
+          return <Typography variant="body2" color="text.disabled">—</Typography>;
+        return <Typography variant="body2">{soldQty}</Typography>;
       },
     },
     {
@@ -404,7 +393,8 @@ const PurchasesPage: React.FC = () => {
       cellClassName: "group-separator",
       renderCell: (params) => {
         const profit = params.value;
-        if (profit == null) return <Typography variant="body2" color="text.disabled">—</Typography>;
+        if (profit == null)
+          return <Typography variant="body2" color="text.disabled">—</Typography>;
         const isNegative = profit < 0;
         return (
           <Typography
@@ -428,7 +418,8 @@ const PurchasesPage: React.FC = () => {
       renderCell: (params) => {
         const profit = params.row.profit;
         const totalAmount = params.row.total_amount;
-        if (profit == null || !totalAmount) return <Typography variant="body2" color="text.disabled">—</Typography>;
+        if (profit == null || !totalAmount)
+          return <Typography variant="body2" color="text.disabled">—</Typography>;
         const pct = (profit / totalAmount) * 100;
         const isNegative = pct < 0;
         return (
@@ -437,7 +428,8 @@ const PurchasesPage: React.FC = () => {
             fontWeight={600}
             sx={{ color: isNegative ? "error.main" : "success.main" }}
           >
-            {isNegative ? "" : "+"}{pct.toFixed(1)}%
+            {isNegative ? "" : "+"}
+            {pct.toFixed(1)}%
           </Typography>
         );
       },
@@ -461,7 +453,6 @@ const PurchasesPage: React.FC = () => {
       width: 160,
       type: "singleSelect",
       valueOptions: INVENTORY_STATUS_OPTIONS,
-      // Display DEPLETED as SOLD (DB value is unchanged).
       valueFormatter: (value: any) => (value === "DEPLETED" ? "SOLD" : value),
     },
     {
@@ -494,12 +485,7 @@ const PurchasesPage: React.FC = () => {
   return (
     <Stack
       padding={3}
-      sx={{
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        minHeight: 0,
-      }}
+      sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}
     >
       <Grid
         size={{ xs: 12 }}
@@ -507,13 +493,9 @@ const PurchasesPage: React.FC = () => {
       >
         <Grid
           size={{ xs: 12 }}
-          sx={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            minHeight: 0,
-          }}
+          sx={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}
         >
+          <PurchaseSummaryBar />
           {purchasesError ? (
             <Alert severity="error">{purchasesError}</Alert>
           ) : (
@@ -601,6 +583,7 @@ const PurchasesPage: React.FC = () => {
               filterModel={filterModel}
               setFilterModel={setFilterModel}
               onRefresh={handleRefresh}
+              isFullHeight={true}
             />
           )}
         </Grid>
