@@ -85,7 +85,6 @@ const INVENTORY_STATUS_OPTIONS = [
   { value: "PARTIAL_SOLD", label: "PARTIAL_SOLD" },
 ];
 
-const UNSOLD_INVENTORY_STATUSES = ["AVAILABLE", "UNSOLD", "ON_HOLD", "PARTIAL_SOLD"];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -132,12 +131,6 @@ const PurchasesPage: React.FC = () => {
     defaultSortModel: [{ field: "event_utc_date", sort: "asc" }],
     defaultFilterModel: {
       items: [
-        {
-          id: "inventory_status-default",
-          field: "inventory_status",
-          operator: "isAnyOf",
-          value: UNSOLD_INVENTORY_STATUSES,
-        },
         {
           id: "event_utc_date-default",
           field: "event_utc_date",
@@ -500,7 +493,7 @@ const PurchasesPage: React.FC = () => {
             <Alert severity="error">{purchasesError}</Alert>
           ) : (
             <CustomDataGrid
-              title="Purchases"
+              title="Inventory"
               columnGroupingModel={[
                 {
                   headerAlign: "center",
@@ -561,7 +554,7 @@ const PurchasesPage: React.FC = () => {
               ]}
               headerComponent={
                 <Typography component="h2" sx={{ m: 0, fontSize: "1.5rem", fontWeight: 700 }}>
-                  Purchases
+                  Inventory
                 </Typography>
               }
               rows={purchases}

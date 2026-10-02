@@ -1,23 +1,43 @@
 import * as React from "react";
-import { Box, Stack, Typography, Skeleton, Divider } from "@mui/material";
-import { ShoppingCart, TrendingUp, TrendingDown } from "@mui/icons-material";
+import { Box, Stack, Typography, Skeleton, Chip, Tooltip, Divider } from "@mui/material";
+import {
+  ConfirmationNumberOutlined,
+  Circle,
+  TrendingUp,
+  TrendingDown,
+} from "@mui/icons-material";
 import supabaseClient from "../../clients/supabase.client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface InventorySummary {
-  total: number;
+interface PortfolioSummary {
+  // Totals — all purchases
+  uniquePurchases: number;
   totalInvested: number;
-  totalTickets: number;
-  futureEvents: number;
-  pastEvents: number;
+  totalSold: number;
+  totalProfit: number;
+  totalRoi: number | null;
+
+  // Total status breakdown
   available: number;
   onHold: number;
   depleted: number;
   partialSold: number;
   unsold: number;
-  totalProfit: number;
-  roi: number | null;
+
+  // Active — future events only (event_utc_date > NOW())
+  activeItems: number;
+  activeInvested: number;
+  activeSold: number;
+  activeProfit: number;
+  activeRoi: number | null;
+
+  // Active status breakdown
+  activeAvailable: number;
+  activeOnHold: number;
+  activeDepleted: number;
+  activePartialSold: number;
+  activeUnsold: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -41,86 +61,55 @@ function BigStat({
   label,
   value,
   valueColor,
+  hint,
 }: {
   label: string;
   value: string | number;
   valueColor?: string;
+  hint?: string;
 }) {
+  const labelNode = (
+    <Typography
+      variant="body2"
+      color="text.secondary"
+      sx={hint ? { borderBottom: "1px dotted", borderColor: "text.disabled", cursor: "help", display: "inline" } : undefined}
+    >
+      {label}
+    </Typography>
+  );
   return (
     <Box>
-      <Typography
-        variant="h6"
-        fontWeight={700}
-        lineHeight={1.15}
-        sx={{ color: valueColor ?? "text.primary", fontSize: "1.15rem" }}
-      >
+      <Typography variant="h6" fontWeight={700} sx={{ color: valueColor ?? "text.primary" }}>
         {value}
       </Typography>
-      <Typography variant="caption" color="text.secondary" lineHeight={1.2}>
-        {label}
-      </Typography>
+      {hint ? <Tooltip title={hint} arrow>{labelNode}</Tooltip> : labelNode}
     </Box>
   );
 }
 
-// ─── Meta row ─────────────────────────────────────────────────────────────────
 
-function MetaRow({
-  label,
-  value,
-  valueColor,
-}: {
-  label: string;
-  value: string | number;
-  valueColor?: string;
-}) {
-  return (
-    <Stack direction="row" alignItems="center" spacing={0.5}>
-      <Typography variant="caption" color="text.secondary">
-        {label}:
-      </Typography>
-      <Typography
-        variant="caption"
-        fontWeight={700}
-        sx={{ color: valueColor ?? "text.primary" }}
-      >
-        {value}
-      </Typography>
-    </Stack>
-  );
-}
-
-// ─── Status row ───────────────────────────────────────────────────────────────
-
-function StatusRow({
-  dot,
+function StatusChip({
+  color,
   label,
   count,
-  countColor,
 }: {
-  dot: string;
+  color: string;
   label: string;
   count: number;
-  countColor?: string;
 }) {
   return (
-    <Stack direction="row" alignItems="center" justifyContent="space-between">
-      <Stack direction="row" alignItems="center" spacing={0.75}>
-        <Box
-          sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: dot, flexShrink: 0 }}
-        />
-        <Typography variant="caption" color="text.secondary">
-          {label}
-        </Typography>
-      </Stack>
-      <Typography
-        variant="caption"
-        fontWeight={700}
-        sx={{ color: countColor ?? "text.primary", minWidth: 20, textAlign: "right" }}
-      >
-        {count}
-      </Typography>
-    </Stack>
+    <Chip
+      size="small"
+      variant="outlined"
+      label={`${label}: ${count}`}
+      sx={{
+        color,
+        borderColor: color + "66",
+        bgcolor: color + "14",
+        fontWeight: 600,
+        "& .MuiChip-label": { color },
+      }}
+    />
   );
 }
 
@@ -128,71 +117,102 @@ function StatusRow({
 
 function Card({
   title,
+  subtitle,
   accentColor,
-  bgColor,
   icon,
+  badge,
   children,
 }: {
   title: string;
+  subtitle?: string;
   accentColor: string;
-  bgColor: string;
   icon: React.ReactNode;
+  badge?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <Box
       sx={{
         flex: "1 1 0",
-        minWidth: 210,
-        bgcolor: bgColor,
+        minWidth: 340,
+        bgcolor: accentColor + "0D",
         borderRadius: 2,
+        border: "1px solid",
+        borderColor: accentColor + "26",
         borderLeft: `4px solid ${accentColor}`,
-        px: 1,
-        py: 1.5,
+        px: 2.5,
+        py: 1.75,
         display: "flex",
         flexDirection: "column",
-        gap: 0,
-        position: "relative",
-        overflow: "hidden",
       }}
     >
-      {/* watermark */}
-      <Box
-        sx={{
-          position: "absolute",
-          right: 6,
-          bottom: 4,
-          opacity: 0.07,
-          display: "flex",
-          pointerEvents: "none",
-        }}
-      >
-        {icon}
-      </Box>
-
-      <Typography
-        variant="caption"
-        fontWeight={700}
-        sx={{
-          color: accentColor,
-          textTransform: "uppercase",
-          letterSpacing: 0.8,
-          fontSize: "0.67rem",
-          mb: 1,
-        }}
-      >
-        {title}
-      </Typography>
+      {/* header: icon pill + title (left), badge (right) */}
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.25 }}>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Box
+            sx={{
+              width: 26,
+              height: 26,
+              borderRadius: 1.25,
+              bgcolor: accentColor + "1A",
+              color: accentColor,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {icon}
+          </Box>
+          <Box>
+            <Typography
+              variant="caption"
+              fontWeight={700}
+              sx={{
+                color: accentColor,
+                textTransform: "uppercase",
+                letterSpacing: 0.8,
+                fontSize: "0.72rem",
+                display: "block",
+                lineHeight: 1.2,
+              }}
+            >
+              {title}
+            </Typography>
+            {subtitle && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", lineHeight: 1.1 }}>
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
+        </Stack>
+        {badge}
+      </Stack>
 
       {children}
     </Box>
   );
 }
 
+// ─── P&L badge ──────────────────────────────────────────────────────────────
+
+function PnLBadge({ profit }: { profit: number }) {
+  const up = profit >= 0;
+  return (
+    <Chip
+      size="small"
+      variant="outlined"
+      color={up ? "success" : "error"}
+      icon={up ? <TrendingUp /> : <TrendingDown />}
+      label={up ? "Profitable" : "In Loss"}
+    />
+  );
+}
+
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function PurchaseSummaryBar() {
-  const [s, setS] = React.useState<InventorySummary | null>(null);
+  const [s, setS] = React.useState<PortfolioSummary | null>(null);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -202,22 +222,39 @@ export default function PurchaseSummaryBar() {
         if (error || !data) { setLoading(false); return; }
 
         const d = data as any;
-        const totalInvested = Number(d.totalInvested ?? 0);
-        const totalProfit   = Number(d.totalProfit   ?? 0);
+        const totalInvested  = Number(d.totalInvested  ?? 0);
+        const totalProfit    = Number(d.totalProfit    ?? 0);
+        const activeInvested = Number(d.activeInvested ?? 0);
+        const activeProfit   = Number(d.activeProfit   ?? 0);
 
         setS({
-          total:         Number(d.total        ?? 0),
+          // Totals
+          uniquePurchases: Number(d.uniquePurchases ?? d.total ?? 0),
           totalInvested,
+          totalSold:      Number(d.totalSold ?? 0),
           totalProfit,
-          totalTickets:  Number(d.totalTickets  ?? 0),
-          futureEvents:  Number(d.futureEvents  ?? 0),
-          pastEvents:    Number(d.pastEvents    ?? 0),
-          available:     Number(d.available     ?? 0),
-          onHold:        Number(d.onHold        ?? 0),
-          depleted:      Number(d.depleted      ?? 0),
-          partialSold:   Number(d.partialSold   ?? 0),
-          unsold:        Number(d.unsold        ?? 0),
-          roi: totalInvested > 0 ? (totalProfit / totalInvested) * 100 : null,
+          totalRoi: totalInvested > 0 ? (totalProfit / totalInvested) * 100 : null,
+
+          // Total status
+          available:      Number(d.available       ?? 0),
+          onHold:         Number(d.onHold          ?? 0),
+          depleted:       Number(d.depleted        ?? 0),
+          partialSold:    Number(d.partialSold     ?? 0),
+          unsold:         Number(d.unsold          ?? 0),
+
+          // Active (future)
+          activeItems:    Number(d.activeItems     ?? 0),
+          activeInvested,
+          activeSold:     Number(d.activeSold ?? 0),
+          activeProfit,
+          activeRoi: activeInvested > 0 ? (activeProfit / activeInvested) * 100 : null,
+
+          // Active status
+          activeAvailable:   Number(d.activeAvailable   ?? 0),
+          activeOnHold:      Number(d.activeOnHold      ?? 0),
+          activeDepleted:    Number(d.activeDepleted    ?? 0),
+          activePartialSold: Number(d.activePartialSold ?? 0),
+          activeUnsold:      Number(d.activeUnsold      ?? 0),
         });
         setLoading(false);
       });
@@ -225,102 +262,153 @@ export default function PurchaseSummaryBar() {
 
   if (loading) {
     return (
-      <Stack direction="row" spacing={1.5} sx={{ mb: 2 }}>
-        <Skeleton variant="rounded" height={140} sx={{ flex: "1 1 0", minWidth: 210, borderRadius: 2 }} />
-      </Stack>
+      <Box sx={{ mb: 2 }}>
+        <Skeleton variant="rounded" height={170} sx={{ borderRadius: 2 }} />
+      </Box>
     );
   }
 
   if (!s) return null;
 
-  const profitAccent = s.totalProfit >= 0 ? "#2e7d32" : "#c62828";
-  const profitBg     = s.totalProfit >= 0 ? "rgba(46,125,50,0.08)" : "rgba(198,40,40,0.07)";
-
   return (
-    <Box sx={{ mb: 2 }}>
+    <Stack
+      direction={{ xs: "column", md: "row" }}
+      spacing={2}
+      sx={{ mb: 2 }}
+      alignItems="stretch"
+    >
+      {/* ══ Card 1: Total ══════════════════════════════════════════════════════ */}
       <Card
-        title="Portfolio"
+        title="Total"
+        subtitle="All purchases"
         accentColor="#1565c0"
-        bgColor="rgba(21,101,192,0.07)"
-        icon={<ShoppingCart sx={{ fontSize: 60 }} />}
+        icon={<ConfirmationNumberOutlined sx={{ fontSize: 17 }} />}
       >
-        <Stack direction="row" alignItems="flex-start" spacing={0}>
+        <Stack
+          direction="row"
+          spacing={2}
+          mt={1}
+          divider={<Divider orientation="vertical" flexItem />}
+        >
+          <BigStat
+            label="Purchases"
+            value={s.uniquePurchases}
+            hint="Number of distinct purchases made."
+          />
+          <BigStat
+            label="Invested"
+            value={fmtMoney(s.totalInvested)}
+            hint="Total amount spent buying tickets."
+          />
+          <BigStat
+            label="Sell"
+            value={fmtMoney(s.totalSold)}
+            valueColor="#2e7d32"
+            hint="Total revenue from tickets sold so far."
+          />
+        </Stack>
 
-          {/* ── Col 1: purchase counts ── */}
-          <Stack spacing={0.75} sx={{ flex: 1, px: 2 }}>
-            <Stack direction="row" spacing={3}>
-              <BigStat label="Total Purchases" value={s.total} />
-              <BigStat label="Total Tickets"   value={s.totalTickets} />
-            </Stack>
-            <Divider sx={{ my: 0.25, opacity: 0.35 }} />
-            <MetaRow label="Total invested" value={fmtMoney(s.totalInvested)} />
-            <Stack direction="row" spacing={2}>
-              <MetaRow label="Future events" value={s.futureEvents} valueColor="#00695c" />
-              <MetaRow label="Past events"   value={s.pastEvents} />
-            </Stack>
-          </Stack>
-
-          {/* ── Vertical divider ── */}
-          <Divider orientation="vertical" flexItem />
-
-          {/* ── Col 2: P&L ── */}
-          <Stack spacing={0.75} sx={{ flex: 1, px: 2 }}>
-            <Stack direction="row" spacing={3}>
-              <BigStat
-                label="Net P&L"
-                value={fmtMoney(s.totalProfit)}
-                valueColor={plColor(s.totalProfit)}
-              />
-              <BigStat
-                label="ROI"
-                value={s.roi != null ? fmtPct(s.roi) : "—"}
-                valueColor={s.roi != null ? plColor(s.roi) : undefined}
-              />
-            </Stack>
-            <Divider sx={{ my: 0.25, opacity: 0.35 }} />
-            <Box
-              sx={{
-                display: "inline-flex",
-                alignSelf: "flex-start",
-                alignItems: "center",
-                gap: 0.5,
-                px: 0.75,
-                py: 0.25,
-                borderRadius: 1,
-                bgcolor: profitBg,
-                border: "1px solid",
-                borderColor: profitAccent + "55",
-              }}
-            >
-              {s.totalProfit >= 0
-                ? <TrendingUp sx={{ fontSize: 14, color: profitAccent }} />
-                : <TrendingDown sx={{ fontSize: 14, color: profitAccent }} />
-              }
-              <Typography variant="caption" sx={{ color: profitAccent, fontWeight: 600 }}>
-                {s.totalProfit >= 0 ? "Profitable" : "In Loss"}
-              </Typography>
-            </Box>
-          </Stack>
-
-          {/* ── Vertical divider ── */}
-          <Divider orientation="vertical" flexItem />
-
-          {/* ── Col 3: status breakdown ── */}
-          <Stack spacing={0.4} sx={{ flex: 1, px: 2 }}>
-            <StatusRow dot="#1e88e5" label="Available"    count={s.available} />
-            <StatusRow dot="#fb8c00" label="On Hold"      count={s.onHold} />
-            <StatusRow dot="#2e7d32" label="Sold"         count={s.depleted} />
-            <StatusRow dot="#8e24aa" label="Partial Sold" count={s.partialSold} />
-            <StatusRow
-              dot="#c62828"
-              label="Unsold"
-              count={s.unsold}
-              countColor={s.unsold > 0 ? "#c62828" : undefined}
-            />
-          </Stack>
-
+        <Divider sx={{ mt: 2, mb: 2 }} />
+        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flexWrap: "wrap", rowGap: 1 }}>
+          <StatusChip color="#1b5e20" label="Sold"         count={s.depleted} />
+          <StatusChip color="#2e7d32" label="Partial Sold" count={s.partialSold} />
+          <StatusChip color="#1565c0" label="Available"    count={s.available} />
+          <StatusChip color="#f57c00" label="On Hold"      count={s.onHold} />
+          <StatusChip color="#c62828" label="Unsold"       count={s.unsold} />
         </Stack>
       </Card>
-    </Box>
+
+      {/* ══ Card 2: Active (future events) ═════════════════════════════════════ */}
+      <Card
+        title="Active"
+        subtitle="Upcoming events"
+        accentColor="#2e7d32"
+        icon={<Circle sx={{ fontSize: 12 }} />}
+      >
+        <Stack
+          direction="row"
+          spacing={2}
+          mt={1}
+          divider={<Divider orientation="vertical" flexItem />}
+        >
+          <BigStat
+            label="Purchases"
+            value={s.activeItems}
+            hint="Purchases for events that haven't happened yet."
+          />
+          <BigStat
+            label="Invested"
+            value={fmtMoney(s.activeInvested)}
+            hint="Amount spent on upcoming-event tickets."
+          />
+          <BigStat
+            label="Sell"
+            value={fmtMoney(s.activeSold)}
+            valueColor="#2e7d32"
+            hint="Revenue from upcoming-event tickets sold so far."
+          />
+        </Stack>
+
+        <Divider sx={{ mt: 2, mb: 2 }} />
+        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flexWrap: "wrap", rowGap: 1 }}>
+          <StatusChip color="#1b5e20" label="Sold"         count={s.activeDepleted} />
+          <StatusChip color="#2e7d32" label="Partial Sold" count={s.activePartialSold} />
+          <StatusChip color="#1565c0" label="Available"    count={s.activeAvailable} />
+          <StatusChip color="#f57c00" label="On Hold"      count={s.activeOnHold} />
+          <StatusChip color="#c62828" label="Unsold"       count={s.activeUnsold} />
+        </Stack>
+      </Card>
+
+      {/* ══ Card 3: P&L ════════════════════════════════════════════════════════ */}
+      <Card
+        title="P&L"
+        subtitle="Overall performance"
+        accentColor={s.totalProfit >= 0 ? "#2e7d32" : "#c62828"}
+        icon={s.totalProfit >= 0 ? <TrendingUp sx={{ fontSize: 16 }} /> : <TrendingDown sx={{ fontSize: 16 }} />}
+        badge={<PnLBadge profit={s.totalProfit} />}
+      >
+        <Stack
+          direction="row"
+          justifyContent="space-around"
+          alignItems="center"
+          spacing={2}
+          sx={{ flex: 1, mt: 1 }}
+        >
+          <Tooltip title="Profit or loss = Sold revenue minus cost of sold tickets." arrow>
+            <Box sx={{ textAlign: "center", cursor: "help" }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: plColor(s.totalProfit) }}>
+                {fmtMoney(s.totalProfit)}
+              </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ borderBottom: "1px dotted", borderColor: "text.disabled", display: "inline" }}
+              >
+                Net P&amp;L
+              </Typography>
+            </Box>
+          </Tooltip>
+          <Divider orientation="vertical" flexItem />
+          <Tooltip title="Return on investment = Net P&L ÷ Invested." arrow>
+            <Box sx={{ textAlign: "center", cursor: "help" }}>
+              <Typography
+                variant="h4"
+                fontWeight={700}
+                sx={{ color: s.totalRoi != null ? plColor(s.totalRoi) : "text.primary" }}
+              >
+                {s.totalRoi != null ? fmtPct(s.totalRoi) : "—"}
+              </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ borderBottom: "1px dotted", borderColor: "text.disabled", display: "inline" }}
+              >
+                ROI
+              </Typography>
+            </Box>
+          </Tooltip>
+        </Stack>
+      </Card>
+    </Stack>
   );
 }
