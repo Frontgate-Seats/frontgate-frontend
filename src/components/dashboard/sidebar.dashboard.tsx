@@ -101,7 +101,7 @@ export default function DashboardSidebar() {
             /> */}
             <DashboardSidebarPageItem
               id="purchases"
-              title="Purchases"
+              title="Inventory"
               icon={<StoreIcon />}
               href="/purchases"
               selected={
