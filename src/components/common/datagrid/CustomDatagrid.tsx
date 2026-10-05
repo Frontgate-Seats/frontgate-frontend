@@ -273,6 +273,11 @@ export default function CustomDataGrid({
                 {...(getRowStyle ? { getRowStyle } : {})}
                 sx={{
                   height: "100%",
+                  // Disable all animations/transitions within the grid
+                  "&, & *": {
+                    animation: "none !important",
+                    transition: "none !important",
+                  },
                   // Disable skeleton/loading row animations
                   "& .MuiDataGrid-loadingOverlay": {
                     animation: "none",
