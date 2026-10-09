@@ -151,6 +151,25 @@ export const updatePurchaseComment = createAsyncThunk(
   },
 );
 
+// 🔹 Update operator-set max user price on an inventory row
+export const updateMaxUserPrice = createAsyncThunk(
+  "purchases/updateMaxUserPrice",
+  async (
+    { rowId, maxUserPrice }: { rowId: string; maxUserPrice: number | null },
+    { dispatch, rejectWithValue },
+  ) => {
+    try {
+      const result = await purchasesApi.updateMaxUserPrice(rowId, maxUserPrice);
+      dispatch(setSnackbar({ message: "Max user price saved.", severity: "success" }));
+      return { rowId, max_user_price: result.max_user_price };
+    } catch (err: any) {
+      const message = `[Max User Price] ${getErrorMessage(err)}`;
+      dispatch(setSnackbar({ message, severity: "error" }));
+      return rejectWithValue(message);
+    }
+  },
+);
+
 const purchasesSlice = createSlice({
   name: "purchases",
   initialState,
@@ -225,6 +244,18 @@ const purchasesSlice = createSlice({
           state.rows.data[idx] = {
             ...state.rows.data[idx],
             list_price: action.payload.listPrice,
+          };
+        }
+      })
+      // 🔹 updateMaxUserPrice — patch max_user_price in local rows
+      .addCase(updateMaxUserPrice.fulfilled, (state, action) => {
+        const idx = state.rows.data.findIndex(
+          (r) => r.id === action.payload.rowId,
+        );
+        if (idx !== -1) {
+          state.rows.data[idx] = {
+            ...state.rows.data[idx],
+            max_user_price: action.payload.max_user_price,
           };
         }
       });

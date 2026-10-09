@@ -13,6 +13,7 @@ import { getPurchases } from "../store/slices/purchases.slice";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import PurchaseCommentCell from "../components/purchases/PurchaseCommentCell";
 import UpdatePriceCell from "../components/purchases/UpdatePriceCell";
+import MaxUserPriceCell from "../components/purchases/MaxUserPriceCell";
 import PurchaseSummaryBar from "../components/purchases/PurchaseSummaryBar";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
@@ -127,6 +128,7 @@ const PurchasesPage: React.FC = () => {
       { field: "quantity", type: "number" },
       { field: "total_amount", type: "number" },
       { field: "list_price", type: "number" },
+      { field: "max_user_price", type: "number" },
       { field: "sold_price", type: "number" },
       { field: "sold_quantity", type: "number" },
       { field: "sold_at", type: "dateTime" },
@@ -357,6 +359,23 @@ const PurchasesPage: React.FC = () => {
       },
     },
     {
+      field: "max_user_price",
+      headerName: "Max User Price",
+      width: 150,
+      type: "number",
+      sortable: true,
+      filterable: true,
+      align: "right",
+      headerAlign: "right",
+      renderCell: (params) => (
+        <MaxUserPriceCell
+          rowId={params.row.id}
+          currentPrice={params.row.max_user_price}
+          inventoryStatus={params.row.inventory_status}
+        />
+      ),
+    },
+    {
       field: "sold_price",
       headerName: "Sold Price",
       width: 110,
@@ -542,6 +561,7 @@ const PurchasesPage: React.FC = () => {
                     { field: "total_amount" },
                     { field: "price_per" },
                     { field: "list_price" },
+                    { field: "max_user_price" },
                   ],
                 },
                 {
