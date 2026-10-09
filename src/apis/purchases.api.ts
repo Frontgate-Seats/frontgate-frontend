@@ -32,6 +32,28 @@ export const updatePurchaseComment = async (
   return data;
 };
 
+/**
+ * Persist the operator-set maximum user price on an inventory row.
+ * Local-only field (no SkyBox call) — written straight to inventory.max_user_price.
+ * Pass null to clear it.
+ */
+export const updateMaxUserPrice = async (
+  rowId: string,
+  maxUserPrice: number | null,
+) => {
+  const { data, error } = await supabaseClient
+    .from("inventory")
+    .update({ max_user_price: maxUserPrice })
+    .eq("id", rowId)
+    .select("id, max_user_price")
+    .single();
+
+  if (error) {
+    throw new Error(getErrorMessage(error));
+  }
+  return data;
+};
+
 export const createQuote = async (payload: {
   event_id: string;
   listing_id: string;
@@ -116,6 +138,7 @@ export const updateInventoryPrice = async (payload: {
 const purchasesApi = {
   fetchPurchases,
   updatePurchaseComment,
+  updateMaxUserPrice,
   createQuote,
   createOrder,
   updateInventoryPrice,
