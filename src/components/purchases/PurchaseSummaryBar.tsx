@@ -374,7 +374,7 @@ export default function PurchaseSummaryBar() {
           spacing={2}
           sx={{ flex: 1, mt: 1 }}
         >
-          <Tooltip title="Profit or loss = Sold revenue minus cost of sold tickets." arrow>
+          <Tooltip title="Total profit or loss across the whole book: realized gains/losses on sold tickets, plus the full cost of unsold tickets written off as a loss." arrow>
             <Box sx={{ textAlign: "center", cursor: "help" }}>
               <Typography variant="h4" fontWeight={700} sx={{ color: plColor(s.totalProfit) }}>
                 {fmtMoney(s.totalProfit)}
@@ -389,7 +389,7 @@ export default function PurchaseSummaryBar() {
             </Box>
           </Tooltip>
           <Divider orientation="vertical" flexItem />
-          <Tooltip title="Return on investment = Net P&L ÷ Invested." arrow>
+          <Tooltip title="Return on investment = total Net P&L ÷ total Invested (all purchases)." arrow>
             <Box sx={{ textAlign: "center", cursor: "help" }}>
               <Typography
                 variant="h4"

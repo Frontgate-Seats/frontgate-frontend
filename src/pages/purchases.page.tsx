@@ -33,9 +33,13 @@ function getUrgencyRowClass(
   days: number | null,
   inventoryStatus?: string,
   profit?: number | null,
+  fulfillmentStatus?: string | null,
 ): string {
   if (days === null) return "";
-  if (inventoryStatus === "DEPLETED")
+  // A sold-out (DEPLETED) row only settles to win/loss once it is fulfilled.
+  // While fulfillment is still PENDING (or unknown), keep the days-based
+  // urgency color so it stays actionable.
+  if (inventoryStatus === "DEPLETED" && fulfillmentStatus === "COMPLETE")
     return profit != null && profit < 0 ? "urgency-row-loss" : "urgency-row-win";
   if (inventoryStatus === "UNSOLD") return "urgency-row-loss";
   if (days < 1) return "urgency-row-critical";
@@ -85,6 +89,11 @@ const INVENTORY_STATUS_OPTIONS = [
   { value: "PARTIAL_SOLD", label: "PARTIAL_SOLD" },
 ];
 
+const FULFILLMENT_STATUS_OPTIONS = [
+  { value: "PENDING", label: "PENDING" },
+  { value: "COMPLETE", label: "COMPLETE" },
+];
+
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -125,6 +134,7 @@ const PurchasesPage: React.FC = () => {
       { field: "profit", type: "number" },
       { field: "status", type: "singleSelect" },
       { field: "inventory_status", type: "singleSelect" },
+      { field: "fulfillment_status", type: "singleSelect" },
       { field: "is_auto_trade", type: "singleSelect" },
     ],
     defaultPaginationModel: { page: 0, pageSize: 25 },
@@ -449,6 +459,17 @@ const PurchasesPage: React.FC = () => {
       valueFormatter: (value: any) => (value === "DEPLETED" ? "SOLD" : value),
     },
     {
+      field: "fulfillment_status",
+      headerName: "Fulfillment Status",
+      headerAlign: "center",
+      align: "center",
+      width: 170,
+      type: "singleSelect",
+      sortable: true,
+      filterable: true,
+      valueOptions: FULFILLMENT_STATUS_OPTIONS,
+    },
+    {
       field: "is_auto_trade",
       headerName: "Trade Type",
       width: 120,
@@ -548,6 +569,7 @@ const PurchasesPage: React.FC = () => {
                   children: [
                     { field: "status" },
                     { field: "inventory_status" },
+                    { field: "fulfillment_status" },
                     { field: "is_auto_trade" },
                   ],
                 },
@@ -565,6 +587,7 @@ const PurchasesPage: React.FC = () => {
                   getDaysToEvent(params.row.event_utc_date),
                   params.row.inventory_status,
                   params.row.profit,
+                  params.row.fulfillment_status,
                 )
               }
               isLoading={purchasesLoading}
