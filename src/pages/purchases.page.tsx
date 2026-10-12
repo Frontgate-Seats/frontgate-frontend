@@ -14,6 +14,7 @@ import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
 import PurchaseCommentCell from "../components/purchases/PurchaseCommentCell";
 import UpdatePriceCell from "../components/purchases/UpdatePriceCell";
 import MaxUserPriceCell from "../components/purchases/MaxUserPriceCell";
+import TicketUrlsCell from "../components/purchases/TicketUrlsCell";
 import PurchaseSummaryBar from "../components/purchases/PurchaseSummaryBar";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
@@ -372,6 +373,7 @@ const PurchasesPage: React.FC = () => {
           rowId={params.row.id}
           currentPrice={params.row.max_user_price}
           inventoryStatus={params.row.inventory_status}
+          eventUtcDate={params.row.event_utc_date}
         />
       ),
     },
@@ -489,6 +491,21 @@ const PurchasesPage: React.FC = () => {
       valueOptions: FULFILLMENT_STATUS_OPTIONS,
     },
     {
+      field: "urls",
+      headerName: "URLs",
+      width: 110,
+      sortable: false,
+      filterable: false,
+      align: "center",
+      headerAlign: "center",
+      renderCell: (params) => (
+        <TicketUrlsCell
+          transferUrls={params.row.transfer_urls}
+          downloadUrls={params.row.download_urls}
+        />
+      ),
+    },
+    {
       field: "is_auto_trade",
       headerName: "Trade Type",
       width: 120,
@@ -590,6 +607,7 @@ const PurchasesPage: React.FC = () => {
                     { field: "status" },
                     { field: "inventory_status" },
                     { field: "fulfillment_status" },
+                    { field: "urls" },
                     { field: "is_auto_trade" },
                   ],
                 },

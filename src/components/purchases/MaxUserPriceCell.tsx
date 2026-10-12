@@ -27,6 +27,8 @@ interface MaxUserPriceCellProps {
   currentPrice: number | null | undefined;
   /** Inventory status — editing is disabled once the item is sold (DEPLETED) */
   inventoryStatus: string | null | undefined;
+  /** Event UTC date — used to hide editing for UNSOLD past inventory */
+  eventUtcDate: string | null | undefined;
 }
 
 /**
@@ -41,6 +43,7 @@ export default function MaxUserPriceCell({
   rowId,
   currentPrice,
   inventoryStatus,
+  eventUtcDate,
 }: MaxUserPriceCellProps) {
   const dispatch = useDispatch<AppDispatch>();
 
@@ -50,8 +53,12 @@ export default function MaxUserPriceCell({
   const [inputError, setInputError] = React.useState("");
 
   const open = Boolean(anchorEl);
+  // Past events can no longer be acted on.
+  const isPastEvent = eventUtcDate ? new Date(eventUtcDate).getTime() <= Date.now() : false;
   // Sold items are final — no editing the max user price once DEPLETED.
-  const canEdit = inventoryStatus !== "DEPLETED";
+  // UNSOLD inventory for a past event is also final, so hide the edit icon there too.
+  const canEdit =
+    inventoryStatus !== "DEPLETED" && !(inventoryStatus === "UNSOLD" && isPastEvent);
 
   const handleOpen = (e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
