@@ -103,10 +103,10 @@ export default function DashboardSidebar() {
               id="purchases"
               title="Inventory"
               icon={<StoreIcon />}
-              href="/purchases"
+              href="/inventories"
               selected={
-                !!matchPath("/purchases/*", pathname) ||
-                pathname === "/purchases"
+                !!matchPath("/inventories/*", pathname) ||
+                pathname === "/inventories"
               }
             />
             {/* Suggestions tab removed per meeting - June 24, 2026 

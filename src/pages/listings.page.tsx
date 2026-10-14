@@ -689,7 +689,7 @@ export default function ListingsPage() {
               onClick={(e) => {
                 close();
                 e.stopPropagation();
-                const url = `/purchases`;
+                const url = `/inventories`;
                 if (e.ctrlKey || e.metaKey) {
                   window.open(url, "_blank");
                 } else {
