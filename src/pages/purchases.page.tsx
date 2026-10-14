@@ -7,7 +7,11 @@ import {
   Link,
   Stack,
   Chip,
+  Box,
+  IconButton,
+  GlobalStyles,
 } from "@mui/material";
+import { KeyboardArrowDown, KeyboardArrowRight } from "@mui/icons-material";
 import type { AppDispatch, RootState } from "../store";
 import { getPurchases } from "../store/slices/purchases.slice";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
@@ -16,6 +20,9 @@ import UpdatePriceCell from "../components/purchases/UpdatePriceCell";
 import MaxUserPriceCell from "../components/purchases/MaxUserPriceCell";
 import TicketUrlsCell from "../components/purchases/TicketUrlsCell";
 import PurchaseSummaryBar from "../components/purchases/PurchaseSummaryBar";
+import InventorySoldPanel, {
+  INVENTORY_SOLD_PANEL_HEIGHT,
+} from "../components/purchases/InventorySoldPanel";
 import type { CustomGridColDef } from "../shared/types/mui.type";
 import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
 import { formatDateTime } from "../shared/utils/dateTime.util";
@@ -107,6 +114,13 @@ const PurchasesPage: React.FC = () => {
     error: purchasesError,
   } = useSelector((state: RootState) => state.purchases);
 
+  // ── Expanded rows (accordion) ───────────────────────────────────────────────
+  // Only one row open at a time — mirrors the Recommendations page.
+  const [expanded, setExpanded] = React.useState<Record<string | number, boolean>>({});
+  const toggleRow = React.useCallback((id: string | number) => {
+    setExpanded((prev) => (prev[id] ? {} : { [id]: true }));
+  }, []);
+
   const {
     paginationModel,
     setPaginationModel,
@@ -184,22 +198,80 @@ const PurchasesPage: React.FC = () => {
     );
   }, [dispatch, paginationModel, effectiveSort, filterModel]);
 
+  // ── Build display rows: inject a detail row after each expanded parent ──────
+  // A detail row carries only `_rowType: "detail"` + the parent row; the first
+  // column spans the full width and renders the sold-inventory panel.
+  const displayRows = React.useMemo(() => {
+    const rows: any[] = [];
+    purchases.forEach((p: any) => {
+      rows.push(p);
+      if (expanded[p.id]) {
+        rows.push({ id: `__detail__${p.id}`, _rowType: "detail", _parentRow: p });
+      }
+    });
+    return rows;
+  }, [purchases, expanded]);
+
+  // Close all expanded rows when sort/pagination/filter changes to avoid
+  // stale detail rows attached to the wrong parent.
+  const prevKeyRef = React.useRef<string>("");
+  React.useEffect(() => {
+    const key = JSON.stringify({ sortModel, paginationModel, filterModel });
+    if (prevKeyRef.current && prevKeyRef.current !== key) {
+      setExpanded({});
+    }
+    prevKeyRef.current = key;
+  }, [sortModel, paginationModel, filterModel]);
+
+  const totalColumns = 24; // __expand (now holds the comment icon) + 23 data columns
+
   // ── Columns ────────────────────────────────────────────────────────────────
   const columns: CustomGridColDef[] = [
+    // Expand toggle. On a detail row this cell spans ALL columns and renders
+    // the sold-inventory panel.
     {
-      field: "llm_result_comment",
+      field: "__expand",
       headerName: "",
-      width: 60,
+      width: 96,
       sortable: false,
       filterable: false,
+      disableColumnMenu: true,
       align: "center",
       headerAlign: "center",
-      renderCell: (params) => (
-        <PurchaseCommentCell
-          purchaseRowId={params.row.id}
-          comment={params.row.llm_result_comment}
-        />
-      ),
+      colSpan: (_value: any, row: any) =>
+        row._rowType === "detail" ? totalColumns : 1,
+      renderCell: (params) => {
+        if (params.row._rowType === "detail") {
+          return (
+            <Box sx={{ width: "100%", height: "100%" }}>
+              <InventorySoldPanel purchaseId={params.row._parentRow?.purchase_id} />
+            </Box>
+          );
+        }
+        const isOpen = !!expanded[params.row.id];
+        return (
+          <Stack direction="row" alignItems="center" spacing={0}>
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleRow(params.row.id);
+              }}
+              aria-label={isOpen ? "Collapse" : "Expand"}
+            >
+              {isOpen ? (
+                <KeyboardArrowDown fontSize="small" />
+              ) : (
+                <KeyboardArrowRight fontSize="small" />
+              )}
+            </IconButton>
+            <PurchaseCommentCell
+              purchaseRowId={params.row.id}
+              comment={params.row.llm_result_comment}
+            />
+          </Stack>
+        );
+      },
     },
     {
       field: "event_id",
@@ -208,17 +280,20 @@ const PurchasesPage: React.FC = () => {
       type: "number",
       align: "left",
       headerAlign: "left",
-      renderCell: (params) => (
-        <Link
-          href={`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${params.value}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          underline="hover"
-          color="primary"
-        >
-          {params.value}
-        </Link>
-      ),
+      renderCell: (params) => {
+        if (params.row._rowType === "detail") return null;
+        return (
+          <Link
+            href={`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${params.value}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            underline="hover"
+            color="primary"
+          >
+            {params.value}
+          </Link>
+        );
+      },
     },
     {
       field: "event_name",
@@ -244,6 +319,7 @@ const PurchasesPage: React.FC = () => {
       headerAlign: "center",
       align: "center",
       renderCell: (params) => {
+        if (params.row._rowType === "detail") return null;
         const days = getDaysToEvent(params.row.event_utc_date);
         return (
           <Typography variant="body2" color="text.primary">
@@ -265,17 +341,20 @@ const PurchasesPage: React.FC = () => {
       headerName: "PO ID",
       type: "string",
       width: 140,
-      renderCell: (params) => (
-        <Link
-          href={`https://skybox.vividseats.com/purchases/${params.value}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          underline="hover"
-          color="primary"
-        >
-          {params.value}
-        </Link>
-      ),
+      renderCell: (params) => {
+        if (params.row._rowType === "detail") return null;
+        return (
+          <Link
+            href={`https://skybox.vividseats.com/purchases/${params.value}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            underline="hover"
+            color="primary"
+          >
+            {params.value}
+          </Link>
+        );
+      },
     },
     {
       field: "inventory_id",
@@ -533,6 +612,18 @@ const PurchasesPage: React.FC = () => {
   ];
 
   return (
+    <>
+    <GlobalStyles
+      styles={{
+        ".purchase-row-expanded": {
+          backgroundColor: "rgba(25, 118, 210, 0.08) !important",
+          borderLeft: "3px solid #1976d2",
+          "&:hover": {
+            backgroundColor: "rgba(25, 118, 210, 0.13) !important",
+          },
+        },
+      }}
+    />
     <Stack
       padding={3}
       sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}
@@ -557,7 +648,7 @@ const PurchasesPage: React.FC = () => {
                   groupId: "common",
                   headerName: "Common",
                   children: [
-                    { field: "llm_result_comment" },
+                    { field: "__expand" },
                     { field: "event_id" },
                     { field: "event_name" },
                     { field: "event_utc_date" },
@@ -617,17 +708,24 @@ const PurchasesPage: React.FC = () => {
                   Inventory
                 </Typography>
               }
-              rows={purchases}
+              rows={displayRows}
               rowCount={total}
               columns={columns}
-              getRowClassName={(params) =>
-                getUrgencyRowClass(
+              getRowHeight={(params: any) =>
+                params.model._rowType === "detail"
+                  ? INVENTORY_SOLD_PANEL_HEIGHT
+                  : null
+              }
+              getRowClassName={(params) => {
+                if (params.row._rowType === "detail") return "trade-detail-row";
+                if (expanded[params.row.id]) return "purchase-row-expanded";
+                return getUrgencyRowClass(
                   getDaysToEvent(params.row.event_utc_date),
                   params.row.inventory_status,
                   params.row.profit,
                   params.row.fulfillment_status,
-                )
-              }
+                );
+              }}
               isLoading={purchasesLoading}
               error={purchasesError as any}
               paginationModel={paginationModel}
@@ -643,6 +741,7 @@ const PurchasesPage: React.FC = () => {
         </Grid>
       </Grid>
     </Stack>
+    </>
   );
 };
 
