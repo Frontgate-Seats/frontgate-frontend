@@ -75,7 +75,7 @@ export const route: RouteObject[] = [
       //   element: <SuggestionsPage />,
       // },
       {
-        path: "/trades",
+        path: "/recommendations",
         element: <TradesPage />,
       },
       {

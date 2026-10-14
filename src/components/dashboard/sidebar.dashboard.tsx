@@ -7,7 +7,7 @@ import { matchPath, useLocation } from "react-router";
 import EventIcon from "@mui/icons-material/Event";
 import StoreIcon from "@mui/icons-material/Store";
 // import LightbulbIcon from "@mui/icons-material/Lightbulb";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import RecommendIcon from "@mui/icons-material/Recommend";
 
 import {
   getDrawerSxTransitionMixin,
@@ -122,13 +122,13 @@ export default function DashboardSidebar() {
             />
             */}
             <DashboardSidebarPageItem
-              id="trades"
-              title="Trades"
-              icon={<TrendingUpIcon />}
-              href="/trades"
+              id="recommendations"
+              title="Recommendations"
+              icon={<RecommendIcon />}
+              href="/recommendations"
               selected={
-                !!matchPath("/trades/*", pathname) ||
-                pathname === "/trades"
+                !!matchPath("/recommendations/*", pathname) ||
+                pathname === "/recommendations"
               }
             />
 

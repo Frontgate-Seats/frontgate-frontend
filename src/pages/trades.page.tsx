@@ -512,7 +512,7 @@ export default function TradesPage() {
           sx={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}
         >
           <CustomDataGrid
-            title="Ticket Trades"
+            title="Recommendations"
             rows={displayRows}
             rowCount={total}
             columns={columns}
@@ -538,7 +538,7 @@ export default function TradesPage() {
             }}
             headerComponent={
               <Typography variant="h6" fontWeight={600}>
-                Ticket Trades
+                Recommendations
               </Typography>
             }
             isFullHeight={true}
