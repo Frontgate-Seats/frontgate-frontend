@@ -66,7 +66,7 @@ export const route: RouteObject[] = [
         element: <SalesPage />,
       },
       {
-        path: "/purchases",
+        path: "/inventories",
         element: <PurchasesPage />,
       },
       // Suggestions page removed per meeting - June 24, 2026

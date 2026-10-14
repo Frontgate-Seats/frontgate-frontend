@@ -388,7 +388,7 @@ export default function PurchaseModalProvider({ children }: { children: React.Re
               color="primary"
               onClick={() => {
                 close();
-                navigate("/purchases");
+                navigate("/inventories");
               }}
               sx={{ mt: 4, px: 6, py: 1.4, borderRadius: 3, fontWeight: 600, textTransform: "none" }}
             >
