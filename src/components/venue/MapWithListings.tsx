@@ -29,6 +29,7 @@ import type { VenueMapData } from "../../store/slices/listingsMapView.slice";
 import { getMergedColumns } from "../../pages/listingsMapView.columns";
 import type { Trade } from "../../shared/types/trade.types";
 import supabaseClient from "../../clients/supabase.client";
+import { useRole } from "../../hooks/useRole";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -67,6 +68,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
   stubhubEventId: stubhubEventIdProp,
   onSectionFilterChange,
 }) => {
+  const { canBuy } = useRole();
   const [listings, setListings] = React.useState<any[]>([]);
   const [hermesListings, setHermesListings] = React.useState<any[]>([]);
   const [stubhubListings, setStubhubListings] = React.useState<any[]>([]);
@@ -308,7 +310,7 @@ const MapWithListings: React.FC<MapWithListingsProps> = ({
     onBuyClick({ ...row, id: row.listingId, quantity: Number(row.quantity) });
   }, [onBuyClick]);
 
-  const mergedColumns = React.useMemo(() => getMergedColumns(handleBuyClick), [handleBuyClick]);
+  const mergedColumns = React.useMemo(() => getMergedColumns(handleBuyClick, canBuy), [handleBuyClick, canBuy]);
 
   const {
     paginationModel, sortModel, filterModel,

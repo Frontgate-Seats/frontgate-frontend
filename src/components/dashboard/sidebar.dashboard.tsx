@@ -21,16 +21,17 @@ import {
 import DashboardSidebarHeaderItem from "./headerItem.dashboard";
 import DashboardSidebarPageItem from "./pageItem.dashboard";
 import { useDashboardLayoutContext } from "../../contexts/dashboardLayout.context";
+import { useRole } from "../../hooks/useRole";
 
 export default function DashboardSidebar() {
   const { pathname } = useLocation();
+  const { canAccess } = useRole();
 
   const {
     mini,
     handleSetSidebarExpanded,
     isNavigationExpanded,
     isFullyExpanded,
-    expandedItemIds,
     hasDrawerTransitions,
     dashboardLayoutRef,
   } = useDashboardLayoutContext();
@@ -73,14 +74,26 @@ export default function DashboardSidebar() {
             <DashboardSidebarHeaderItem>Main</DashboardSidebarHeaderItem>
 
             <DashboardSidebarPageItem
-              id="events"
-              title="Events"
-              icon={<EventIcon />}
-              href="/events"
+              id="purchases"
+              title="Inventory"
+              icon={<StoreIcon />}
+              href="/inventories"
               selected={
-                !!matchPath("/events/*", pathname) || pathname === "/events"
+                !!matchPath("/inventories/*", pathname) ||
+                pathname === "/inventories"
               }
             />
+            {canAccess("events") && (
+              <DashboardSidebarPageItem
+                id="events"
+                title="Events"
+                icon={<EventIcon />}
+                href="/events"
+                selected={
+                  !!matchPath("/events/*", pathname) || pathname === "/events"
+                }
+              />
+            )}
             {/* <DashboardSidebarPageItem
               id="listings"
               title="Listings"
@@ -99,16 +112,6 @@ export default function DashboardSidebar() {
                 !!matchPath("/sales/*", pathname) || pathname === "/sales"
               }
             /> */}
-            <DashboardSidebarPageItem
-              id="purchases"
-              title="Inventory"
-              icon={<StoreIcon />}
-              href="/inventories"
-              selected={
-                !!matchPath("/inventories/*", pathname) ||
-                pathname === "/inventories"
-              }
-            />
             {/* Suggestions tab removed per meeting - June 24, 2026 
             <DashboardSidebarPageItem
               id="suggestions"
@@ -121,16 +124,18 @@ export default function DashboardSidebar() {
               }
             />
             */}
-            <DashboardSidebarPageItem
-              id="recommendations"
-              title="Recommendations"
-              icon={<RecommendIcon />}
-              href="/recommendations"
-              selected={
-                !!matchPath("/recommendations/*", pathname) ||
-                pathname === "/recommendations"
-              }
-            />
+            {canAccess("recommendations") && (
+              <DashboardSidebarPageItem
+                id="recommendations"
+                title="Recommendations"
+                icon={<RecommendIcon />}
+                href="/recommendations"
+                selected={
+                  !!matchPath("/recommendations/*", pathname) ||
+                  pathname === "/recommendations"
+                }
+              />
+            )}
 
             {/* <DashboardSidebarPageItem
               id="charts"
@@ -145,7 +150,7 @@ export default function DashboardSidebar() {
         </Box>
       </Fragment>
     ),
-    [mini, hasDrawerTransitions, isFullyExpanded, expandedItemIds, pathname]
+    [mini, hasDrawerTransitions, isFullyExpanded, pathname, canAccess]
   );
 
   // Drawer shared styles

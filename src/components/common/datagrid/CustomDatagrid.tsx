@@ -4,11 +4,14 @@ import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
+import Switch from "@mui/material/Switch";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import {
   DataGrid,
   type GridPaginationModel,
   type GridSortModel,
   type GridFilterModel,
+  type GridFilterItem,
   type GridEventListener,
   type GridRowHeightParams,
   type GridColumnGroupingModel,
@@ -18,7 +21,7 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import FilterListOffIcon from "@mui/icons-material/FilterListOff";
 import CustomFilterToolbar from "./CustomToolbar";
 import CustomHeaderFilter from "./CustomHeaderFilter";
-import type { CustomGridColDef } from "../../../shared/types/mui.type";
+import type { CustomGridColDef, QuickFilter } from "../../../shared/types/mui.type";
 import ToggleFullscreen from "../ToggleFullscreen";
 
 const INITIAL_PAGE_SIZE = 25;
@@ -52,6 +55,7 @@ interface CustomDataGridProps {
   isFullHeight?: boolean;
   initialShowFilters?: boolean;
   columnGroupingModel?: GridColumnGroupingModel;
+  quickFilters?: QuickFilter[];
 }
 
 export default function CustomDataGrid({
@@ -81,6 +85,7 @@ export default function CustomDataGrid({
   isFullHeight = false,
   initialShowFilters = true,
   columnGroupingModel,
+  quickFilters,
 }: CustomDataGridProps) {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const handleFullscreenChange = (fullscreenMode: boolean) => {
@@ -88,6 +93,51 @@ export default function CustomDataGrid({
   };
 
   const [showFilters, setShowFilters] = React.useState(initialShowFilters);
+
+  // ── Quick filters (one-click shortcuts shown next to Refresh) ───────────────
+  // A quick filter is matched by field + operator + value so it is the SAME
+  // filter as the column's own filter input (they share the field), rather
+  // than a separate parallel entry.
+  const sameFilterItem = (a: GridFilterItem, b: GridFilterItem) =>
+    a.field === b.field &&
+    a.operator === b.operator &&
+    JSON.stringify(a.value ?? null) === JSON.stringify(b.value ?? null);
+
+  // Active when every item of the quick filter is present in the model.
+  const isQuickFilterActive = (qf: QuickFilter) =>
+    qf.items.every((qItem) =>
+      (filterModel?.items ?? []).some((i) => sameFilterItem(i, qItem)),
+    );
+
+  const toggleQuickFilter = (qf: QuickFilter) => () => {
+    if (!filterModel || !setFilterModel) return;
+
+    const stampedItems: GridFilterItem[] = qf.items.map((item, idx) => ({
+      ...item,
+      id: item.id ?? `qf:${qf.id}:${idx}`,
+    }));
+
+    // replaceAll: clicking replaces the whole model with this quick filter's
+    // items; clicking again falls back to itemsWhenInactive (or clears all).
+    if (qf.replaceAll) {
+      const inactiveItems: GridFilterItem[] = (qf.itemsWhenInactive ?? []).map(
+        (item, idx) => ({ ...item, id: item.id ?? `qf:${qf.id}:off:${idx}` }),
+      );
+      setFilterModel({
+        ...filterModel,
+        items: isQuickFilterActive(qf) ? inactiveItems : stampedItems,
+      });
+      return;
+    }
+
+    // Default: toggle only this quick filter's own fields, keep the rest.
+    const fields = new Set(qf.items.map((i) => i.field));
+    const others = (filterModel.items ?? []).filter((i) => !fields.has(i.field));
+    setFilterModel({
+      ...filterModel,
+      items: isQuickFilterActive(qf) ? others : [...others, ...stampedItems],
+    });
+  };
 
   // Default header component with logo
   const defaultHeaderComponent = (
@@ -190,7 +240,52 @@ export default function CustomDataGrid({
           >
             {finalHeaderComponent}
 
-            <Stack direction="row" spacing={1}>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              {/* Quick filters — on/off switches in a contained pill */}
+              {filterModel &&
+                setFilterModel &&
+                quickFilters?.map((qf) => {
+                  const active = isQuickFilterActive(qf);
+                  const control = (
+                    <FormControlLabel
+                      key={qf.id}
+                      label={qf.label}
+                      labelPlacement="start"
+                      control={
+                        <Switch
+                          size="small"
+                          checked={active}
+                          onChange={toggleQuickFilter(qf)}
+                          color="primary"
+                        />
+                      }
+                      sx={{
+                        m: 0,
+                        pl: 1.5,
+                        pr: 0.5,
+                        py: 0.25,
+                        borderRadius: 5,
+                        border: "1px solid",
+                        borderColor: active ? "primary.main" : "divider",
+                        bgcolor: active ? "action.selected" : "transparent",
+                        transition: "border-color 0.2s, background-color 0.2s",
+                        "& .MuiFormControlLabel-label": {
+                          fontSize: "0.8rem",
+                          fontWeight: 600,
+                          mr: 0.75,
+                          color: active ? "text.primary" : "text.secondary",
+                        },
+                      }}
+                    />
+                  );
+                  return qf.tooltip ? (
+                    <Tooltip key={qf.id} title={qf.tooltip} enterDelay={600}>
+                      {control}
+                    </Tooltip>
+                  ) : (
+                    control
+                  );
+                })}
               {defaultFilterType === "header" &&
                 filterModel &&
                 setFilterModel && (

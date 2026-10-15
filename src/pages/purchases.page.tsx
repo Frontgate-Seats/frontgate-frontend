@@ -23,9 +23,14 @@ import PurchaseSummaryBar from "../components/purchases/PurchaseSummaryBar";
 import InventorySoldPanel, {
   INVENTORY_SOLD_PANEL_HEIGHT,
 } from "../components/purchases/InventorySoldPanel";
-import type { CustomGridColDef } from "../shared/types/mui.type";
+import type { GridFilterItem } from "@mui/x-data-grid";
+import type { CustomGridColDef, QuickFilter } from "../shared/types/mui.type";
 import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
 import { formatDateTime } from "../shared/utils/dateTime.util";
+import { useRole } from "../hooks/useRole";
+
+// Columns hidden from roles that may not see financials (fulfillment team).
+const FINANCIAL_FIELDS = ["sold_price", "profit", "profit_pct"] as const;
 
 // ─── Days-to-event helpers ────────────────────────────────────────────────────
 
@@ -103,11 +108,49 @@ const FULFILLMENT_STATUS_OPTIONS = [
   { value: "COMPLETE", label: "COMPLETE" },
 ];
 
+// The "future events only" filter — the inventory default. Shared between the
+// grid's default filter model and the "Show Upcoming Open" quick filter so the
+// toggle's active-state detection matches exactly.
+const futureEventDateItem = (nowIso: string): GridFilterItem => ({
+  id: "event_utc_date-default",
+  field: "event_utc_date",
+  operator: "onOrAfter",
+  value: nowIso,
+});
+
+// "Show Upcoming Open": future events + PENDING fulfillment. Deselecting falls
+// back to the plain future-events default (not a cleared model).
+function buildInventoryQuickFilters(nowIso: string): QuickFilter[] {
+  return [
+    {
+      id: "upcoming-open",
+      label: "Show Upcoming Open",
+      tooltip:
+        "Show upcoming events that still need fulfillment (PENDING). Turn off to show all upcoming events.",
+      replaceAll: true,
+      items: [
+        futureEventDateItem(nowIso),
+        { field: "fulfillment_status", operator: "isAnyOf", value: ["PENDING"] },
+      ],
+      // Off → keep only the future-events default.
+      itemsWhenInactive: [futureEventDateItem(nowIso)],
+    },
+  ];
+}
+
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const PurchasesPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const { canSeeFinancials } = useRole();
+  // One timestamp shared by the default filter and the quick filter so the
+  // toggle reads as "active" on first load.
+  const nowIso = React.useMemo(() => new Date().toISOString(), []);
+  const inventoryQuickFilters = React.useMemo(
+    () => buildInventoryQuickFilters(nowIso),
+    [nowIso],
+  );
   const {
     loading: purchasesLoading,
     rows: { data: purchases, total },
@@ -156,14 +199,11 @@ const PurchasesPage: React.FC = () => {
     ],
     defaultPaginationModel: { page: 0, pageSize: 25 },
     defaultSortModel: [{ field: "event_utc_date", sort: "asc" }],
+    // "Show Upcoming Open" is on by default: future events + PENDING fulfillment.
     defaultFilterModel: {
       items: [
-        {
-          id: "event_utc_date-default",
-          field: "event_utc_date",
-          operator: "onOrAfter",
-          value: new Date().toISOString(),
-        },
+        futureEventDateItem(nowIso),
+        { field: "fulfillment_status", operator: "isAnyOf", value: ["PENDING"] },
       ],
     },
   });
@@ -611,6 +651,78 @@ const PurchasesPage: React.FC = () => {
     },
   ];
 
+  // Hide financial columns (sold price, profit, margin) for roles that may
+  // not see financials — the fulfillment team.
+  const isHiddenFinancialField = (field: string) =>
+    !canSeeFinancials &&
+    FINANCIAL_FIELDS.includes(field as (typeof FINANCIAL_FIELDS)[number]);
+
+  const visibleColumns = columns.filter(
+    (col) => !isHiddenFinancialField(col.field),
+  );
+
+  const columnGroupingModel = [
+    {
+      headerAlign: "center" as const,
+      groupId: "common",
+      headerName: "Common",
+      children: [
+        { field: "__expand" },
+        { field: "event_id" },
+        { field: "event_name" },
+        { field: "event_utc_date" },
+        { field: "days_to_event" },
+        { field: "created_at" },
+        { field: "inventory_id" },
+        { field: "purchase_id" },
+        { field: "section" },
+        { field: "row" },
+        { field: "quantity" },
+      ],
+    },
+    {
+      headerAlign: "center" as const,
+      groupId: "purchase",
+      headerName: "Purchase",
+      children: [
+        { field: "total_amount" },
+        { field: "price_per" },
+        { field: "list_price" },
+        { field: "max_user_price" },
+      ],
+    },
+    {
+      headerAlign: "center" as const,
+      groupId: "sold",
+      headerName: "Sold",
+      children: [{ field: "sold_price" }, { field: "sold_quantity" }],
+    },
+    {
+      headerAlign: "center" as const,
+      groupId: "profit_margin",
+      headerName: "Profit & Margin",
+      children: [{ field: "profit" }, { field: "profit_pct" }],
+    },
+    {
+      headerAlign: "center" as const,
+      groupId: "status_group",
+      headerName: "Status",
+      children: [
+        { field: "status" },
+        { field: "inventory_status" },
+        { field: "fulfillment_status" },
+        { field: "urls" },
+        { field: "is_auto_trade" },
+      ],
+    },
+  ]
+    // Drop hidden financial fields from each group, then drop empty groups.
+    .map((group) => ({
+      ...group,
+      children: group.children.filter((c) => !isHiddenFinancialField(c.field)),
+    }))
+    .filter((group) => group.children.length > 0);
+
   return (
     <>
     <GlobalStyles
@@ -636,73 +748,13 @@ const PurchasesPage: React.FC = () => {
           size={{ xs: 12 }}
           sx={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}
         >
-          <PurchaseSummaryBar />
+          {canSeeFinancials && <PurchaseSummaryBar />}
           {purchasesError ? (
             <Alert severity="error">{purchasesError}</Alert>
           ) : (
             <CustomDataGrid
               title="Inventory"
-              columnGroupingModel={[
-                {
-                  headerAlign: "center",
-                  groupId: "common",
-                  headerName: "Common",
-                  children: [
-                    { field: "__expand" },
-                    { field: "event_id" },
-                    { field: "event_name" },
-                    { field: "event_utc_date" },
-                    { field: "days_to_event" },
-                    { field: "created_at" },
-                    { field: "inventory_id" },
-                    { field: "purchase_id" },
-                    { field: "section" },
-                    { field: "row" },
-                    { field: "quantity" },
-                  ],
-                },
-                {
-                  headerAlign: "center",
-                  groupId: "purchase",
-                  headerName: "Purchase",
-                  children: [
-                    { field: "total_amount" },
-                    { field: "price_per" },
-                    { field: "list_price" },
-                    { field: "max_user_price" },
-                  ],
-                },
-                {
-                  headerAlign: "center",
-                  groupId: "sold",
-                  headerName: "Sold",
-                  children: [
-                    { field: "sold_price" },
-                    { field: "sold_quantity" },
-                  ],
-                },
-                {
-                  headerAlign: "center",
-                  groupId: "profit_margin",
-                  headerName: "Profit & Margin",
-                  children: [
-                    { field: "profit" },
-                    { field: "profit_pct" },
-                  ],
-                },
-                {
-                  headerAlign: "center",
-                  groupId: "status_group",
-                  headerName: "Status",
-                  children: [
-                    { field: "status" },
-                    { field: "inventory_status" },
-                    { field: "fulfillment_status" },
-                    { field: "urls" },
-                    { field: "is_auto_trade" },
-                  ],
-                },
-              ]}
+              columnGroupingModel={columnGroupingModel}
               headerComponent={
                 <Typography component="h2" sx={{ m: 0, fontSize: "1.5rem", fontWeight: 700 }}>
                   Inventory
@@ -710,7 +762,7 @@ const PurchasesPage: React.FC = () => {
               }
               rows={displayRows}
               rowCount={total}
-              columns={columns}
+              columns={visibleColumns}
               getRowHeight={(params: any) =>
                 params.model._rowType === "detail"
                   ? INVENTORY_SOLD_PANEL_HEIGHT
@@ -734,6 +786,7 @@ const PurchasesPage: React.FC = () => {
               setSortingModel={setSortModel}
               filterModel={filterModel}
               setFilterModel={setFilterModel}
+              quickFilters={inventoryQuickFilters}
               onRefresh={handleRefresh}
               isFullHeight={true}
             />

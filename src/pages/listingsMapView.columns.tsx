@@ -8,7 +8,10 @@ const VIVID_LOGO = "/vivid-logo.ico";
 const STUBHUB_LOGO = "/stubhub-logo.ico";
 const SEATGEEK_LOGO = "/seatgeek-logo.ico";
 
-export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColDef[] {
+export function getMergedColumns(
+  onBuyClick: (row: any) => void,
+  canBuy: boolean = true,
+): CustomGridColDef[] {
   return [
     {
       field: "__info",
@@ -158,6 +161,8 @@ export function getMergedColumns(onBuyClick: (row: any) => void): CustomGridColD
       sortable: false,
       filterable: false,
       getActions: (params: any) => {
+        // Role gate: hide buy button entirely for roles without buy permission.
+        if (!canBuy) return [];
         // No buy button for Hermes, StubHub, or SeatGeek listings
         if (params.row._source === "hermes" || params.row._source === "stubhub" || params.row._source === "seatgeek") return [];
 

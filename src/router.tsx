@@ -1,5 +1,6 @@
 import { Navigate, type RouteObject } from "react-router";
 import Loadable, { lazyWithRetry } from "./shared/loadable/index.loadable";
+import RequirePage from "./components/auth/RequirePage";
 
 const AuthProvider = Loadable(lazyWithRetry(() => import("./provider/auth.provider")));
 const NoAuthProvider = Loadable(lazyWithRetry(() => import("./provider/noAuth.provider")));
@@ -35,15 +36,23 @@ export const route: RouteObject[] = [
     children: [
       {
         index: true,
-        element: <Navigate to="/events" replace />,
+        element: <Navigate to="/inventories" replace />,
       },
       {
         path: "/events",
-        element: <EventsPage />,
+        element: (
+          <RequirePage page="events">
+            <EventsPage />
+          </RequirePage>
+        ),
       },
       {
         path: "/events/:eventId",
-        element: <EventDetailsPage />,
+        element: (
+          <RequirePage page="events">
+            <EventDetailsPage />
+          </RequirePage>
+        ),
       },
       {
         path: "/listings",
@@ -76,11 +85,15 @@ export const route: RouteObject[] = [
       // },
       {
         path: "/recommendations",
-        element: <TradesPage />,
+        element: (
+          <RequirePage page="recommendations">
+            <TradesPage />
+          </RequirePage>
+        ),
       },
       {
         path: "*",
-        element: <Navigate to="/events" replace />,
+        element: <Navigate to="/inventories" replace />,
       },
     ],
   },
@@ -99,7 +112,7 @@ export const route: RouteObject[] = [
     children: [
       {
         index: true,
-        element: <Navigate to="/events" replace />,
+        element: <Navigate to="/inventories" replace />,
       },
       {
         path: "/auth/signin",
@@ -107,7 +120,7 @@ export const route: RouteObject[] = [
       },
       {
         path: "*",
-        element: <Navigate to="/events" replace />,
+        element: <Navigate to="/inventories" replace />,
       },
     ],
   },
