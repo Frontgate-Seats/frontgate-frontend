@@ -320,15 +320,17 @@ export function useDataGridQueryParams({
     );
   }, [filterModel, setSearchParams]);
 
-  // ── Reset page to 0 when filter changes (skip first render) ──────────────
-  const skipFirstReset = React.useRef(true);
-  React.useEffect(() => {
-    if (skipFirstReset.current) {
-      skipFirstReset.current = false;
-      return;
-    }
-    setPaginationModel((prev) => ({ ...prev, page: 0 }));
-  }, [filterModel]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Keep the page in range whenever the filter changes ───────────────────
+  // Reset to page 0 in the SAME commit as the filter update (not in a
+  // follow-up effect) so a data fetch keyed on [paginationModel, filterModel]
+  // never fires with a stale page against a smaller, freshly-filtered result
+  // set — which Supabase rejects with PGRST103 "range not satisfiable".
+  const setFilterModelAndResetPage = React.useCallback<
+    React.Dispatch<React.SetStateAction<GridFilterModel>>
+  >((update) => {
+    setFilterModel(update);
+    setPaginationModel((prev) => (prev.page === 0 ? prev : { ...prev, page: 0 }));
+  }, []);
 
   return {
     paginationModel,
@@ -336,6 +338,6 @@ export function useDataGridQueryParams({
     filterModel,
     setPaginationModel,
     setSortModel,
-    setFilterModel,
+    setFilterModel: setFilterModelAndResetPage,
   };
 }

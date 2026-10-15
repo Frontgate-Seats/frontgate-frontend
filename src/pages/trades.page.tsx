@@ -29,6 +29,7 @@ import TradeDetailPanel, { TRADE_DETAIL_PANEL_HEIGHT } from "../components/trade
 import TradeInfoButton from "../components/trades/TradeInfoButton";
 import type { Trade } from "../shared/types/trade.types";
 import { usePurchaseModal } from "../components/common/PurchaseModal";
+import { useRole } from "../hooks/useRole";
 import moment from "moment";
 
 // ── Display row types ─────────────────────────────────────────────────────────
@@ -42,6 +43,7 @@ const DETAIL_ROW_HEIGHT_NO_LISTINGS = 240;
 export default function TradesPage() {
   const dispatch = useAppDispatch();
   const { openPurchaseModal } = usePurchaseModal();
+  const { canBuy } = useRole();
 
   const {
     rows: { data: trades, total },
@@ -161,7 +163,7 @@ export default function TradesPage() {
             <Box sx={{ width: "100%", height: "100%" }}>
               <TradeDetailPanel
                 trade={parentTrade}
-                onBuyClick={(listing) => {
+                onBuyClick={!canBuy ? undefined : (listing) => {
                   openPurchaseModal(
                     {
                       id: listing.id,
@@ -455,6 +457,7 @@ export default function TradesPage() {
         if (params.row._rowType === "detail") return null;
         const trade = params.row as Trade;
         if (!trade.event_id || !trade.listing_id) return null;
+        if (!canBuy) return null;
         return (
           <Button
             variant="contained"

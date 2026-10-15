@@ -40,6 +40,8 @@ import {
   resetPurchase,
 } from "../../../store/slices/purchases.slice";
 import { formatDateTime } from "../../../shared/utils/dateTime.util";
+import { setSnackbar } from "../../../store/slices/snackbar.slice";
+import { useRole } from "../../../hooks/useRole";
 import StepperModal from "../models/stepper.model";
 import type { StepData } from "../models/types.model";
 import {
@@ -52,6 +54,7 @@ import moment from "moment";
 export default function PurchaseModalProvider({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const { canBuy } = useRole();
 
   // Modal state
   const [open, setOpen] = React.useState(false);
@@ -82,6 +85,18 @@ export default function PurchaseModalProvider({ children }: { children: React.Re
   }, [listingsDetailsDataObj?.deliveryOptions]);
 
   const openPurchaseModal = React.useCallback((listing: PurchaseListingData, event: PurchaseEventData) => {
+    // Role gate: only roles with buy permission may start a purchase.
+    // This is the single choke point for every buy entry point in the app.
+    if (!canBuy) {
+      dispatch(
+        setSnackbar({
+          message: "You do not have permission to purchase tickets.",
+          severity: "warning",
+        }),
+      );
+      return;
+    }
+
     setSelectedListing(listing);
     setEventData(event);
     setActiveStep(0);
@@ -97,7 +112,7 @@ export default function PurchaseModalProvider({ children }: { children: React.Re
         quantity: listing.quantity || 1,
       }),
     );
-  }, [dispatch]);
+  }, [dispatch, canBuy]);
 
   const closePurchaseModal = React.useCallback(() => {
     setOpen(false);

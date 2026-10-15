@@ -9,6 +9,10 @@ import { useClientFilters } from "../../hooks/useClientFilters";
 import type { CustomGridColDef } from "../../shared/types/mui.type";
 import { formatDateTime } from "../../shared/utils/dateTime.util";
 import supabaseClient from "../../clients/supabase.client";
+import { useRole } from "../../hooks/useRole";
+
+// Sold-panel columns hidden from roles that may not see financials.
+const SOLD_FINANCIAL_FIELDS = ["sale_total", "profit"];
 
 // Fixed height of the expanded detail row — keep in sync with the value used
 // in purchases.page.tsx so the grid sizes the detail row precisely.
@@ -82,6 +86,7 @@ function MoneyText({
  * backend uses).
  */
 export default function InventorySoldPanel({ purchaseId }: InventorySoldPanelProps) {
+  const { canSeeFinancials } = useRole();
   const [rows, setRows] = React.useState<SoldInventoryRow[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -120,7 +125,7 @@ export default function InventorySoldPanel({ purchaseId }: InventorySoldPanelPro
 
   // ── Columns ─────────────────────────────────────────────────────────────
   const columns: CustomGridColDef[] = React.useMemo(
-    () => [
+    () => ([
       {
         field: "invoice_id",
         headerName: "Invoice ID",
@@ -225,8 +230,10 @@ export default function InventorySoldPanel({ purchaseId }: InventorySoldPanelPro
         valueOptions: ["PENDING", "COMPLETE"],
         valueFormatter: (value: any) => value ?? "—",
       },
-    ],
-    [],
+    ] as CustomGridColDef[]).filter(
+      (col) => canSeeFinancials || !SOLD_FINANCIAL_FIELDS.includes(col.field),
+    ),
+    [canSeeFinancials],
   );
 
   // ── Client-side filtering / sorting / pagination ──────────────────────────
