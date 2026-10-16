@@ -273,7 +273,7 @@ export default function EventsPage() {
       type: "dateTime",
       width: 160,
       valueFormatter: (value) =>
-        value ? formatDateTime(moment.parseZone(value)) : "-",
+        value ? formatDateTime(value) : "-",
       renderEditCell: (params) => (
         <LocalizationProvider dateAdapter={AdapterMoment}>
           <DateTimePicker

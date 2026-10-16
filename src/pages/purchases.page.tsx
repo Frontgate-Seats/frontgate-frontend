@@ -339,12 +339,8 @@ const PurchasesPage: React.FC = () => {
       headerName: "Event Date & Time",
       width: 170,
       type: "dateTime",
-      // Mirror the Events grid: event_local_date is the venue's wall-clock
-      // local time (zoneless). parseZone keeps that wall time as-is instead of
-      // shifting it into the browser's timezone.
-      valueGetter: (value: any) => (value ? moment.parseZone(value) : null),
-      valueFormatter: (value: any) =>
-        value ? formatDateTime(moment.parseZone(value)) : "-",
+      valueFormatter: (value) =>
+        value ? formatDateTime(value) : "-",
     },
     {
       field: "days_to_event",
