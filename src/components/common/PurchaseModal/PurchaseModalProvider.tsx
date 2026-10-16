@@ -148,8 +148,8 @@ export default function PurchaseModalProvider({ children }: { children: React.Re
         createOrder({
           event_id: eventData.id,
           event_name: eventData.name,
-          event_utc_date: eventData.utc_date
-            || (eventData.local_date ? moment(eventData.local_date).utc().toISOString() : ""),
+          event_utc_date: eventData.utc_date,
+          event_local_date: eventData.local_date,
           primary_performer_name: eventData.primary_performer_name || "",
           venue_id: eventData.venue_id || "",
           venue_name: eventData.venue_name || "",
