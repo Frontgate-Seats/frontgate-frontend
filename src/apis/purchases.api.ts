@@ -80,7 +80,8 @@ export const createOrder = async (payload: {
   // Event
   event_id: string;
   event_name: string;
-  event_utc_date: string;
+  event_utc_date?: string;
+  event_local_date?: string;
 
   // Venue
   venue_id: string;

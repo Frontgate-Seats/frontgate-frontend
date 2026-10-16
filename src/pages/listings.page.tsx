@@ -435,6 +435,7 @@ export default function ListingsPage() {
                 event_id: eventInfo?.id,
                 event_name: eventInfo?.name,
                 event_utc_date: eventInfo?.utc_date,
+                event_local_date: eventInfo?.local_date,
 
                 primary_performer_name: eventInfo?.primary_performer_name,
 

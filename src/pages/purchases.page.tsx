@@ -25,6 +25,7 @@ import InventorySoldPanel, {
 } from "../components/purchases/InventorySoldPanel";
 import type { GridFilterItem } from "@mui/x-data-grid";
 import type { CustomGridColDef, QuickFilter } from "../shared/types/mui.type";
+import moment from "moment";
 import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
 import { formatDateTime } from "../shared/utils/dateTime.util";
 import { useRole } from "../hooks/useRole";
@@ -36,9 +37,9 @@ const FINANCIAL_FIELDS = ["sold_price", "profit", "profit_pct"] as const;
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
-function getDaysToEvent(eventUtcDate: string | null | undefined): number | null {
-  if (!eventUtcDate) return null;
-  const eventMs = new Date(eventUtcDate).getTime();
+function getDaysToEvent(eventLocalDate: string | null | undefined): number | null {
+  if (!eventLocalDate) return null;
+  const eventMs = new Date(eventLocalDate).getTime();
   if (isNaN(eventMs)) return null;
   return Math.ceil((eventMs - Date.now()) / MS_PER_DAY);
 }
@@ -87,14 +88,6 @@ function MoneyCell({
   );
 }
 
-const STATUS_OPTIONS = [
-  { value: "CREATED", label: "CREATED" },
-  { value: "CONFIRMED", label: "CONFIRMED" },
-  { value: "PAYMENTS_CAPTURED", label: "PAYMENTS_CAPTURED" },
-  { value: "CANCELLED", label: "CANCELLED" },
-  { value: "DELIVERED", label: "DELIVERED" },
-];
-
 const INVENTORY_STATUS_OPTIONS = [
   { value: "AVAILABLE", label: "AVAILABLE" },
   { value: "ON_HOLD", label: "ON_HOLD" },
@@ -112,8 +105,8 @@ const FULFILLMENT_STATUS_OPTIONS = [
 // grid's default filter model and the "Show Upcoming Open" quick filter so the
 // toggle's active-state detection matches exactly.
 const futureEventDateItem = (nowIso: string): GridFilterItem => ({
-  id: "event_utc_date-default",
-  field: "event_utc_date",
+  id: "event_local_date-default",
+  field: "event_local_date",
   operator: "onOrAfter",
   value: nowIso,
 });
@@ -175,7 +168,7 @@ const PurchasesPage: React.FC = () => {
     columns: [
       { field: "event_id", type: "number" },
       { field: "event_name", type: "string" },
-      { field: "event_utc_date", type: "dateTime" },
+      { field: "event_local_date", type: "dateTime" },
       { field: "days_to_event", type: "number" },
       { field: "created_at", type: "dateTime" },
       { field: "listing_id", type: "string" },
@@ -198,20 +191,19 @@ const PurchasesPage: React.FC = () => {
       { field: "is_auto_trade", type: "singleSelect" },
     ],
     defaultPaginationModel: { page: 0, pageSize: 25 },
-    defaultSortModel: [{ field: "event_utc_date", sort: "asc" }],
-    // "Show Upcoming Open" is on by default: future events + PENDING fulfillment.
+    defaultSortModel: [{ field: "event_local_date", sort: "asc" }],
+    // "Show Upcoming Open" is OFF by default. We still default to upcoming
+    // (future) events, but without the PENDING-fulfillment constraint the
+    // toggle adds — matching the toggle's inactive state.
     defaultFilterModel: {
-      items: [
-        futureEventDateItem(nowIso),
-        { field: "fulfillment_status", operator: "isAnyOf", value: ["PENDING"] },
-      ],
+      items: [futureEventDateItem(nowIso)],
     },
   });
 
   const effectiveSort = React.useMemo(
     () =>
       sortModel.map((s) =>
-        s.field === "days_to_event" ? { ...s, field: "event_utc_date" } : s,
+        s.field === "days_to_event" ? { ...s, field: "event_local_date" } : s,
       ),
     [sortModel],
   );
@@ -263,7 +255,7 @@ const PurchasesPage: React.FC = () => {
     prevKeyRef.current = key;
   }, [sortModel, paginationModel, filterModel]);
 
-  const totalColumns = 24; // __expand (now holds the comment icon) + 23 data columns
+  const totalColumns = 21; // __expand + 20 data columns
 
   // ── Columns ────────────────────────────────────────────────────────────────
   const columns: CustomGridColDef[] = [
@@ -343,12 +335,16 @@ const PurchasesPage: React.FC = () => {
       type: "string",
     },
     {
-      field: "event_utc_date",
-      headerName: "Event Date (UTC)",
+      field: "event_local_date",
+      headerName: "Event Date & Time",
       width: 170,
       type: "dateTime",
-      valueGetter: (value: any) => (value ? new Date(value) : null),
-      valueFormatter: (value: any) => (value ? formatDateTime(value) : "-"),
+      // Mirror the Events grid: event_local_date is the venue's wall-clock
+      // local time (zoneless). parseZone keeps that wall time as-is instead of
+      // shifting it into the browser's timezone.
+      valueGetter: (value: any) => (value ? moment.parseZone(value) : null),
+      valueFormatter: (value: any) =>
+        value ? formatDateTime(moment.parseZone(value)) : "-",
     },
     {
       field: "days_to_event",
@@ -360,7 +356,7 @@ const PurchasesPage: React.FC = () => {
       align: "center",
       renderCell: (params) => {
         if (params.row._rowType === "detail") return null;
-        const days = getDaysToEvent(params.row.event_utc_date);
+        const days = getDaysToEvent(params.row.event_local_date);
         return (
           <Typography variant="body2" color="text.primary">
             {formatDaysLabel(days)}
@@ -375,32 +371,6 @@ const PurchasesPage: React.FC = () => {
       type: "dateTime",
       valueGetter: (value: any) => (value ? new Date(value) : null),
       valueFormatter: (value: any) => (value ? formatDateTime(value) : "-"),
-    },
-    {
-      field: "purchase_id",
-      headerName: "PO ID",
-      type: "string",
-      width: 140,
-      renderCell: (params) => {
-        if (params.row._rowType === "detail") return null;
-        return (
-          <Link
-            href={`https://skybox.vividseats.com/purchases/${params.value}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            underline="hover"
-            color="primary"
-          >
-            {params.value}
-          </Link>
-        );
-      },
-    },
-    {
-      field: "inventory_id",
-      headerName: "Inventory ID",
-      type: "string",
-      width: 140,
     },
     {
       field: "section",
@@ -462,8 +432,8 @@ const PurchasesPage: React.FC = () => {
       align: "right",
       headerAlign: "right",
       renderCell: (params) => {
-        const isPastEvent = params.row.event_utc_date
-          ? new Date(params.row.event_utc_date).getTime() <= Date.now()
+        const isPastEvent = params.row.event_local_date
+          ? new Date(params.row.event_local_date).getTime() <= Date.now()
           : false;
         if (isPastEvent)
           return <Typography variant="body2" color="text.disabled">—</Typography>;
@@ -472,7 +442,7 @@ const PurchasesPage: React.FC = () => {
             rowId={params.row.id}
             inventoryId={params.row.inventory_id}
             currentPrice={params.row.list_price}
-            eventUtcDate={params.row.event_utc_date}
+            eventUtcDate={params.row.event_local_date}
             inventoryStatus={params.row.inventory_status}
           />
         );
@@ -492,7 +462,7 @@ const PurchasesPage: React.FC = () => {
           rowId={params.row.id}
           currentPrice={params.row.max_user_price}
           inventoryStatus={params.row.inventory_status}
-          eventUtcDate={params.row.event_utc_date}
+          eventUtcDate={params.row.event_local_date}
         />
       ),
     },
@@ -578,17 +548,6 @@ const PurchasesPage: React.FC = () => {
       },
     },
     {
-      field: "status",
-      headerName: "Purchase Status",
-      headerAlign: "center",
-      align: "center",
-      width: 160,
-      type: "singleSelect",
-      valueOptions: STATUS_OPTIONS,
-      headerClassName: "group-separator",
-      cellClassName: "group-separator",
-    },
-    {
       field: "inventory_status",
       headerName: "Inventory Status",
       headerAlign: "center",
@@ -597,6 +556,8 @@ const PurchasesPage: React.FC = () => {
       type: "singleSelect",
       valueOptions: INVENTORY_STATUS_OPTIONS,
       valueFormatter: (value: any) => (value === "DEPLETED" ? "SOLD" : value),
+      headerClassName: "group-separator",
+      cellClassName: "group-separator",
     },
     {
       field: "fulfillment_status",
@@ -670,11 +631,9 @@ const PurchasesPage: React.FC = () => {
         { field: "__expand" },
         { field: "event_id" },
         { field: "event_name" },
-        { field: "event_utc_date" },
+        { field: "event_local_date" },
         { field: "days_to_event" },
         { field: "created_at" },
-        { field: "inventory_id" },
-        { field: "purchase_id" },
         { field: "section" },
         { field: "row" },
         { field: "quantity" },
@@ -708,7 +667,6 @@ const PurchasesPage: React.FC = () => {
       groupId: "status_group",
       headerName: "Status",
       children: [
-        { field: "status" },
         { field: "inventory_status" },
         { field: "fulfillment_status" },
         { field: "urls" },
@@ -772,7 +730,7 @@ const PurchasesPage: React.FC = () => {
                 if (params.row._rowType === "detail") return "trade-detail-row";
                 if (expanded[params.row.id]) return "purchase-row-expanded";
                 return getUrgencyRowClass(
-                  getDaysToEvent(params.row.event_utc_date),
+                  getDaysToEvent(params.row.event_local_date),
                   params.row.inventory_status,
                   params.row.profit,
                   params.row.fulfillment_status,
