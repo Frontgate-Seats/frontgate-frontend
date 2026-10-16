@@ -25,7 +25,6 @@ import InventorySoldPanel, {
 } from "../components/purchases/InventorySoldPanel";
 import type { GridFilterItem } from "@mui/x-data-grid";
 import type { CustomGridColDef, QuickFilter } from "../shared/types/mui.type";
-import moment from "moment";
 import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
 import { formatDateTime } from "../shared/utils/dateTime.util";
 import { useRole } from "../hooks/useRole";
