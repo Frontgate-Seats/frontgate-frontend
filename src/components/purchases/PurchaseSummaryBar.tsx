@@ -16,7 +16,7 @@ interface PortfolioSummary {
   totalInvested: number;
   totalSold: number;
   totalProfit: number;
-  totalRoi: number | null;
+  totalMargin: number | null;
 
   // Total status breakdown
   available: number;
@@ -30,7 +30,7 @@ interface PortfolioSummary {
   activeInvested: number;
   activeSold: number;
   activeProfit: number;
-  activeRoi: number | null;
+  activeMargin: number | null;
 
   // Active status breakdown
   activeAvailable: number;
@@ -223,8 +223,10 @@ export default function PurchaseSummaryBar() {
 
         const d = data as any;
         const totalInvested  = Number(d.totalInvested  ?? 0);
+        const totalSold      = Number(d.totalSold      ?? 0);
         const totalProfit    = Number(d.totalProfit    ?? 0);
         const activeInvested = Number(d.activeInvested ?? 0);
+        const activeSold     = Number(d.activeSold     ?? 0);
         const activeProfit   = Number(d.activeProfit   ?? 0);
 
         setS({
@@ -233,7 +235,7 @@ export default function PurchaseSummaryBar() {
           totalInvested,
           totalSold:      Number(d.totalSold ?? 0),
           totalProfit,
-          totalRoi: totalInvested > 0 ? (totalProfit / totalInvested) * 100 : null,
+          totalMargin: totalSold > 0 ? (totalProfit / totalSold) * 100 : null,
 
           // Total status
           available:      Number(d.available       ?? 0),
@@ -247,7 +249,7 @@ export default function PurchaseSummaryBar() {
           activeInvested,
           activeSold:     Number(d.activeSold ?? 0),
           activeProfit,
-          activeRoi: activeInvested > 0 ? (activeProfit / activeInvested) * 100 : null,
+          activeMargin: activeSold > 0 ? (activeProfit / activeSold) * 100 : null,
 
           // Active status
           activeAvailable:   Number(d.activeAvailable   ?? 0),
@@ -389,21 +391,21 @@ export default function PurchaseSummaryBar() {
             </Box>
           </Tooltip>
           <Divider orientation="vertical" flexItem />
-          <Tooltip title="Return on investment = total Net P&L ÷ total Invested (all purchases)." arrow>
+          <Tooltip title="Return on investment = total Net P&L ÷ total Sale (Skybox margin calculation)." arrow>
             <Box sx={{ textAlign: "center", cursor: "help" }}>
               <Typography
                 variant="h4"
                 fontWeight={700}
-                sx={{ color: s.totalRoi != null ? plColor(s.totalRoi) : "text.primary" }}
+                sx={{ color: s.totalMargin != null ? plColor(s.totalMargin) : "text.primary" }}
               >
-                {s.totalRoi != null ? fmtPct(s.totalRoi) : "—"}
+                {s.totalMargin != null ? fmtPct(s.totalMargin) : "—"}
               </Typography>
               <Typography
                 variant="body2"
                 color="text.secondary"
                 sx={{ borderBottom: "1px dotted", borderColor: "text.disabled", display: "inline" }}
               >
-                ROI
+                Margin %
               </Typography>
             </Box>
           </Tooltip>

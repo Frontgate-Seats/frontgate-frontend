@@ -527,10 +527,10 @@ const PurchasesPage: React.FC = () => {
       headerAlign: "right",
       renderCell: (params) => {
         const profit = params.row.profit;
-        const totalAmount = params.row.total_amount;
-        if (profit == null || !totalAmount)
+        const soldPrice = params.row.sold_price;
+        if (profit == null || !soldPrice)
           return <Typography variant="body2" color="text.disabled">—</Typography>;
-        const pct = (profit / totalAmount) * 100;
+        const pct = (profit / soldPrice) * 100;
         const isNegative = pct < 0;
         return (
           <Typography
@@ -539,7 +539,7 @@ const PurchasesPage: React.FC = () => {
             sx={{ color: isNegative ? "error.main" : "success.main" }}
           >
             {isNegative ? "" : "+"}
-            {pct.toFixed(1)}%
+            {pct.toFixed(2)}%
           </Typography>
         );
       },
