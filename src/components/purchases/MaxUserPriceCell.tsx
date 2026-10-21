@@ -18,13 +18,17 @@ import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import { useDispatch } from "react-redux";
 import type { AppDispatch } from "../../store";
-import { updateMaxUserPrice } from "../../store/slices/purchases.slice";
+import { updateMaxUserPrice, updateInventoryPrice } from "../../store/slices/purchases.slice";
 
 interface MaxUserPriceCellProps {
   /** inventory table primary key (uuid) — used to update and patch local Redux state */
   rowId: string;
+  /** SkyBox numeric inventory id — used to update list price via SkyBox when capping */
+  inventoryId: number | null | undefined;
   /** Current max user price from the row (nullable) */
   currentPrice: number | null | undefined;
+  /** Current SkyBox list price — will be capped to maxUserPrice if it is higher */
+  listPrice: number | null | undefined;
   /** Inventory status — editing is disabled once the item is sold (DEPLETED) */
   inventoryStatus: string | null | undefined;
   /** Event UTC date — used to hide editing for UNSOLD past inventory */
@@ -41,7 +45,9 @@ interface MaxUserPriceCellProps {
  */
 export default function MaxUserPriceCell({
   rowId,
+  inventoryId,
   currentPrice,
+  listPrice,
   inventoryStatus,
   eventUtcDate,
 }: MaxUserPriceCellProps) {
@@ -95,6 +101,12 @@ export default function MaxUserPriceCell({
       await dispatch(
         updateMaxUserPrice({ rowId, maxUserPrice: value }),
       ).unwrap();
+      // If the current list price exceeds the new max, cap it to match.
+      if (value !== null && inventoryId != null && listPrice != null && listPrice > value) {
+        await dispatch(
+          updateInventoryPrice({ inventoryId, listPrice: value, rowId }),
+        ).unwrap();
+      }
       handleClose();
     } catch {
       // Snackbar error is already dispatched by the thunk.

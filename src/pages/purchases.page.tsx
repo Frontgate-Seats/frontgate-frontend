@@ -455,7 +455,9 @@ const PurchasesPage: React.FC = () => {
       renderCell: (params) => (
         <MaxUserPriceCell
           rowId={params.row.id}
+          inventoryId={params.row.inventory_id}
           currentPrice={params.row.max_user_price}
+          listPrice={params.row.list_price}
           inventoryStatus={params.row.inventory_status}
           eventUtcDate={params.row.event_local_date}
         />
