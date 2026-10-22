@@ -114,6 +114,11 @@ export const applySingleFilter = <T extends SupabaseQuery>(
       return isNumericOrDateColumn 
         ? query.eq(field, processedValue) as T
         : query.ilike(field, `%${processedValue}%`) as T;
+    case "notContains":
+      // NOT LIKE operator for text columns
+      return isNumericOrDateColumn
+        ? query.neq(field, processedValue) as T
+        : query.not(field, "ilike", `%${processedValue}%`) as T;
     case "equals":
     case "=":
       return query.eq(field, processedValue) as T;

@@ -6,7 +6,22 @@ import type { LlmResultComment } from "../shared/types/trade.types";
 import { getErrorMessage } from "../shared/utils/error.util";
 
 const fetchPurchases = async (options: DataGridQueryOptions) => {
-  return getDBData("inventory", options);
+  // Always exclude test events from inventory
+  const modifiedOptions = {
+    ...options,
+    filters: {
+      ...options.filters,
+      items: [
+        ...(options.filters?.items || []),
+        {
+          field: "event_name",
+          operator: "notContains",
+          value: "test",
+        },
+      ],
+    },
+  };
+  return getDBData("inventory", modifiedOptions);
 };
 
 /**
