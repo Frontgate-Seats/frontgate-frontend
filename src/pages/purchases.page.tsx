@@ -19,6 +19,7 @@ import PurchaseCommentCell from "../components/purchases/PurchaseCommentCell";
 import UpdatePriceCell from "../components/purchases/UpdatePriceCell";
 import MaxUserPriceCell from "../components/purchases/MaxUserPriceCell";
 import TicketUrlsCell from "../components/purchases/TicketUrlsCell";
+import UpdateSeatNumbersCell from "../components/purchases/UpdateSeatNumbersCell";
 import PurchaseSummaryBar from "../components/purchases/PurchaseSummaryBar";
 import InventorySoldPanel, {
   INVENTORY_SOLD_PANEL_HEIGHT,
@@ -88,6 +89,7 @@ function MoneyCell({
 }
 
 const INVENTORY_STATUS_OPTIONS = [
+  { value: "null", label: "(No Status)" },
   { value: "AVAILABLE", label: "AVAILABLE" },
   { value: "ON_HOLD", label: "ON_HOLD" },
   { value: "DEPLETED", label: "SOLD" },
@@ -96,6 +98,7 @@ const INVENTORY_STATUS_OPTIONS = [
 ];
 
 const FULFILLMENT_STATUS_OPTIONS = [
+  { value: "null", label: "(No Status)" },
   { value: "PENDING", label: "PENDING" },
   { value: "COMPLETE", label: "COMPLETE" },
 ];
@@ -110,7 +113,7 @@ const futureEventDateItem = (nowIso: string): GridFilterItem => ({
   value: nowIso,
 });
 
-// "Show Upcoming Open": future events + PENDING fulfillment. Deselecting falls
+// "Show Upcoming Open": future events + PENDING or NULL fulfillment. Deselecting falls
 // back to the plain future-events default (not a cleared model).
 function buildInventoryQuickFilters(nowIso: string): QuickFilter[] {
   return [
@@ -118,11 +121,11 @@ function buildInventoryQuickFilters(nowIso: string): QuickFilter[] {
       id: "upcoming-open",
       label: "Show Upcoming Open",
       tooltip:
-        "Show upcoming events that still need fulfillment (PENDING). Turn off to show all upcoming events.",
+        "Show upcoming events that still need fulfillment (PENDING or no status). Turn off to show all upcoming events.",
       replaceAll: true,
       items: [
         futureEventDateItem(nowIso),
-        { field: "fulfillment_status", operator: "isAnyOf", value: ["PENDING"] },
+        { field: "fulfillment_status", operator: "isAnyOf", value: ["PENDING", "null"] },
       ],
       // Off → keep only the future-events default.
       itemsWhenInactive: [futureEventDateItem(nowIso)],
@@ -416,6 +419,25 @@ const PurchasesPage: React.FC = () => {
       valueGetter: (_, row) =>
         row.total_amount && row.quantity ? row.total_amount / row.quantity : null,
       renderCell: (params) => <MoneyCell value={params.value} />,
+    },
+    {
+      field: "seats",
+      headerName: "Seats",
+      width: 140,
+      sortable: false,
+      filterable: false,
+      align: "center",
+      headerAlign: "center",
+      renderCell: (params) => (
+        <UpdateSeatNumbersCell
+          purchaseId={params.row.purchase_id}
+          lowSeat={params.row.low_seat}
+          highSeat={params.row.high_seat}
+          quantity={params.row.quantity}
+          soldQuantity={params.row.sold_quantity || 0}
+          onUpdate={handleRefresh}
+        />
+      ),
     },
     {
       field: "list_price",

@@ -131,16 +131,44 @@ export const applySingleFilter = <T extends SupabaseQuery>(
       return query.not(field, "is", null) as T;
     case "isAnyOf":
       if (Array.isArray(processedValue)) {
+        // Check if "null" string is in the array (used for NULL filtering)
+        const hasNullValue = processedValue.includes("null");
+        
+        // Filter out "null" string and process remaining values
+        const nonNullValues = processedValue.filter(v => v !== "null");
+        
         const arrayValue = columnType === "number"
-          ? processedValue.map(v => {
+          ? nonNullValues.map(v => {
               if (typeof v === "string") {
                 const num = Number(v);
                 return isNaN(num) ? null : num;
               }
               return v;
             }).filter(v => v !== null)
-          : processedValue;
-        return query.in(field, arrayValue) as T;
+          : nonNullValues;
+        
+        // If we have both NULL and non-NULL values, use OR condition
+        if (hasNullValue && arrayValue.length > 0) {
+          // Build OR condition: field.in.(val1,val2) OR field.is.null
+          const inCondition = arrayValue.map(v => {
+            if (typeof v === "string") {
+              return `${field}.eq."${v}"`;
+            }
+            return `${field}.eq.${v}`;
+          }).join(",");
+          const nullCondition = `${field}.is.null`;
+          return query.or(`${inCondition},${nullCondition}`) as T;
+        }
+        
+        // If only NULL value is selected
+        if (hasNullValue && arrayValue.length === 0) {
+          return query.is(field, null) as T;
+        }
+        
+        // If only non-NULL values are selected
+        if (arrayValue.length > 0) {
+          return query.in(field, arrayValue) as T;
+        }
       }
       return query;
     case ">=":

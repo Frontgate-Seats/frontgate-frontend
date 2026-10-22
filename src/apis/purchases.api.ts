@@ -136,6 +136,22 @@ export const updateInventoryPrice = async (payload: {
   }
 };
 
+export const updateInventorySeatNumbers = async (
+  purchaseId: string,
+  lowSeat: number
+) => {
+  try {
+    const response = await supabaseHttpClient.put(
+      `/functions/v1/events-api/purchase/${purchaseId}/seats`,
+      { lowSeat },
+    );
+    return response;
+  } catch (error: any) {
+    const message = getErrorMessage(error);
+    throw new Error(message);
+  }
+};
+
 const purchasesApi = {
   fetchPurchases,
   updatePurchaseComment,
@@ -143,6 +159,7 @@ const purchasesApi = {
   createQuote,
   createOrder,
   updateInventoryPrice,
+  updateInventorySeatNumbers,
 };
 
 export default purchasesApi;

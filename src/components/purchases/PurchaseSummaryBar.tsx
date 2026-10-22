@@ -357,7 +357,6 @@ export default function PurchaseSummaryBar() {
           <StatusChip color="#2e7d32" label="Partial Sold" count={s.activePartialSold} />
           <StatusChip color="#1565c0" label="Available"    count={s.activeAvailable} />
           <StatusChip color="#f57c00" label="On Hold"      count={s.activeOnHold} />
-          <StatusChip color="#c62828" label="Unsold"       count={s.activeUnsold} />
         </Stack>
       </Card>
 

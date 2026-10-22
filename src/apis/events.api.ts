@@ -2,6 +2,7 @@ import { getDBData } from "../shared/helpers/supabase.helper";
 import type { DataGridQueryOptions } from "../shared/types/mui.type";
 import supabaseClient from "../clients/supabase.client";
 import { getErrorMessage } from "../shared/utils/error.util";
+import purchasesApi from "./purchases.api";
 
 const eventsApi = {
   // Main events fetcher with enhanced search
@@ -40,6 +41,9 @@ const eventsApi = {
 
     return data;
   },
+  
+  // Re-export inventory update functions for convenience
+  updateInventorySeatNumbers: purchasesApi.updateInventorySeatNumbers,
 };
 
 export default eventsApi;
