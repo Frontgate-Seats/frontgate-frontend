@@ -6,7 +6,7 @@ import type { LlmResultComment } from "../shared/types/trade.types";
 import { getErrorMessage } from "../shared/utils/error.util";
 
 const fetchPurchases = async (options: DataGridQueryOptions) => {
-  // Always exclude test events from inventory
+  // Always exclude specific test event (ID: 1361816) from inventory
   const modifiedOptions = {
     ...options,
     filters: {
@@ -14,9 +14,9 @@ const fetchPurchases = async (options: DataGridQueryOptions) => {
       items: [
         ...(options.filters?.items || []),
         {
-          field: "event_name",
-          operator: "notContains",
-          value: "test",
+          field: "event_id",
+          operator: "!=",
+          value: 1361816,
         },
       ],
     },
