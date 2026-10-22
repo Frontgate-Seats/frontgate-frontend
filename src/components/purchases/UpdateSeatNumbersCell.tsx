@@ -23,6 +23,8 @@ interface UpdateSeatNumbersCellProps {
   highSeat: number | null;
   quantity: number;
   soldQuantity: number;
+  inventoryStatus?: string | null;
+  fulfillmentStatus?: string | null;
   onUpdate?: () => void;
 }
 
@@ -40,6 +42,8 @@ export default function UpdateSeatNumbersCell({
   highSeat,
   quantity,
   soldQuantity,
+  inventoryStatus,
+  fulfillmentStatus,
   onUpdate,
 }: UpdateSeatNumbersCellProps) {
   const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
@@ -48,6 +52,13 @@ export default function UpdateSeatNumbersCell({
   const [inputError, setInputError] = React.useState("");
 
   const open = Boolean(anchorEl);
+  
+  // Only allow editing when:
+  // 1. Inventory is not sold (DEPLETED)
+  // 2. Fulfillment is still pending (not COMPLETE)
+  const isNotSold = inventoryStatus !== "DEPLETED";
+  const isFulfillmentPending = fulfillmentStatus !== "COMPLETE";
+  const canEdit = isNotSold && isFulfillmentPending;
 
   const formatSeatNumbers = (low: number | null, high: number | null): string => {
     if (!low || !high) return "—";
@@ -117,18 +128,20 @@ export default function UpdateSeatNumbersCell({
         {formatSeatNumbers(lowSeat, highSeat)}
       </Typography>
 
-      {/* Edit button */}
-      <Tooltip title="Update seat numbers">
-        <IconButton
-          size="medium"
-          onClick={handleOpen}
-          color={open ? "primary" : "default"}
-          aria-label="Update seat numbers"
-          sx={{ p: 0.1 }}
-        >
-          <EditOutlinedIcon sx={{ fontSize: 20 }} />
-        </IconButton>
-      </Tooltip>
+      {/* Edit button - only shown when editing is allowed */}
+      {canEdit && (
+        <Tooltip title="Update seat numbers">
+          <IconButton
+            size="medium"
+            onClick={handleOpen}
+            color={open ? "primary" : "default"}
+            aria-label="Update seat numbers"
+            sx={{ p: 0.1 }}
+          >
+            <EditOutlinedIcon sx={{ fontSize: 20 }} />
+          </IconButton>
+        </Tooltip>
+      )}
 
       <Popper
         open={open}

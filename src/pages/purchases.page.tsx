@@ -435,6 +435,8 @@ const PurchasesPage: React.FC = () => {
           highSeat={params.row.high_seat}
           quantity={params.row.quantity}
           soldQuantity={params.row.sold_quantity || 0}
+          inventoryStatus={params.row.inventory_status}
+          fulfillmentStatus={params.row.fulfillment_status}
           onUpdate={handleRefresh}
         />
       ),
