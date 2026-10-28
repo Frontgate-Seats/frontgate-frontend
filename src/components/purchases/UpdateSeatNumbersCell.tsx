@@ -159,7 +159,7 @@ export default function UpdateSeatNumbersCell({
         ]}
       >
         <ClickAwayListener
-          onClickAway={(event) => {
+          onClickAway={() => {
             // Don't close if the Select dropdown is open
             if (selectOpen) {
               return;
