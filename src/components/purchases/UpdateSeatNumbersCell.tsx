@@ -56,6 +56,7 @@ export default function UpdateSeatNumbersCell({
   const [draftSeatType, setDraftSeatType] = React.useState<SeatType>("CONSECUTIVE");
   const [saving, setSaving] = React.useState(false);
   const [inputError, setInputError] = React.useState("");
+  const [selectOpen, setSelectOpen] = React.useState(false);
 
   const open = Boolean(anchorEl);
   
@@ -157,7 +158,15 @@ export default function UpdateSeatNumbersCell({
           { name: "preventOverflow", options: { boundary: "viewport", padding: 8 } },
         ]}
       >
-        <ClickAwayListener onClickAway={handleClose}>
+        <ClickAwayListener
+          onClickAway={(event) => {
+            // Don't close if the Select dropdown is open
+            if (selectOpen) {
+              return;
+            }
+            handleClose();
+          }}
+        >
           <Paper
             elevation={8}
             sx={{ p: 2, width: 280 }}
@@ -206,6 +215,8 @@ export default function UpdateSeatNumbersCell({
                   label="Seat Type"
                   onChange={(e) => setDraftSeatType(e.target.value as SeatType)}
                   disabled={saving}
+                  onOpen={() => setSelectOpen(true)}
+                  onClose={() => setSelectOpen(false)}
                 >
                   <MenuItem value="CONSECUTIVE">
                     <Box>
