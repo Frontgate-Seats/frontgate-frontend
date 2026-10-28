@@ -48,7 +48,6 @@ export default function UpdateSeatNumbersCell({
   highSeat,
   quantity,
   soldQuantity,
-  inventoryStatus,
   fulfillmentStatus,
   onUpdate,
 }: UpdateSeatNumbersCellProps) {
