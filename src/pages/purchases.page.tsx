@@ -314,10 +314,12 @@ const PurchasesPage: React.FC = () => {
                 <KeyboardArrowRight fontSize="small" />
               )}
             </IconButton>
-            <PurchaseCommentCell
-              purchaseRowId={params.row.id}
-              comment={params.row.llm_result_comment}
-            />
+            {canSeeFinancials && (
+              <PurchaseCommentCell
+                purchaseRowId={params.row.id}
+                comment={params.row.llm_result_comment}
+              />
+            )}
           </Stack>
         );
       },
