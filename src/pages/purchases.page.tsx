@@ -232,6 +232,21 @@ const PurchasesPage: React.FC = () => {
     );
   }, [dispatch, paginationModel, effectiveSort, filterModel]);
 
+  // Auto-refresh every 5 minutes
+  React.useEffect(() => {
+    const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
+    
+    const intervalId = setInterval(() => {
+      console.log('[Purchases] Auto-refreshing inventory data...');
+      handleRefresh();
+    }, AUTO_REFRESH_INTERVAL);
+
+    // Cleanup interval on unmount
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [handleRefresh]);
+
   // ── Build display rows: inject a detail row after each expanded parent ──────
   // A detail row carries only `_rowType: "detail"` + the parent row; the first
   // column spans the full width and renders the sold-inventory panel.

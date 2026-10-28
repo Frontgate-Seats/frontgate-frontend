@@ -153,12 +153,13 @@ export const updateInventoryPrice = async (payload: {
 
 export const updateInventorySeatNumbers = async (
   purchaseId: string,
-  lowSeat: number
+  lowSeat: number,
+  seatType: "CONSECUTIVE" | "ALTERNATING" | "GA" | "PIGGYBACK" = "CONSECUTIVE"
 ) => {
   try {
     const response = await supabaseHttpClient.put(
       `/functions/v1/events-api/purchase/${purchaseId}/seats`,
-      { lowSeat },
+      { lowSeat, seatType },
     );
     return response;
   } catch (error: any) {

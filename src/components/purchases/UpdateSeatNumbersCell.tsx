@@ -4,9 +4,13 @@ import {
   Button,
   CircularProgress,
   ClickAwayListener,
+  FormControl,
   IconButton,
+  InputLabel,
+  MenuItem,
   Paper,
   Popper,
+  Select,
   Stack,
   TextField,
   Tooltip,
@@ -16,6 +20,8 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import eventsApi from "../../apis/events.api";
+
+type SeatType = "CONSECUTIVE" | "ALTERNATING" | "GA" | "PIGGYBACK";
 
 interface UpdateSeatNumbersCellProps {
   purchaseId: string;
@@ -48,17 +54,15 @@ export default function UpdateSeatNumbersCell({
 }: UpdateSeatNumbersCellProps) {
   const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
   const [draftLowSeat, setDraftLowSeat] = React.useState("");
+  const [draftSeatType, setDraftSeatType] = React.useState<SeatType>("CONSECUTIVE");
   const [saving, setSaving] = React.useState(false);
   const [inputError, setInputError] = React.useState("");
 
   const open = Boolean(anchorEl);
   
   // Only allow editing when:
-  // 1. Inventory is not sold (DEPLETED)
-  // 2. Fulfillment is still pending (not COMPLETE)
-  const isNotSold = inventoryStatus !== "DEPLETED";
-  const isFulfillmentPending = fulfillmentStatus !== "COMPLETE";
-  const canEdit = isNotSold && isFulfillmentPending;
+  // 1. Fulfillment is still pending (not COMPLETE)
+  const canEdit = fulfillmentStatus !== "COMPLETE";
 
   const formatSeatNumbers = (low: number | null, high: number | null): string => {
     if (!low || !high) return "—";
@@ -69,6 +73,7 @@ export default function UpdateSeatNumbersCell({
   const handleOpen = (e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
     setDraftLowSeat(lowSeat?.toString() || "");
+    setDraftSeatType("CONSECUTIVE"); // Default to CONSECUTIVE
     setInputError("");
     setAnchorEl(e.currentTarget);
   };
@@ -101,7 +106,7 @@ export default function UpdateSeatNumbersCell({
     setInputError("");
 
     try {
-      await eventsApi.updateInventorySeatNumbers(purchaseId, low);
+      await eventsApi.updateInventorySeatNumbers(purchaseId, low, draftSeatType);
       handleClose();
       onUpdate?.();
     } catch (err: any) {
@@ -193,6 +198,50 @@ export default function UpdateSeatNumbersCell({
                   : " "
                 }
               />
+
+              <FormControl size="small" fullWidth>
+                <InputLabel id="seat-type-label">Seat Type</InputLabel>
+                <Select
+                  labelId="seat-type-label"
+                  value={draftSeatType}
+                  label="Seat Type"
+                  onChange={(e) => setDraftSeatType(e.target.value as SeatType)}
+                  disabled={saving}
+                >
+                  <MenuItem value="CONSECUTIVE">
+                    <Box>
+                      <Typography variant="body2" fontWeight={600}>Consecutive</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Sequential seats (e.g., 1, 2, 3, 4)
+                      </Typography>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="ALTERNATING">
+                    <Box>
+                      <Typography variant="body2" fontWeight={600}>Alternating</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Every other seat (e.g., 1, 3, 5, 7)
+                      </Typography>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="GA">
+                    <Box>
+                      <Typography variant="body2" fontWeight={600}>General Admission</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        No specific seat numbers
+                      </Typography>
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="PIGGYBACK">
+                    <Box>
+                      <Typography variant="body2" fontWeight={600}>Piggyback</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Non-consecutive seats (e.g., 1, 5, 8, 12)
+                      </Typography>
+                    </Box>
+                  </MenuItem>
+                </Select>
+              </FormControl>
 
               {inputError && (
                 <Typography variant="caption" color="error">
