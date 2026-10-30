@@ -11,6 +11,7 @@ const FullLayout = Loadable(lazyWithRetry(() => import("./layouts/full.layout"))
 const DashboardLayout = Loadable(lazyWithRetry(() => import("./layouts/dashboard.layout")));
 
 /* ****Pages**** */
+const DashboardPage = Loadable(lazyWithRetry(() => import("./pages/dashboard.page")));
 const EventsPage = Loadable(lazyWithRetry(() => import("./pages/events.page")));
 const EventDetailsPage = Loadable(lazyWithRetry(() => import("./pages/eventDetails.page")));
 const ListingsPage = Loadable(lazyWithRetry(() => import("./pages/listings.page")));
@@ -37,6 +38,10 @@ export const route: RouteObject[] = [
       {
         index: true,
         element: <Navigate to="/inventories" replace />,
+      },
+      {
+        path: "/dashboard",
+        element: <DashboardPage />,
       },
       {
         path: "/events",

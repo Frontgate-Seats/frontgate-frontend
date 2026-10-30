@@ -6,6 +6,7 @@ import Toolbar from "@mui/material/Toolbar";
 import { matchPath, useLocation } from "react-router";
 import EventIcon from "@mui/icons-material/Event";
 import StoreIcon from "@mui/icons-material/Store";
+import DashboardIcon from "@mui/icons-material/Dashboard";
 // import LightbulbIcon from "@mui/icons-material/Lightbulb";
 import RecommendIcon from "@mui/icons-material/Recommend";
 
@@ -73,6 +74,16 @@ export default function DashboardSidebar() {
           >
             <DashboardSidebarHeaderItem>Main</DashboardSidebarHeaderItem>
 
+            <DashboardSidebarPageItem
+              id="dashboard"
+              title="Dashboard"
+              icon={<DashboardIcon />}
+              href="/dashboard"
+              selected={
+                !!matchPath("/dashboard/*", pathname) ||
+                pathname === "/dashboard"
+              }
+            />
             <DashboardSidebarPageItem
               id="purchases"
               title="Inventory"
