@@ -1,16 +1,20 @@
 import { useState, useCallback } from 'react';
-import { Box, Container, Grid, Typography } from '@mui/material';
+import { Container, Grid } from '@mui/material';
 import type { DateRange } from '../types/dashboard.types';
-import DateFilter from '../components/dashboard/DateFilter';
+import DashboardFilter from '../components/dashboard/DashboardFilter';
 import InventoryCards from '../components/dashboard/InventoryCards';
 import ChartRenderer from '../components/dashboard/ChartRenderer';
 import PurchasesTable from '../components/dashboard/PurchasesTable';
 import SalesTable from '../components/dashboard/SalesTable';
 
 export default function DashboardPage() {
-  const [selectedDateRange, setSelectedDateRange] = useState<DateRange>({
-    startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    endDate:   new Date(),
+  // Default = Last 7 Days (calendar-based: from the start of the day 7 days ago,
+  // matching SkyBox's "last N days" window).
+  const [selectedDateRange, setSelectedDateRange] = useState<DateRange>(() => {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7);
+    startDate.setHours(0, 0, 0, 0);
+    return { startDate, endDate: new Date() };
   });
 
   const handleDateRangeChange = useCallback((range: DateRange) => {
@@ -19,32 +23,21 @@ export default function DashboardPage() {
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
-      {/* Header */}
-      <Typography variant="h4" component="h1" fontWeight="bold" gutterBottom>
-        Dashboard
-      </Typography>
-      <Typography variant="body1" color="text.secondary" mb={3}>
-        Financial analytics and operational oversight for ticket inventory management
-      </Typography>
-
-      {/* Date filter */}
-      <DateFilter
+      {/* Filters accordion (open by default) with the time-range filter */}
+      <DashboardFilter
         onDateRangeChange={handleDateRangeChange}
-        initialFilter="last7days"
+        initialFilter="7d"
       />
 
-      {/* ── Row 1: Inventory summary cards ── */}
-      <Box mt={3}>
-        <InventoryCards dateRange={selectedDateRange} />
-      </Box>
-
-      {/* ── Row 2: Charts 50 / 50 ── */}
-      <Grid container spacing={3} mb={4}>
+      {/* ── Row 1: Cards (2×2) on the left, combined chart on the right ── */}
+      <Grid container spacing={3} mt={4} mb={4} alignItems="stretch">
+        {/* Left: four summary cards in a 2×2 grid */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <ChartRenderer dataType="purchases" dateRange={selectedDateRange} />
+          <InventoryCards dateRange={selectedDateRange} direction="column" />
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <ChartRenderer dataType="sales" dateRange={selectedDateRange} />
+        {/* Right: purchases + sales combined — fills the cards' height */}
+        <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex', minWidth: 0 }}>
+          <ChartRenderer dateRange={selectedDateRange} fill />
         </Grid>
       </Grid>
 

@@ -1,157 +1,337 @@
 /**
  * InventoryCards Component
  *
- * Displays three summary cards at the top of the dashboard using direct
- * Supabase queries — no helper functions.
+ * Four summary cards styled and populated to match the inventory page's
+ * PurchaseSummaryBar. Data comes from the shared `get_inventory_summary`
+ * RPC so the numbers stay consistent with the inventory page.
  *
  * Cards:
- *  - Total Invested  : SUM(total_amount) from inventory
- *  - Active Unsold   : SUM(total_amount) from inventory WHERE status='Available' AND event_utc_date >= NOW()
- *  - Total Sales     : SUM(sale_total) from sold_inventory
+ *  1. Total        — all purchases: Purchases / Invested / Sell + status chips
+ *  2. Active Unsold — available inventory for future events + status chips
+ *  3. Active       — future events: Purchases / Invested / Sell + status chips
+ *  4. P&L          — Net P&L + Margin % with Profitable/In Loss badge
  */
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
-  Card,
-  CardContent,
+  Chip,
+  Divider,
   Grid,
   Skeleton,
+  Stack,
+  Tooltip,
   Typography,
 } from '@mui/material';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import Inventory2Icon from '@mui/icons-material/Inventory2';
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
-import supabaseClient from '../../clients/supabase.client';
+import {
+  ConfirmationNumberOutlined,
+  Circle,
+  Inventory2Outlined,
+  TrendingUp,
+  TrendingDown,
+} from '@mui/icons-material';
+import type { AppDispatch, RootState } from '../../store';
+import { getInventorySummary } from '../../store/slices/dashboard.slice';
 import type { DateRange } from '../../types/dashboard.types';
 
 interface InventoryCardsProps {
   dateRange: DateRange;
+  /** 'row' = cards side by side (default), 'column' = 2×2 grid */
+  direction?: 'row' | 'column';
 }
 
-interface CardData {
-  totalInvested: number;
-  activeUnsold: number;
-  totalSales: number;
+// ─── Helpers (mirror PurchaseSummaryBar) ────────────────────────────────────
+function fmtMoney(n: number) {
+  const abs = Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  return n < 0 ? `-$${abs}` : `$${abs}`;
 }
 
-const fmt = (n: number) =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
+function fmtPct(n: number) {
+  return `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
+}
 
-export default function InventoryCards({ dateRange }: InventoryCardsProps) {
-  const [data, setData] = useState<CardData | null>(null);
-  const [loading, setLoading] = useState(true);
+function plColor(n: number) {
+  return n >= 0 ? '#2e7d32' : '#c62828';
+}
+
+// ─── Big stat ───────────────────────────────────────────────────────────────
+function BigStat({
+  label,
+  value,
+  valueColor,
+  hint,
+}: {
+  label: string;
+  value: string | number;
+  valueColor?: string;
+  hint?: string;
+}) {
+  const labelNode = (
+    <Typography
+      variant="body2"
+      color="text.secondary"
+      sx={hint ? { borderBottom: '1px dotted', borderColor: 'text.disabled', cursor: 'help', display: 'inline' } : undefined}
+    >
+      {label}
+    </Typography>
+  );
+  return (
+    <Box>
+      <Typography variant="h6" fontWeight={700} sx={{ color: valueColor ?? 'text.primary' }}>
+        {value}
+      </Typography>
+      {hint ? <Tooltip title={hint} arrow>{labelNode}</Tooltip> : labelNode}
+    </Box>
+  );
+}
+
+// ─── Status chip ─────────────────────────────────────────────────────────────
+function StatusChip({ color, label, count }: { color: string; label: string; count: number }) {
+  return (
+    <Chip
+      size="small"
+      variant="outlined"
+      label={`${label}: ${count}`}
+      sx={{
+        color,
+        borderColor: color + '66',
+        bgcolor: color + '14',
+        fontWeight: 600,
+        '& .MuiChip-label': { color },
+      }}
+    />
+  );
+}
+
+// ─── P&L badge ───────────────────────────────────────────────────────────────
+function PnLBadge({ profit }: { profit: number }) {
+  const up = profit >= 0;
+  return (
+    <Chip
+      size="small"
+      variant="outlined"
+      color={up ? 'success' : 'error'}
+      icon={up ? <TrendingUp /> : <TrendingDown />}
+      label={up ? 'Profitable' : 'In Loss'}
+    />
+  );
+}
+
+// ─── Card shell ──────────────────────────────────────────────────────────────
+function Card({
+  title,
+  subtitle,
+  accentColor,
+  icon,
+  badge,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  accentColor: string;
+  icon: React.ReactNode;
+  badge?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <Box
+      sx={{
+        flex: '1 1 0',
+        width: '100%',
+        height: '100%',
+        bgcolor: accentColor + '0D',
+        borderRadius: 2,
+        border: '1px solid',
+        borderColor: accentColor + '26',
+        borderLeft: `4px solid ${accentColor}`,
+        px: 2.5,
+        py: 1.75,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.25 }}>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Box
+            sx={{
+              width: 26,
+              height: 26,
+              borderRadius: 1.25,
+              bgcolor: accentColor + '1A',
+              color: accentColor,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {icon}
+          </Box>
+          <Box>
+            <Typography
+              variant="caption"
+              fontWeight={700}
+              sx={{
+                color: accentColor,
+                textTransform: 'uppercase',
+                letterSpacing: 0.8,
+                fontSize: '0.72rem',
+                display: 'block',
+                lineHeight: 1.2,
+              }}
+            >
+              {title}
+            </Typography>
+            {subtitle && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.1 }}>
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
+        </Stack>
+        {badge}
+      </Stack>
+
+      {children}
+    </Box>
+  );
+}
+
+export default function InventoryCards({ dateRange, direction = 'row' }: InventoryCardsProps) {
+  const dispatch = useDispatch<AppDispatch>();
+  const { summary: s, summaryLoading } = useSelector((state: RootState) => state.dashboard);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
+    dispatch(getInventorySummary());
+  }, [dispatch, dateRange]);
 
-    async function load() {
-      try {
-        // Total Invested — all inventory records (not date-filtered, global stat)
-        const { data: invRows, error: invErr } = await supabaseClient
-          .from('inventory')
-          .select('total_amount');
-        if (invErr) throw invErr;
+  const loading = summaryLoading;
+  // Overall margin (Net P&L ÷ total Sale), mirroring the inventory summary bar.
+  const totalMargin = s && s.totalSold > 0 ? (s.totalProfit / s.totalSold) * 100 : null;
 
-        const totalInvested = (invRows ?? []).reduce(
-          (sum, r) => sum + parseFloat(r.total_amount ?? '0'),
-          0,
-        );
+  const isColumn = direction === 'column';
+  // Column mode (left of chart): 2×2 grid. Row mode: 4-up on desktop.
+  const cellSize = isColumn ? { xs: 12, sm: 6 } : { xs: 12, sm: 6, md: 3 };
 
-        // Active Unsold — available inventory with future event dates
-        const { data: unsoldRows, error: unsoldErr } = await supabaseClient
-          .from('inventory')
-          .select('total_amount')
-          .eq('inventory_status', 'Available')
-          .gte('event_utc_date', new Date().toISOString());
-        if (unsoldErr) throw unsoldErr;
-
-        const activeUnsold = (unsoldRows ?? []).reduce(
-          (sum, r) => sum + parseFloat(r.total_amount ?? '0'),
-          0,
-        );
-
-        // Total Sales — all sold_inventory records (global stat)
-        const { data: salesRows, error: salesErr } = await supabaseClient
-          .from('sold_inventory')
-          .select('sale_total');
-        if (salesErr) throw salesErr;
-
-        const totalSales = (salesRows ?? []).reduce(
-          (sum, r) => sum + parseFloat(r.sale_total ?? '0'),
-          0,
-        );
-
-        if (!cancelled) {
-          setData({ totalInvested, activeUnsold, totalSales });
-        }
-      } catch (err) {
-        console.error('InventoryCards fetch error:', err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    load();
-    return () => { cancelled = true; };
-  }, [dateRange]);
-
-  const cards = [
-    {
-      label: 'Total Invested',
-      sub: 'Sum of all inventory purchases',
-      value: data?.totalInvested ?? 0,
-      color: 'primary.main',
-      icon: <TrendingUpIcon fontSize="medium" color="primary" />,
-    },
-    {
-      label: 'Active Unsold',
-      sub: 'Available inventory with future events',
-      value: data?.activeUnsold ?? 0,
-      color: 'warning.main',
-      icon: <Inventory2Icon fontSize="medium" color="warning" />,
-    },
-    {
-      label: 'Total Sales',
-      sub: 'Total revenue from sold tickets',
-      value: data?.totalSales ?? 0,
-      color: 'success.main',
-      icon: <AttachMoneyIcon fontSize="medium" color="success" />,
-    },
-  ];
+  if (loading || !s) {
+    return (
+      <Grid container spacing={2} sx={{ height: isColumn ? '100%' : 'auto', mb: isColumn ? 0 : 4 }}>
+        {[0, 1, 2, 3].map((i) => (
+          <Grid key={i} size={cellSize} sx={{ display: 'flex' }}>
+            <Skeleton variant="rounded" width="100%" height={176} sx={{ borderRadius: 2 }} />
+          </Grid>
+        ))}
+      </Grid>
+    );
+  }
 
   return (
-    <Grid container spacing={3} mb={4}>
-      {cards.map((card) => (
-        <Grid key={card.label} size={{ xs: 12, md: 4 }}>
-          <Card variant="outlined" sx={{ height: '100%' }}>
-            <CardContent>
-              <Box display="flex" alignItems="center" gap={1} mb={1}>
-                {card.icon}
-                <Typography variant="subtitle2" color="text.secondary" fontWeight={600}>
-                  {card.label}
+    <Grid container spacing={2} sx={{ height: isColumn ? '100%' : 'auto', mb: isColumn ? 0 : 4 }}>
+      {/* ══ Card 1: Total ══ */}
+      <Grid size={cellSize} sx={{ display: 'flex' }}>
+        <Card
+          title="Total"
+          subtitle="All purchases"
+          accentColor="#1565c0"
+          icon={<ConfirmationNumberOutlined sx={{ fontSize: 17 }} />}
+        >
+          <Stack direction="row" spacing={2} mt={1} divider={<Divider orientation="vertical" flexItem />}>
+            <BigStat label="Purchases" value={s.uniquePurchases} hint="Number of distinct purchases made." />
+            <BigStat label="Invested" value={fmtMoney(s.totalInvested)} hint="Total amount spent buying tickets." />
+            <BigStat label="Sell" value={fmtMoney(s.totalSold)} valueColor="#2e7d32" hint="Total revenue from tickets sold so far." />
+          </Stack>
+
+          <Divider sx={{ mt: 2, mb: 2 }} />
+          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+            <StatusChip color="#1b5e20" label="Sold"         count={s.depleted} />
+            <StatusChip color="#2e7d32" label="Partial Sold" count={s.partialSold} />
+            <StatusChip color="#1565c0" label="Available"    count={s.available} />
+            <StatusChip color="#f57c00" label="On Hold"      count={s.onHold} />
+            <StatusChip color="#c62828" label="Unsold"       count={s.unsold} />
+          </Stack>
+        </Card>
+      </Grid>
+
+      {/* ══ Card 2: Active Unsold ══ */}
+      <Grid size={cellSize} sx={{ display: 'flex' }}>
+        <Card
+          title="Active Unsold"
+          subtitle="Available inventory, future events"
+          accentColor="#f57c00"
+          icon={<Inventory2Outlined sx={{ fontSize: 16 }} />}
+        >
+          <Stack direction="row" spacing={2} mt={1} divider={<Divider orientation="vertical" flexItem />}>
+            <BigStat label="Items" value={s.activeAvailable} hint="Available inventory records for upcoming events." />
+            <BigStat label="Invested" value={fmtMoney(s.activeAvailableInvested)} hint="Amount spent on available (unsold) tickets for upcoming events." />
+          </Stack>
+
+          <Divider sx={{ mt: 2, mb: 2 }} />
+          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+            <StatusChip color="#1565c0" label="Available"    count={s.activeAvailable} />
+            <StatusChip color="#2e7d32" label="Partial Sold" count={s.activePartialSold} />
+            <StatusChip color="#f57c00" label="On Hold"      count={s.activeOnHold} />
+          </Stack>
+        </Card>
+      </Grid>
+
+      {/* ══ Card 3: Active (future events) ══ */}
+      <Grid size={cellSize} sx={{ display: 'flex' }}>
+        <Card
+          title="Active"
+          subtitle="Upcoming events"
+          accentColor="#2e7d32"
+          icon={<Circle sx={{ fontSize: 12 }} />}
+        >
+          <Stack direction="row" spacing={2} mt={1} divider={<Divider orientation="vertical" flexItem />}>
+            <BigStat label="Purchases" value={s.activeItems} hint="Purchases for events that haven't happened yet." />
+            <BigStat label="Invested" value={fmtMoney(s.activeInvested)} hint="Amount spent on upcoming-event tickets." />
+            <BigStat label="Sell" value={fmtMoney(s.activeSold)} valueColor="#2e7d32" hint="Revenue from upcoming-event tickets sold so far." />
+          </Stack>
+
+          <Divider sx={{ mt: 2, mb: 2 }} />
+          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+            <StatusChip color="#1b5e20" label="Sold"         count={s.activeDepleted} />
+            <StatusChip color="#2e7d32" label="Partial Sold" count={s.activePartialSold} />
+            <StatusChip color="#1565c0" label="Available"    count={s.activeAvailable} />
+            <StatusChip color="#f57c00" label="On Hold"      count={s.activeOnHold} />
+          </Stack>
+        </Card>
+      </Grid>
+
+      {/* ══ Card 4: P&L ══ */}
+      <Grid size={cellSize} sx={{ display: 'flex' }}>
+        <Card
+          title="P&L"
+          subtitle="Overall performance"
+          accentColor={s.totalProfit >= 0 ? '#2e7d32' : '#c62828'}
+          icon={s.totalProfit >= 0 ? <TrendingUp sx={{ fontSize: 16 }} /> : <TrendingDown sx={{ fontSize: 16 }} />}
+          badge={<PnLBadge profit={s.totalProfit} />}
+        >
+          <Stack direction="row" justifyContent="space-around" alignItems="center" spacing={2} sx={{ flex: 1, mt: 1 }}>
+            <Tooltip title="Total profit or loss across the whole book: realized gains/losses on sold tickets, plus the full cost of unsold tickets written off as a loss." arrow>
+              <Box sx={{ textAlign: 'center', cursor: 'help' }}>
+                <Typography variant="h4" fontWeight={700} sx={{ color: plColor(s.totalProfit) }}>
+                  {fmtMoney(s.totalProfit)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ borderBottom: '1px dotted', borderColor: 'text.disabled', display: 'inline' }}>
+                  Net P&amp;L
                 </Typography>
               </Box>
-              {loading ? (
-                <Skeleton variant="text" width="70%" height={48} />
-              ) : (
-                <Typography variant="h5" fontWeight="bold" color={card.color}>
-                  {fmt(card.value)}
+            </Tooltip>
+            <Divider orientation="vertical" flexItem />
+            <Tooltip title="Return on investment = total Net P&L ÷ total Sale (Skybox margin calculation)." arrow>
+              <Box sx={{ textAlign: 'center', cursor: 'help' }}>
+                <Typography variant="h4" fontWeight={700} sx={{ color: totalMargin != null ? plColor(totalMargin) : 'text.primary' }}>
+                  {totalMargin != null ? fmtPct(totalMargin) : '—'}
                 </Typography>
-              )}
-              <Typography variant="caption" color="text.secondary">
-                {card.sub}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      ))}
+                <Typography variant="body2" color="text.secondary" sx={{ borderBottom: '1px dotted', borderColor: 'text.disabled', display: 'inline' }}>
+                  Margin %
+                </Typography>
+              </Box>
+            </Tooltip>
+          </Stack>
+        </Card>
+      </Grid>
     </Grid>
   );
 }

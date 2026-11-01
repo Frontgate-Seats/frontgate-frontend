@@ -3,27 +3,12 @@ import moment from "moment";
 // Fallback value for invalid/missing dates
 const FALLBACK_VALUE = "-";
 
-// Intl formatters (reused for performance)
-const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
-  month: "numeric",
-  day: "numeric",
-  year: "2-digit",
-  hour: "numeric",
-  minute: "2-digit",
-  hour12: true,
-});
-
-const dateOnlyFormatter = new Intl.DateTimeFormat(undefined, {
-  month: "numeric",
-  day: "numeric",
-  year: "2-digit",
-});
-
-const timeOnlyFormatter = new Intl.DateTimeFormat(undefined, {
-  hour: "numeric",
-  minute: "2-digit",
-  hour12: true,
-});
+// Unified display formats used across the whole app:
+//   date  -> DD/MM/YY       (e.g. 07/11/26)
+//   time  -> hh:mm A        (e.g. 05:45 PM)
+export const DATE_FORMAT = "DD/MM/YY";
+export const TIME_FORMAT = "hh:mm A";
+export const DATE_TIME_FORMAT = "DD/MM/YY hh:mm A";
 
 /**
  * Convert input to a native Date object.
@@ -52,13 +37,13 @@ export const formatDateTime = (
     if (!d) return FALLBACK_VALUE;
 
     if (includeDate && includeTime) {
-      return dateTimeFormatter.format(d);
+      return moment(d).format(DATE_TIME_FORMAT);
     }
     if (includeDate) {
-      return dateOnlyFormatter.format(d);
+      return moment(d).format(DATE_FORMAT);
     }
     if (includeTime) {
-      return timeOnlyFormatter.format(d);
+      return moment(d).format(TIME_FORMAT);
     }
 
     return FALLBACK_VALUE;
@@ -89,17 +74,10 @@ export const formatChartAxis = (
     }
 
     if (timeRange?.endsWith("h")) {
-      return new Intl.DateTimeFormat(undefined, {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      }).format(date.toDate());
+      return date.format(TIME_FORMAT);
     }
 
-    return new Intl.DateTimeFormat(undefined, {
-      month: "numeric",
-      day: "numeric",
-    }).format(date.toDate());
+    return date.format("DD/MM");
   } catch {
     return FALLBACK_VALUE;
   }
@@ -107,7 +85,15 @@ export const formatChartAxis = (
 
 export const parseChartTime = (value: string, timeRange: string): string => {
   try {
-    const parsed = moment(value, "MM/DD/YYYY hh:mm A");
+    // Accept several incoming shapes: ISO (YYYY-MM-DD / full ISO) and the
+    // legacy "MM/DD/YYYY hh:mm A" bucket label.
+    let parsed = moment(value, moment.ISO_8601, true);
+    if (!parsed.isValid()) {
+      parsed = moment(value, "MM/DD/YYYY hh:mm A");
+    }
+    if (!parsed.isValid()) {
+      parsed = moment(value);
+    }
 
     if (!parsed.isValid()) {
       return value;

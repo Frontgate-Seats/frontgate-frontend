@@ -13,6 +13,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { IconButton, Tooltip, Typography, Box } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -24,8 +25,13 @@ import type {
 } from '@mui/x-data-grid';
 import type { CustomGridColDef } from '../../shared/types/mui.type';
 import type { Purchase, PurchasesTableProps } from '../../types/dashboard.types';
-import supabaseClient from '../../clients/supabase.client';
+import type { AppDispatch, RootState } from '../../store';
+import {
+  getDashboardPurchases,
+  getDashboardPurchasesSummary,
+} from '../../store/slices/dashboard.slice';
 import moment from 'moment';
+import { DATE_TIME_FORMAT } from '../../shared/utils/dateTime.util';
 import CustomDataGrid from '../common/datagrid/CustomDatagrid';
 
 // ─── Group ids ────────────────────────────────────────────────────────────────
@@ -42,6 +48,23 @@ const fmt = (n: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(n);
+
+// Profit / margin only make sense once (part of) the inventory has sold.
+const isSold = (status: string | null | undefined) =>
+  status === 'DEPLETED' || status === 'PARTIAL_SOLD';
+
+// DEPLETED is the DB value for fully-sold inventory — show it as "SOLD".
+const statusLabel = (status: string | null | undefined) =>
+  status === 'DEPLETED' ? 'SOLD' : (status ?? '');
+
+// Inventory status filter options — DB value + display label (DEPLETED => SOLD).
+const INVENTORY_STATUS_OPTIONS = [
+  { value: 'AVAILABLE',    label: 'AVAILABLE' },
+  { value: 'ON_HOLD',      label: 'ON_HOLD' },
+  { value: 'DEPLETED',     label: 'SOLD' },
+  { value: 'PARTIAL_SOLD', label: 'PARTIAL_SOLD' },
+  { value: 'UNSOLD',       label: 'UNSOLD' },
+];
 
 // ─── Group header with collapse toggle ───────────────────────────────────────
 function GroupHeader({
@@ -74,11 +97,18 @@ export default function PurchasesTable({
   dateRange,
   pageSize = 50,
 }: PurchasesTableProps) {
-  const [purchases, setPurchases]         = useState<Purchase[]>([]);
-  const [totalCount, setTotalCount]       = useState(0);
-  const [isLoading, setIsLoading]         = useState(false);
-  const [error, setError]                 = useState<Error | null>(null);
-  const [collapsedGroups, setCollapsed]   = useState<Set<string>>(new Set([G_EVENT, G_PURCHASE, G_TICKET, G_FINANCIAL, G_STATUS]));
+  const dispatch = useDispatch<AppDispatch>();
+  const {
+    purchases: { data: purchases, total: totalCount },
+    purchasesLoading: isLoading,
+    purchasesSummary: summary,
+    error,
+  } = useSelector((state: RootState) => state.dashboard);
+
+  // Groups start collapsed (compact stacked summary); users expand via chevron.
+  const [collapsedGroups, setCollapsed]   = useState<Set<string>>(
+    new Set([G_PURCHASE, G_EVENT, G_TICKET, G_FINANCIAL, G_STATUS]),
+  );
 
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({
     page: 0,
@@ -106,27 +136,124 @@ export default function PurchasesTable({
     const statusCollapsed   = collapsedGroups.has(G_STATUS);
 
     return [
-      // ── Event Info group ──
-      ...(eventCollapsed
+      // ── Purchase Info group — FIRST ──
+      ...(purchaseCollapsed
         ? [
             {
-              field: '__event_summary',
-              headerName: 'Event',
-              width: 220,
+              field: '__purchase_summary',
+              headerName: '',
+              width: 200,
               sortable: false,
               filterable: false,
               renderCell: ({ row }: { row: Purchase }) => (
                 <Box display="flex" flexDirection="column" justifyContent="center" py={0.5} gap={0.25}>
-                  <Typography variant="body2" fontWeight={600} noWrap>{row.eventName}</Typography>
-                  <Typography variant="body2" color="text.secondary" noWrap>{row.venueName}</Typography>
-                  <Typography variant="body2" color="text.secondary" noWrap>
-                    {moment(row.eventDate).format('MMM DD, YYYY')}
+                  <Typography variant="body2" noWrap>
+                    <b>PO ID:</b>{' '}
+                    {row.purchaseId ? (
+                      <Box
+                        component="span"
+                        sx={{ color: 'primary.main', fontWeight: 400, cursor: 'pointer', textDecoration: 'underline' }}
+                        onClick={(e) => { e.stopPropagation(); window.open(`https://skybox.vividseats.com/purchases/${row.purchaseId}`, '_blank'); }}
+                      >
+                        {row.purchaseId}
+                      </Box>
+                    ) : '—'}
                   </Typography>
+                  <Typography variant="body2" noWrap><b>Ext Ref:</b> {row.orderId ?? ''}</Typography>
+                  <Typography variant="body2" noWrap><b>Inventory ID:</b> {row.inventoryId ?? ''}</Typography>
+                  <Typography variant="body2" noWrap><b>Purchase Date:</b> {row.createdAt ? moment(row.createdAt).format(DATE_TIME_FORMAT) : ''}</Typography>
                 </Box>
               ),
             } as CustomGridColDef,
           ]
         : [
+            {
+              field: 'purchaseId',
+              headerName: 'PO ID',
+              width: 110,
+              sortable: false,
+              renderCell: ({ row }: { row: Purchase }) =>
+                row.purchaseId ? (
+                  <Typography
+                    variant="body2"
+                    color="primary"
+                    noWrap
+                    sx={{ cursor: 'pointer', textDecoration: 'underline' }}
+                    onClick={(e) => { e.stopPropagation(); window.open(`https://skybox.vividseats.com/purchases/${row.purchaseId}`, '_blank'); }}
+                  >
+                    {row.purchaseId}
+                  </Typography>
+                ) : null,
+            } as CustomGridColDef,
+            {
+              field: 'orderId',
+              headerName: 'Ext Ref',
+              width: 130,
+              valueFormatter: (v: string | null) => v ?? '',
+            } as CustomGridColDef,
+            {
+              field: 'inventoryId',
+              headerName: 'Inventory ID',
+              width: 120,
+              valueFormatter: (v: string | null) => v ?? '',
+            } as CustomGridColDef,
+            {
+              field: 'createdAt',
+              headerName: 'Purchase Date',
+              width: 175,
+              valueFormatter: (v: string) => v ? moment(v).format(DATE_TIME_FORMAT) : '',
+            } as CustomGridColDef,
+          ]),
+
+      // ── Event Info group — SECOND ──
+      ...(eventCollapsed
+        ? [
+            {
+              field: '__event_summary',
+              headerName: '',
+              width: 260,
+              sortable: false,
+              filterable: false,
+              renderCell: ({ row }: { row: Purchase }) => (
+                <Box display="flex" flexDirection="column" justifyContent="center" py={0.5} gap={0.25}>
+                  <Typography variant="body2" noWrap>
+                    <b>Event ID:</b>{' '}
+                    {row.eventId ? (
+                      <Box
+                        component="span"
+                        sx={{ color: 'primary.main', fontWeight: 400, cursor: 'pointer', textDecoration: 'underline' }}
+                        onClick={(e) => { e.stopPropagation(); window.open(`https://www.vividseats.com/production/${row.eventId}`, '_blank'); }}
+                      >
+                        {row.eventId}
+                      </Box>
+                    ) : ''}
+                  </Typography>
+                  <Typography variant="body2" noWrap><b>Event Name:</b> {row.eventName}</Typography>
+                  <Typography variant="body2" noWrap><b>Venue:</b> {row.venueName}</Typography>
+                  <Typography variant="body2" noWrap><b>Event Date:</b> {row.eventDate ? moment(row.eventDate).format(DATE_TIME_FORMAT) : ''}</Typography>
+                </Box>
+              ),
+            } as CustomGridColDef,
+          ]
+        : [
+            {
+              field: 'eventId',
+              headerName: 'Event ID',
+              width: 100,
+              sortable: false,
+              renderCell: ({ row }: { row: Purchase }) =>
+                row.eventId ? (
+                  <Typography
+                    variant="body2"
+                    color="primary"
+                    noWrap
+                    sx={{ cursor: 'pointer', textDecoration: 'underline' }}
+                    onClick={(e) => { e.stopPropagation(); window.open(`https://www.vividseats.com/production/${row.eventId}`, '_blank'); }}
+                  >
+                    {row.eventId}
+                  </Typography>
+                ) : null,
+            } as CustomGridColDef,
             {
               field: 'eventName',
               headerName: 'Event Name',
@@ -141,46 +268,8 @@ export default function PurchasesTable({
             {
               field: 'eventDate',
               headerName: 'Event Date',
-              width: 130,
-              valueFormatter: (v: string) => moment(v).format('MMM DD, YYYY'),
-            } as CustomGridColDef,
-          ]),
-
-      // ── Purchase Info group ──
-      ...(purchaseCollapsed
-        ? [
-            {
-              field: '__purchase_summary',
-              headerName: 'Purchase',
-              width: 160,
-              sortable: false,
-              filterable: false,
-              renderCell: ({ row }: { row: Purchase }) => (
-                <Box display="flex" flexDirection="column" justifyContent="center" py={0.5} gap={0.25}>
-                  <Typography variant="body2"><b>ID:</b> {row.id}</Typography>
-                  <Typography variant="body2"><b>Ref:</b> {row.orderId ?? '-'}</Typography>
-                  <Typography variant="body2"><b>Date:</b> {moment(row.createdAt).format('MMM DD, YYYY')}</Typography>
-                </Box>
-              ),
-            } as CustomGridColDef,
-          ]
-        : [
-            {
-              field: 'id',
-              headerName: 'Purchase ID',
-              width: 110,
-            } as CustomGridColDef,
-            {
-              field: 'orderId',
-              headerName: 'External Ref',
-              width: 130,
-              valueFormatter: (v: string | null) => v ?? '-',
-            } as CustomGridColDef,
-            {
-              field: 'createdAt',
-              headerName: 'Purchase Date',
-              width: 175,
-              valueFormatter: (v: string) => moment(v).format('MMM DD, YYYY HH:mm'),
+              width: 165,
+              valueFormatter: (v: string) => v ? moment(v).format(DATE_TIME_FORMAT) : '',
             } as CustomGridColDef,
           ]),
 
@@ -189,14 +278,14 @@ export default function PurchasesTable({
         ? [
             {
               field: '__ticket_summary',
-              headerName: 'Tickets',
-              width: 130,
+              headerName: '',
+              width: 170,
               sortable: false,
               filterable: false,
               renderCell: ({ row }: { row: Purchase }) => (
                 <Box display="flex" flexDirection="column" justifyContent="center" py={0.5} gap={0.25}>
-                  <Typography variant="body2"><b>Sec:</b> {row.section}</Typography>
-                  <Typography variant="body2"><b>Row:</b> {row.row ?? '-'}</Typography>
+                  <Typography variant="body2"><b>Section:</b> {row.section}</Typography>
+                  <Typography variant="body2"><b>Row:</b> {row.row ?? ''}</Typography>
                   <Typography variant="body2"><b>Qty:</b> {row.quantity}</Typography>
                 </Box>
               ),
@@ -212,7 +301,7 @@ export default function PurchasesTable({
               field: 'row',
               headerName: 'Row',
               width: 70,
-              valueFormatter: (v: string | null) => v ?? '-',
+              valueFormatter: (v: string | null) => v ?? '',
             } as CustomGridColDef,
             {
               field: 'quantity',
@@ -229,22 +318,36 @@ export default function PurchasesTable({
         ? [
             {
               field: '__fin_summary',
-              headerName: 'Financials',
-              width: 140,
+              headerName: '',
+              width: 190,
               sortable: false,
               filterable: false,
-              renderCell: ({ row }: { row: Purchase }) => (
-                <Box display="flex" flexDirection="column" justifyContent="center" py={0.5} gap={0.25}>
-                  <Typography variant="body2"><b>Cost/Tkt:</b> {fmt(row.pricePerTicket)}</Typography>
-                  <Typography variant="body2"><b>Total:</b> {fmt(row.totalCost)}</Typography>
-                </Box>
-              ),
+              renderCell: ({ row }: { row: Purchase }) => {
+                const sold = isSold(row.status);
+                const margin = sold && row.soldPrice > 0 ? (row.profit / row.soldPrice) * 100 : null;
+                const pColor = row.profit < 0 ? '#d32f2f' : '#2e7d32';
+                // Total Sale: green when it beats cost, red when below cost.
+                const saleColor = row.soldPrice >= row.totalCost ? '#2e7d32' : '#d32f2f';
+                return (
+                  <Box display="flex" flexDirection="column" justifyContent="center" py={0.5} gap={0.25}>
+                    <Typography variant="body2"><b>Unit Cost:</b> {fmt(row.pricePerTicket)}</Typography>
+                    <Typography variant="body2"><b>Total Cost:</b> {fmt(row.totalCost)}</Typography>
+                    {sold && (
+                      <>
+                        <Typography variant="body2"><b>Total Sale:</b> <span style={{ color: saleColor }}>{fmt(row.soldPrice)}</span></Typography>
+                        <Typography variant="body2"><b>Profit:</b> <span style={{ color: pColor }}>{fmt(row.profit)}</span></Typography>
+                        <Typography variant="body2"><b>Margin:</b> <span style={{ color: pColor }}>{margin != null ? `${margin.toFixed(1)}%` : '—'}</span></Typography>
+                      </>
+                    )}
+                  </Box>
+                );
+              },
             } as CustomGridColDef,
           ]
         : [
             {
               field: 'pricePerTicket',
-              headerName: 'Cost/Ticket',
+              headerName: 'Unit Cost',
               width: 120,
               type: 'number',
               align: 'right',
@@ -260,6 +363,63 @@ export default function PurchasesTable({
               headerAlign: 'right',
               valueFormatter: (v: number) => fmt(v),
             } as CustomGridColDef,
+            {
+              field: 'soldPrice',
+              headerName: 'Total Sale',
+              width: 120,
+              type: 'number',
+              align: 'right',
+              headerAlign: 'right',
+              renderCell: (params) =>
+                isSold(params.row.status) ? (
+                  <span
+                    style={{
+                      color: params.value >= params.row.totalCost ? '#2e7d32' : '#d32f2f',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {fmt(params.value)}
+                  </span>
+                ) : (
+                  '—'
+                ),
+            } as CustomGridColDef,
+            {
+              field: 'profit',
+              headerName: 'Profit',
+              width: 110,
+              type: 'number',
+              align: 'right',
+              headerAlign: 'right',
+              renderCell: (params) =>
+                isSold(params.row.status) ? (
+                  <span style={{ color: params.value < 0 ? '#d32f2f' : '#2e7d32', fontWeight: 600 }}>
+                    {fmt(params.value)}
+                  </span>
+                ) : (
+                  '—'
+                ),
+            } as CustomGridColDef,
+            {
+              field: 'margin',
+              headerName: 'Margin',
+              width: 90,
+              type: 'number',
+              align: 'right',
+              headerAlign: 'right',
+              sortable: false,
+              filterable: false,
+              valueGetter: (_: unknown, row: Purchase) =>
+                isSold(row.status) && row.soldPrice > 0 ? (row.profit / row.soldPrice) * 100 : null,
+              renderCell: (params) =>
+                params.value == null ? (
+                  '—'
+                ) : (
+                  <span style={{ color: params.value < 0 ? '#d32f2f' : '#2e7d32', fontWeight: 600 }}>
+                    {`${Number(params.value).toFixed(1)}%`}
+                  </span>
+                ),
+            } as CustomGridColDef,
           ]),
 
       // ── Status group ──
@@ -267,14 +427,14 @@ export default function PurchasesTable({
         ? [
             {
               field: '__status_summary',
-              headerName: 'Status',
-              width: 150,
+              headerName: '',
+              width: 230,
               sortable: false,
               filterable: false,
               renderCell: ({ row }: { row: Purchase }) => (
                 <Box display="flex" flexDirection="column" justifyContent="center" py={0.5} gap={0.25}>
-                  <Typography variant="body2"><b>Inv:</b> {row.status ?? '-'}</Typography>
-                  <Typography variant="body2"><b>Fulfil:</b> {row.fulfillmentStatus ?? 'Pending'}</Typography>
+                  <Typography variant="body2"><b>Inventory Status:</b> {statusLabel(row.status)}</Typography>
+                  <Typography variant="body2"><b>Fulfillment Status:</b> {row.fulfillmentStatus ?? ''}</Typography>
                 </Box>
               ),
             } as CustomGridColDef,
@@ -284,6 +444,9 @@ export default function PurchasesTable({
               field: 'status',
               headerName: 'Inventory Status',
               width: 140,
+              type: 'singleSelect',
+              valueOptions: INVENTORY_STATUS_OPTIONS,
+              valueFormatter: (v: string | null) => statusLabel(v),
             } as CustomGridColDef,
             {
               field: 'fulfillmentStatus',
@@ -304,22 +467,22 @@ export default function PurchasesTable({
 
     return [
       {
-        groupId: G_EVENT,
-        renderHeaderGroup: () => (
-          <GroupHeader label="Event Info" groupId={G_EVENT} collapsed={eventCollapsed} onToggle={toggleGroup} />
-        ),
-        children: eventCollapsed
-          ? [{ field: '__event_summary' }]
-          : [{ field: 'eventName' }, { field: 'venueName' }, { field: 'eventDate' }],
-      },
-      {
         groupId: G_PURCHASE,
         renderHeaderGroup: () => (
           <GroupHeader label="Purchase Info" groupId={G_PURCHASE} collapsed={purchaseCollapsed} onToggle={toggleGroup} />
         ),
         children: purchaseCollapsed
           ? [{ field: '__purchase_summary' }]
-          : [{ field: 'id' }, { field: 'orderId' }, { field: 'createdAt' }],
+          : [{ field: 'purchaseId' }, { field: 'orderId' }, { field: 'inventoryId' }, { field: 'createdAt' }],
+      },
+      {
+        groupId: G_EVENT,
+        renderHeaderGroup: () => (
+          <GroupHeader label="Event Info" groupId={G_EVENT} collapsed={eventCollapsed} onToggle={toggleGroup} />
+        ),
+        children: eventCollapsed
+          ? [{ field: '__event_summary' }]
+          : [{ field: 'eventId' }, { field: 'eventName' }, { field: 'venueName' }, { field: 'eventDate' }],
       },
       {
         groupId: G_TICKET,
@@ -337,7 +500,7 @@ export default function PurchasesTable({
         ),
         children: finCollapsed
           ? [{ field: '__fin_summary' }]
-          : [{ field: 'pricePerTicket' }, { field: 'totalCost' }],
+          : [{ field: 'pricePerTicket' }, { field: 'totalCost' }, { field: 'soldPrice' }, { field: 'profit' }, { field: 'margin' }],
       },
       {
         groupId: G_STATUS,
@@ -351,79 +514,24 @@ export default function PurchasesTable({
     ];
   }, [collapsedGroups, toggleGroup]);
 
-  // ── Data fetching ─────────────────────────────────────────────────────────
-  const fetchPurchases = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const offset    = paginationModel.page * paginationModel.pageSize;
-      const sortField = sortingModel[0]?.field ?? 'createdAt';
-      const ascending = sortingModel[0]?.sort === 'asc';
-
-      const fieldMap: Record<string, string> = {
-        createdAt:      'created_at',
-        orderId:        'order_id',
-        eventName:      'event_name',
-        venueName:      'venue_name',
-        eventDate:      'event_utc_date',
-        section:        'section',
-        row:            'row',
-        quantity:       'quantity',
-        pricePerTicket: 'price_per',
-        totalCost:      'total_amount',
-        status:         'inventory_status',
-        fulfillmentStatus: 'fulfillment_status',
-      };
-
-      const { data, error: qErr, count } = await supabaseClient
-        .from('inventory')
-        .select(
-          `id, created_at, order_id, event_name, venue_name, section, row,
-           quantity, price_per, total_amount, event_utc_date, inventory_status,
-           fulfillment_status`,
-          { count: 'exact' },
-        )
-        .gte('created_at', dateRange.startDate.toISOString())
-        .lte('created_at', dateRange.endDate.toISOString())
-        .order(fieldMap[sortField] ?? 'created_at', { ascending })
-        .range(offset, offset + paginationModel.pageSize - 1);
-
-      if (qErr) throw qErr;
-
-      const mapped: Purchase[] = (data ?? []).map((r) => ({
-        id:             r.id,
-        createdAt:      r.created_at,
-        orderId:        r.order_id ?? null,
-        eventName:      r.event_name,
-        venueName:      r.venue_name,
-        section:        r.section,
-        row:            r.row,
-        quantity:       r.quantity,
-        pricePerTicket: parseFloat(r.price_per),
-        totalCost:      parseFloat(r.total_amount),
-        eventDate:      r.event_utc_date,
-        status:         r.inventory_status,
-        fulfillmentStatus: r.fulfillment_status ?? null,
-      }));
-
-      setPurchases(mapped);
-      setTotalCount(count ?? 0);
-    } catch (err) {
-      console.error('PurchasesTable fetch error:', err);
-      setError(err as Error);
-      setPurchases([]);
-      setTotalCount(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [dateRange, paginationModel, sortingModel]);
+  // ── Data fetching (via dashboard slice) ────────────────────────────────────
+  const fetchPurchases = useCallback(() => {
+    const options = {
+      page: paginationModel.page,
+      pageSize: paginationModel.pageSize,
+      sortFields: sortingModel,
+      filters: filterModel,
+    };
+    dispatch(getDashboardPurchases({ dateRange, options }));
+    dispatch(getDashboardPurchasesSummary({ dateRange, options }));
+  }, [dispatch, dateRange, paginationModel, sortingModel, filterModel]);
 
   useEffect(() => { fetchPurchases(); }, [fetchPurchases]);
 
-  // Reset page on date change
+  // Reset page on date or filter change
   useEffect(() => {
     setPaginationModel((p) => ({ ...p, page: 0 }));
-  }, [dateRange]);
+  }, [dateRange, filterModel]);
 
   // Row height: each collapsed group stacks its values vertically.
   // Event=3 lines, Purchase=3 lines, Ticket=3 lines, Financials=2 lines.
@@ -434,12 +542,51 @@ export default function PurchasesTable({
     if (collapsedGroups.has(G_EVENT))     max = Math.max(max, 3);
     if (collapsedGroups.has(G_PURCHASE))  max = Math.max(max, 3);
     if (collapsedGroups.has(G_TICKET))    max = Math.max(max, 3);
-    if (collapsedGroups.has(G_FINANCIAL)) max = Math.max(max, 2);
+    if (collapsedGroups.has(G_FINANCIAL)) max = Math.max(max, 5);
     if (collapsedGroups.has(G_STATUS))    max = Math.max(max, 2);
     return max;
   }, [collapsedGroups]);
 
   const anyCollapsed = collapsedLineCount > 0;
+
+  const footerSummary = (
+    <Box
+      display="flex"
+      alignItems="center"
+      justifyContent="flex-end"
+      flexWrap="wrap"
+      gap={3}
+      px={1}
+      py={0.75}
+    >
+      <Typography variant="body2" color="text.secondary">
+        Purchases: <b>{totalCount.toLocaleString()}</b>
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Qty: <b>{(summary?.totalQty ?? 0).toLocaleString()}</b>
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Cost: <b style={{ color: '#1565c0' }}>{fmt(summary?.totalCost ?? 0)}</b>
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Sale: <b style={{ color: '#2e7d32' }}>{fmt(summary?.totalSale ?? 0)}</b>
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Profit:{' '}
+        <b style={{ color: (summary?.totalProfit ?? 0) < 0 ? '#d32f2f' : '#2e7d32' }}>
+          {fmt(summary?.totalProfit ?? 0)}
+        </b>
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Margin:{' '}
+        <b style={{ color: (summary?.totalProfit ?? 0) < 0 ? '#d32f2f' : '#2e7d32' }}>
+          {summary && summary.totalSale > 0
+            ? `${((summary.totalProfit / summary.totalSale) * 100).toFixed(1)}%`
+            : '—'}
+        </b>
+      </Typography>
+    </Box>
+  );
 
   return (
     <CustomDataGrid
@@ -450,7 +597,7 @@ export default function PurchasesTable({
       columnGroupingModel={columnGroupingModel}
       onRefresh={fetchPurchases}
       isLoading={isLoading}
-      error={error}
+      error={error ? new Error(error) : null}
       paginationModel={paginationModel}
       setPaginationModel={setPaginationModel}
       sortingModel={sortingModel}
@@ -460,8 +607,8 @@ export default function PurchasesTable({
       paginationMode="server"
       sortingMode="server"
       height={600}
-      defaultFilterType="header"
-      initialShowFilters={false}
+      defaultFilterType="custom"
+      footerSummary={footerSummary}
       {...(anyCollapsed ? { getRowHeight: () => collapsedLineCount * LINE_H + PADDING } : {})}
     />
   );

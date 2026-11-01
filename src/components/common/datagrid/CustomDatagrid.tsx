@@ -19,6 +19,7 @@ import {
 import RefreshIcon from "@mui/icons-material/Refresh";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import FilterListOffIcon from "@mui/icons-material/FilterListOff";
+import CropFreeIcon from "@mui/icons-material/CropFree";
 import CustomFilterToolbar from "./CustomToolbar";
 import CustomHeaderFilter from "./CustomHeaderFilter";
 import type { CustomGridColDef, QuickFilter } from "../../../shared/types/mui.type";
@@ -56,6 +57,8 @@ interface CustomDataGridProps {
   initialShowFilters?: boolean;
   columnGroupingModel?: GridColumnGroupingModel;
   quickFilters?: QuickFilter[];
+  /** Optional summary bar rendered directly below the grid (e.g. totals). */
+  footerSummary?: React.ReactNode;
 }
 
 export default function CustomDataGrid({
@@ -86,11 +89,15 @@ export default function CustomDataGrid({
   initialShowFilters = true,
   columnGroupingModel,
   quickFilters,
+  footerSummary,
 }: CustomDataGridProps) {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const handleFullscreenChange = (fullscreenMode: boolean) => {
     setIsFullscreen(fullscreenMode);
   };
+  // Drive fullscreen from a button in the header toolbar instead of the
+  // floating corner button (which overlapped the footer).
+  const [fullscreenOpen, setFullscreenOpen] = React.useState(false);
 
   const [showFilters, setShowFilters] = React.useState(initialShowFilters);
 
@@ -218,7 +225,12 @@ export default function CustomDataGrid({
   ]);
 
   return (
-    <ToggleFullscreen onFullscreenChange={handleFullscreenChange} fillHeight={isFullHeight}>
+    <ToggleFullscreen
+      onFullscreenChange={handleFullscreenChange}
+      fillHeight={isFullHeight}
+      open={fullscreenOpen}
+      onOpenChange={setFullscreenOpen}
+    >
       <Box
         sx={{
           display: "flex",
@@ -312,6 +324,17 @@ export default function CustomDataGrid({
                   <RefreshIcon />
                 </IconButton>
               </Tooltip>
+              {!isFullscreen && (
+                <Tooltip title="Fullscreen" placement="right" enterDelay={1000}>
+                  <IconButton
+                    size="medium"
+                    aria-label="fullscreen"
+                    onClick={() => setFullscreenOpen(true)}
+                  >
+                    <CropFreeIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
             </Stack>
           </Stack>
         ) : (
@@ -489,6 +512,11 @@ export default function CustomDataGrid({
                 }}
               />
             </Box>
+            {footerSummary ? (
+              <Box sx={{ flexShrink: 0, borderTop: 1, borderColor: "divider" }}>
+                {footerSummary}
+              </Box>
+            ) : null}
           </>
         )}
       </Box>

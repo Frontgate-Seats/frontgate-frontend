@@ -64,6 +64,18 @@ export interface DateRange {
 export type FilterType = 'last7days' | 'last30days' | 'ytd' | 'custom';
 
 /**
+ * Time-range filter values — mirrors the charts' TIME_RANGE_OPTIONS plus a
+ * 'custom' option for an explicit start/end range. 'all' means no date filter.
+ */
+export type TimeRangeFilter =
+  | 'all'
+  | '1h' | '3h' | '6h' | '12h'
+  | '1d' | '7d' | '30d'
+  | '3m' | '6m' | '1y'
+  | 'ytd'
+  | 'custom';
+
+/**
  * Custom date range input from user (string format for date pickers)
  */
 export interface CustomDateRange {
@@ -152,6 +164,12 @@ export interface Purchase {
   createdAt: string;
   /** External order reference (order_id) */
   orderId: string | null;
+  /** SkyBox purchase ID (purchase_id) */
+  purchaseId: string | null;
+  /** SkyBox inventory ID (inventory_id) */
+  inventoryId: string | null;
+  /** Event ID (event_id) */
+  eventId: string | null;
   /** Name of the event (event_name) */
   eventName: string;
   /** Name of the venue (venue_name) */
@@ -166,6 +184,10 @@ export interface Purchase {
   pricePerTicket: number;
   /** Total cost of purchase (total_amount) */
   totalCost: number;
+  /** Profit/loss on this purchase (profit) */
+  profit: number;
+  /** Revenue from the sold portion of this purchase (sold_price) */
+  soldPrice: number;
   /** Event date (event_utc_date) */
   eventDate: string;
   /** Current status of inventory (inventory_status) */
@@ -197,10 +219,18 @@ export interface PurchasesFooterTotals {
 export interface Sale {
   /** Unique identifier for sale record */
   id: string;
-  /** Timestamp when sale occurred (invoice_date) */
+  /** Invoice timestamp from the marketplace (invoice_date) */
+  invoiceDate: string;
+  /** Timestamp when the sold record was captured (created_at) */
   saleDate: string;
-  /** Order identifier (order_id) */
+  /** Order identifier / external reference (order_id) */
   orderId: string;
+  /** SkyBox purchase IDs this sale came from (purchase_ids) */
+  purchaseIds: string[];
+  /** SkyBox inventory ID (inventory_id) */
+  inventoryId: string | null;
+  /** Event ID (event_id) */
+  eventId: string | null;
   /** Name of the event (event_name) */
   eventName: string;
   /** Name of the venue (venue_name) */
@@ -328,18 +358,18 @@ export interface SalesTableProps {
 export interface DateFilterProps {
   /** Callback when filter changes */
   onDateRangeChange: (range: DateRange) => void;
-  /** Initial filter type (default: 'last7days') */
-  initialFilter?: FilterType;
+  /** Initial time-range filter (default: 'all' — no date filter applied). */
+  initialFilter?: TimeRangeFilter;
 }
 
 /**
  * Props for ChartRenderer component
  */
 export interface ChartRendererProps {
-  /** Type of data to visualize */
-  dataType: 'purchases' | 'sales';
   /** Date filter for data aggregation */
   dateRange: DateRange;
+  /** When true the chart stretches to fill its parent's height instead of a fixed height. */
+  fill?: boolean;
 }
 
 /**

@@ -6,17 +6,31 @@ interface ToggleFullscreenProps {
   children: React.ReactNode;
   onFullscreenChange?: (isFullscreen: boolean) => void;
   fillHeight?: boolean;
+  /**
+   * Controlled open state. When provided, the built-in floating button is
+   * hidden and the parent drives open/close (e.g. a button in its own header).
+   */
+  open?: boolean;
+  onOpenChange?: (isOpen: boolean) => void;
 }
 
 const ToggleFullscreen: React.FC<ToggleFullscreenProps> = ({
   children,
   onFullscreenChange,
   fillHeight = false,
+  open: controlledOpen,
+  onOpenChange,
 }) => {
-  const [open, setOpen] = React.useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : uncontrolledOpen;
 
   const handleFullscreenToggle = (isOpen: boolean) => {
-    setOpen(isOpen);
+    if (isControlled) {
+      onOpenChange?.(isOpen);
+    } else {
+      setUncontrolledOpen(isOpen);
+    }
     onFullscreenChange?.(isOpen);
   };
 
@@ -25,22 +39,25 @@ const ToggleFullscreen: React.FC<ToggleFullscreenProps> = ({
       {/* Normal View */}
       <Box sx={{
         position: "relative",
-        ...(fillHeight && { height: "100%", minHeight: 0, display: "flex", flexDirection: "column" }),
+        ...(fillHeight && { height: "100%", width: "100%", minHeight: 0, display: "flex", flexDirection: "column" }),
       }}>
-        <IconButton
-          size="large"
-          onClick={() => handleFullscreenToggle(true)}
-          sx={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            zIndex: 1,
-            color: "text.secondary",
-            "&:hover": { color: "primary.main" },
-          }}
-        >
-          <Fullscreen />
-        </IconButton>
+        {/* Built-in floating trigger — only when uncontrolled */}
+        {!isControlled && (
+          <IconButton
+            size="large"
+            onClick={() => handleFullscreenToggle(true)}
+            sx={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              zIndex: 1,
+              color: "text.secondary",
+              "&:hover": { color: "primary.main" },
+            }}
+          >
+            <Fullscreen />
+          </IconButton>
+        )}
 
         {children}
       </Box>
@@ -66,6 +83,9 @@ const ToggleFullscreen: React.FC<ToggleFullscreenProps> = ({
             borderRadius: 2,
             p: 2,
             outline: "none",
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
           }}
         >
           {/* Close Button */}
@@ -92,7 +112,9 @@ const ToggleFullscreen: React.FC<ToggleFullscreenProps> = ({
             <Close />
           </IconButton>
 
-          <Box sx={{ height: "100%" }}>{children}</Box>
+          <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+            {children}
+          </Box>
         </Box>
       </Modal>
     </>

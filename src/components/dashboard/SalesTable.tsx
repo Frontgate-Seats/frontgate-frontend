@@ -10,7 +10,9 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { IconButton, Tooltip, Typography, Box } from '@mui/material';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import type {
@@ -21,10 +23,16 @@ import type {
 } from '@mui/x-data-grid';
 import type { CustomGridColDef } from '../../shared/types/mui.type';
 import type { Sale, SalesTableProps } from '../../types/dashboard.types';
-import supabaseClient from '../../clients/supabase.client';
+import type { AppDispatch, RootState } from '../../store';
+import {
+  getDashboardSales,
+  getDashboardSalesSummary,
+} from '../../store/slices/dashboard.slice';
 import moment from 'moment';
+import { DATE_TIME_FORMAT } from '../../shared/utils/dateTime.util';
 import CustomDataGrid from '../common/datagrid/CustomDatagrid';
 
+const G_SALE      = 'g_sale';
 const G_EVENT     = 'g_event';
 const G_TICKET    = 'g_ticket';
 const G_FINANCIAL = 'g_financial';
@@ -67,11 +75,18 @@ export default function SalesTable({
   dateRange,
   pageSize = 50,
 }: SalesTableProps) {
-  const [sales, setSales]               = useState<Sale[]>([]);
-  const [totalCount, setTotalCount]     = useState(0);
-  const [isLoading, setIsLoading]       = useState(false);
-  const [error, setError]               = useState<Error | null>(null);
-  const [collapsedGroups, setCollapsed] = useState<Set<string>>(new Set([G_EVENT, G_TICKET, G_FINANCIAL, G_STATUS]));
+  const dispatch = useDispatch<AppDispatch>();
+  const {
+    sales: { data: sales, total: totalCount },
+    salesLoading: isLoading,
+    salesSummary: summary,
+    error,
+  } = useSelector((state: RootState) => state.dashboard);
+
+  // Groups start collapsed (compact stacked summary); users expand via chevron.
+  const [collapsedGroups, setCollapsed] = useState<Set<string>>(
+    new Set([G_SALE, G_EVENT, G_TICKET, G_FINANCIAL, G_STATUS]),
+  );
 
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({
     page: 0,
@@ -92,46 +107,137 @@ export default function SalesTable({
 
   // ── Columns ──────────────────────────────────────────────────────────────
   const columns = useMemo((): CustomGridColDef[] => {
+    const saleCollapsed   = collapsedGroups.has(G_SALE);
     const eventCollapsed  = collapsedGroups.has(G_EVENT);
     const ticketCollapsed = collapsedGroups.has(G_TICKET);
     const finCollapsed    = collapsedGroups.has(G_FINANCIAL);
     const statusCollapsed = collapsedGroups.has(G_STATUS);
 
+    const poLink = (pid: string) => (
+      <Box
+        key={pid}
+        component="span"
+        sx={{ color: 'primary.main', cursor: 'pointer', textDecoration: 'underline' }}
+        onClick={(e) => { e.stopPropagation(); window.open(`https://skybox.vividseats.com/purchases/${pid}`, '_blank'); }}
+      >
+        {pid}
+      </Box>
+    );
+
     return [
-      // ── always visible: Sale Date + Order ID only ──
-      {
-        field: 'saleDate',
-        headerName: 'Sale Date',
-        width: 175,
-        valueFormatter: (v: string) => moment(v).format('MMM DD, YYYY HH:mm'),
-      },
-      {
-        field: 'orderId',
-        headerName: 'Order ID',
-        width: 120,
-      },
+      // ── Sale Info group — FIRST ──
+      ...(saleCollapsed
+        ? [
+            {
+              field: '__sale_summary',
+              headerName: '',
+              width: 220,
+              sortable: false,
+              filterable: false,
+              renderCell: ({ row }: { row: Sale }) => (
+                <Box display="flex" flexDirection="column" justifyContent="center" py={0.5} gap={0.25}>
+                  <Typography variant="body2" noWrap>
+                    <b>PO ID:</b>{' '}
+                    {row.purchaseIds.length
+                      ? row.purchaseIds.map((p, i) => (
+                          <span key={p}>{i > 0 ? ', ' : ''}{poLink(p)}</span>
+                        ))
+                      : '—'}
+                  </Typography>
+                  <Typography variant="body2" noWrap><b>Ext Ref:</b> {row.orderId ?? ''}</Typography>
+                  <Typography variant="body2" noWrap><b>Inventory ID:</b> {row.inventoryId ?? ''}</Typography>
+                  <Typography variant="body2" noWrap><b>Invoice Date:</b> {row.invoiceDate ? moment(row.invoiceDate).format(DATE_TIME_FORMAT) : ''}</Typography>
+                  <Typography variant="body2" noWrap><b>Sale Date:</b> {row.saleDate ? moment(row.saleDate).format(DATE_TIME_FORMAT) : ''}</Typography>
+                </Box>
+              ),
+            } as CustomGridColDef,
+          ]
+        : [
+            {
+              field: 'purchaseIds',
+              headerName: 'PO ID',
+              width: 120,
+              sortable: false,
+              renderCell: ({ row }: { row: Sale }) =>
+                row.purchaseIds.length
+                  ? row.purchaseIds.map((p, i) => (
+                      <span key={p}>{i > 0 ? ', ' : ''}{poLink(p)}</span>
+                    ))
+                  : null,
+            } as CustomGridColDef,
+            {
+              field: 'orderId',
+              headerName: 'Ext Ref',
+              width: 130,
+            } as CustomGridColDef,
+            {
+              field: 'inventoryId',
+              headerName: 'Inventory ID',
+              width: 120,
+              valueFormatter: (v: string | null) => v ?? '',
+            } as CustomGridColDef,
+            {
+              field: 'invoiceDate',
+              headerName: 'Invoice Date',
+              width: 175,
+              valueFormatter: (v: string) => v ? moment(v).format(DATE_TIME_FORMAT) : '',
+            } as CustomGridColDef,
+            {
+              field: 'saleDate',
+              headerName: 'Sale Date',
+              width: 175,
+              valueFormatter: (v: string) => v ? moment(v).format(DATE_TIME_FORMAT) : '',
+            } as CustomGridColDef,
+          ]),
 
       // ── Event Info group ──
       ...(eventCollapsed
         ? [
             {
               field: '__event_summary',
-              headerName: 'Event',
-              width: 220,
+              headerName: '',
+              width: 260,
               sortable: false,
               filterable: false,
               renderCell: ({ row }: { row: Sale }) => (
                 <Box display="flex" flexDirection="column" justifyContent="center" py={0.5} gap={0.25}>
-                  <Typography variant="body2" fontWeight={600} noWrap>{row.eventName}</Typography>
-                  <Typography variant="body2" color="text.secondary" noWrap>{row.venueName}</Typography>
-                  <Typography variant="body2" color="text.secondary" noWrap>
-                    {moment(row.eventDate).format('MMM DD, YYYY')}
+                  <Typography variant="body2" noWrap>
+                    <b>Event ID:</b>{' '}
+                    {row.eventId ? (
+                      <Box
+                        component="span"
+                        sx={{ color: 'primary.main', fontWeight: 400, cursor: 'pointer', textDecoration: 'underline' }}
+                        onClick={(e) => { e.stopPropagation(); window.open(`https://www.vividseats.com/production/${row.eventId}`, '_blank'); }}
+                      >
+                        {row.eventId}
+                      </Box>
+                    ) : ''}
                   </Typography>
+                  <Typography variant="body2" noWrap><b>Event Name:</b> {row.eventName}</Typography>
+                  <Typography variant="body2" noWrap><b>Venue:</b> {row.venueName}</Typography>
+                  <Typography variant="body2" noWrap><b>Event Date:</b> {row.eventDate ? moment(row.eventDate).format(DATE_TIME_FORMAT) : ''}</Typography>
                 </Box>
               ),
             } as CustomGridColDef,
           ]
         : [
+            {
+              field: 'eventId',
+              headerName: 'Event ID',
+              width: 100,
+              sortable: false,
+              renderCell: ({ row }: { row: Sale }) =>
+                row.eventId ? (
+                  <Box display="flex" alignItems="center" gap={0.25}>
+                    <Typography variant="body2" noWrap>{row.eventId}</Typography>
+                    <Tooltip title="Open on Vivid Seats">
+                      <IconButton size="small" sx={{ p: 0.25 }} onClick={(e) => { e.stopPropagation(); window.open(`https://www.vividseats.com/production/${row.eventId}`, '_blank'); }}>
+                        <OpenInNewIcon sx={{ fontSize: 13 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                ) : null,
+            } as CustomGridColDef,
             {
               field: 'eventName',
               headerName: 'Event Name',
@@ -146,8 +252,8 @@ export default function SalesTable({
             {
               field: 'eventDate',
               headerName: 'Event Date',
-              width: 130,
-              valueFormatter: (v: string) => moment(v).format('MMM DD, YYYY'),
+              width: 150,
+              valueFormatter: (v: string) => v ? moment(v).format(DATE_TIME_FORMAT) : '',
             } as CustomGridColDef,
           ]),
 
@@ -156,14 +262,14 @@ export default function SalesTable({
         ? [
             {
               field: '__ticket_summary',
-              headerName: 'Tickets',
-              width: 130,
+              headerName: '',
+              width: 170,
               sortable: false,
               filterable: false,
               renderCell: ({ row }: { row: Sale }) => (
                 <Box display="flex" flexDirection="column" justifyContent="center" py={0.5} gap={0.25}>
-                  <Typography variant="body2"><b>Sec:</b> {row.section}</Typography>
-                  <Typography variant="body2"><b>Row:</b> {row.row ?? '-'}</Typography>
+                  <Typography variant="body2"><b>Section:</b> {row.section}</Typography>
+                  <Typography variant="body2"><b>Row:</b> {row.row ?? ''}</Typography>
                   <Typography variant="body2"><b>Qty:</b> {row.quantitySold}</Typography>
                 </Box>
               ),
@@ -179,7 +285,7 @@ export default function SalesTable({
               field: 'row',
               headerName: 'Row',
               width: 70,
-              valueFormatter: (v: string | null) => v ?? '-',
+              valueFormatter: (v: string | null) => v ?? '',
             } as CustomGridColDef,
             {
               field: 'quantitySold',
@@ -196,14 +302,13 @@ export default function SalesTable({
         ? [
             {
               field: '__fin_summary',
-              headerName: 'Financials',
-              width: 160,
+              headerName: '',
+              width: 190,
               sortable: false,
               filterable: false,
               renderCell: ({ row }: { row: Sale }) => (
                 <Box display="flex" flexDirection="column" justifyContent="center" py={0.5} gap={0.25}>
-                  <Typography variant="body2"><b>Sale/Tkt:</b> {fmt(row.salePricePerTicket)}</Typography>
-                  <Typography variant="body2"><b>Total:</b> {fmt(row.totalSaleValue)}</Typography>
+                  <Typography variant="body2"><b>Total Sale:</b> {fmt(row.totalSaleValue)}</Typography>
                   <Typography variant="body2" sx={{ color: row.profitLoss < 0 ? '#d32f2f' : '#2e7d32', fontWeight: 600 }}>
                     <b>P&L:</b> {fmt(row.profitLoss)}
                   </Typography>
@@ -212,15 +317,6 @@ export default function SalesTable({
             } as CustomGridColDef,
           ]
         : [
-            {
-              field: 'salePricePerTicket',
-              headerName: 'Sale/Ticket',
-              width: 120,
-              type: 'number',
-              align: 'right',
-              headerAlign: 'right',
-              valueFormatter: (v: number) => fmt(v),
-            } as CustomGridColDef,
             {
               field: 'totalSaleValue',
               headerName: 'Total Sale',
@@ -255,13 +351,13 @@ export default function SalesTable({
         ? [
             {
               field: '__status_summary',
-              headerName: 'Status',
-              width: 160,
+              headerName: '',
+              width: 230,
               sortable: false,
               filterable: false,
               renderCell: ({ row }: { row: Sale }) => (
                 <Box display="flex" flexDirection="column" justifyContent="center" py={0.5} gap={0.25}>
-                  <Typography variant="body2">{row.fulfillmentStatus ?? '-'}</Typography>
+                  <Typography variant="body2"><b>Fulfillment Status:</b> {row.fulfillmentStatus ?? ''}</Typography>
                 </Box>
               ),
             } as CustomGridColDef,
@@ -271,13 +367,14 @@ export default function SalesTable({
               field: 'fulfillmentStatus',
               headerName: 'Fulfillment Status',
               width: 150,
-              valueFormatter: (v: string | null) => v ?? '-',
+              valueFormatter: (v: string | null) => v ?? '',
             } as CustomGridColDef,
           ]),
     ];
   }, [collapsedGroups]);
 
   const columnGroupingModel = useMemo((): GridColumnGroupingModel => {
+    const saleCollapsed   = collapsedGroups.has(G_SALE);
     const eventCollapsed  = collapsedGroups.has(G_EVENT);
     const ticketCollapsed = collapsedGroups.has(G_TICKET);
     const finCollapsed    = collapsedGroups.has(G_FINANCIAL);
@@ -285,13 +382,22 @@ export default function SalesTable({
 
     return [
       {
+        groupId: G_SALE,
+        renderHeaderGroup: () => (
+          <GroupHeader label="Sale Info" groupId={G_SALE} collapsed={saleCollapsed} onToggle={toggleGroup} />
+        ),
+        children: saleCollapsed
+          ? [{ field: '__sale_summary' }]
+          : [{ field: 'purchaseIds' }, { field: 'orderId' }, { field: 'inventoryId' }, { field: 'invoiceDate' }, { field: 'saleDate' }],
+      },
+      {
         groupId: G_EVENT,
         renderHeaderGroup: () => (
           <GroupHeader label="Event Info" groupId={G_EVENT} collapsed={eventCollapsed} onToggle={toggleGroup} />
         ),
         children: eventCollapsed
           ? [{ field: '__event_summary' }]
-          : [{ field: 'eventName' }, { field: 'venueName' }, { field: 'eventDate' }],
+          : [{ field: 'eventId' }, { field: 'eventName' }, { field: 'venueName' }, { field: 'eventDate' }],
       },
       {
         groupId: G_TICKET,
@@ -309,7 +415,7 @@ export default function SalesTable({
         ),
         children: finCollapsed
           ? [{ field: '__fin_summary' }]
-          : [{ field: 'salePricePerTicket' }, { field: 'totalSaleValue' }, { field: 'profitLoss' }],
+          : [{ field: 'totalSaleValue' }, { field: 'profitLoss' }],
       },
       {
         groupId: G_STATUS,
@@ -323,81 +429,24 @@ export default function SalesTable({
     ];
   }, [collapsedGroups, toggleGroup]);
 
-  // ── Data fetching ─────────────────────────────────────────────────────────
-  const fetchSales = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const offset    = paginationModel.page * paginationModel.pageSize;
-      const sortField = sortingModel[0]?.field ?? 'saleDate';
-      const ascending = sortingModel[0]?.sort === 'asc';
-
-      const fieldMap: Record<string, string> = {
-        saleDate:           'invoice_date',
-        orderId:            'order_id',
-        eventName:          'event_name',
-        venueName:          'venue_name',
-        eventDate:          'event_utc_date',
-        section:            'section',
-        row:                'row',
-        quantitySold:       'quantity_sold',
-        salePricePerTicket: 'sale_total',
-        totalSaleValue:     'sale_total',
-        profitLoss:         'profit',
-        fulfillmentStatus:  'fulfillment_status',
-      };
-
-      const { data, error: qErr, count } = await supabaseClient
-        .from('sold_inventory')
-        .select(
-          `id, invoice_date, order_id, event_name, venue_name, section, row,
-           quantity_sold, sale_total, profit, event_utc_date,
-           fulfillment_status`,
-          { count: 'exact' },
-        )
-        .gte('invoice_date', dateRange.startDate.toISOString())
-        .lte('invoice_date', dateRange.endDate.toISOString())
-        .order(fieldMap[sortField] ?? 'invoice_date', { ascending })
-        .range(offset, offset + paginationModel.pageSize - 1);
-
-      if (qErr) throw qErr;
-
-      const mapped: Sale[] = (data ?? []).map((r) => ({
-        id:                r.id,
-        saleDate:          r.invoice_date,
-        orderId:           r.order_id,
-        eventName:         r.event_name,
-        venueName:         r.venue_name,
-        section:           r.section,
-        row:               r.row,
-        quantitySold:      r.quantity_sold,
-        salePricePerTicket:
-          r.quantity_sold > 0
-            ? parseFloat(r.sale_total) / r.quantity_sold
-            : 0,
-        totalSaleValue:    parseFloat(r.sale_total),
-        profitLoss:        parseFloat(r.profit),
-        eventDate:         r.event_utc_date,
-        fulfillmentStatus: r.fulfillment_status ?? null,
-      }));
-
-      setSales(mapped);
-      setTotalCount(count ?? 0);
-    } catch (err) {
-      console.error('SalesTable fetch error:', err);
-      setError(err as Error);
-      setSales([]);
-      setTotalCount(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [dateRange, paginationModel, sortingModel]);
+  // ── Data fetching (via dashboard slice) ────────────────────────────────────
+  const fetchSales = useCallback(() => {
+    const options = {
+      page: paginationModel.page,
+      pageSize: paginationModel.pageSize,
+      sortFields: sortingModel,
+      filters: filterModel,
+    };
+    dispatch(getDashboardSales({ dateRange, options }));
+    dispatch(getDashboardSalesSummary({ dateRange, options }));
+  }, [dispatch, dateRange, paginationModel, sortingModel, filterModel]);
 
   useEffect(() => { fetchSales(); }, [fetchSales]);
 
+  // Reset page on date or filter change
   useEffect(() => {
     setPaginationModel((p) => ({ ...p, page: 0 }));
-  }, [dateRange]);
+  }, [dateRange, filterModel]);
 
   // Row height: each collapsed group stacks its values vertically.
   // Event=2 lines, Ticket=3 lines, Financials=3 lines. Use the max across
@@ -406,14 +455,51 @@ export default function SalesTable({
   const PADDING = 12; // top+bottom cell padding
   const collapsedLineCount = useMemo(() => {
     let max = 0;
-    if (collapsedGroups.has(G_EVENT))     max = Math.max(max, 3);
+    if (collapsedGroups.has(G_SALE))      max = Math.max(max, 5);
+    if (collapsedGroups.has(G_EVENT))     max = Math.max(max, 4);
     if (collapsedGroups.has(G_TICKET))    max = Math.max(max, 3);
-    if (collapsedGroups.has(G_FINANCIAL)) max = Math.max(max, 3);
+    if (collapsedGroups.has(G_FINANCIAL)) max = Math.max(max, 2);
     if (collapsedGroups.has(G_STATUS))    max = Math.max(max, 1);
     return max;
   }, [collapsedGroups]);
 
   const anyCollapsed = collapsedLineCount > 0;
+
+  const footerSummary = (
+    <Box
+      display="flex"
+      alignItems="center"
+      justifyContent="flex-end"
+      flexWrap="wrap"
+      gap={3}
+      px={1}
+      py={0.75}
+    >
+      <Typography variant="body2" color="text.secondary">
+        Sales: <b>{totalCount.toLocaleString()}</b>
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Qty: <b>{(summary?.totalQty ?? 0).toLocaleString()}</b>
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Sale: <b style={{ color: '#2e7d32' }}>{fmt(summary?.totalSale ?? 0)}</b>
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Profit:{' '}
+        <b style={{ color: (summary?.totalProfit ?? 0) < 0 ? '#d32f2f' : '#2e7d32' }}>
+          {fmt(summary?.totalProfit ?? 0)}
+        </b>
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Margin:{' '}
+        <b style={{ color: (summary?.totalProfit ?? 0) < 0 ? '#d32f2f' : '#2e7d32' }}>
+          {summary && summary.totalSale > 0
+            ? `${((summary.totalProfit / summary.totalSale) * 100).toFixed(1)}%`
+            : '—'}
+        </b>
+      </Typography>
+    </Box>
+  );
 
   return (
     <CustomDataGrid
@@ -424,7 +510,7 @@ export default function SalesTable({
       columnGroupingModel={columnGroupingModel}
       onRefresh={fetchSales}
       isLoading={isLoading}
-      error={error}
+      error={error ? new Error(error) : null}
       paginationModel={paginationModel}
       setPaginationModel={setPaginationModel}
       sortingModel={sortingModel}
@@ -434,8 +520,8 @@ export default function SalesTable({
       paginationMode="server"
       sortingMode="server"
       height={600}
-      defaultFilterType="header"
-      initialShowFilters={false}
+      defaultFilterType="custom"
+      footerSummary={footerSummary}
       {...(anyCollapsed ? { getRowHeight: () => collapsedLineCount * LINE_H + PADDING } : {})}
     />
   );
