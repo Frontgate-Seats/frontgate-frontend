@@ -15,7 +15,7 @@ import {
   AVAILABILITY_SECTION_CHART_CONFIG,
   AVAILABILITY_PRICE_CHART_CONFIG,
   INTERVAL_OPTIONS_MAP,
-  TIME_RANGE_OPTIONS,
+  CHART_TIME_RANGE_OPTIONS,
 } from "../../shared/constants/components.constants";
 import { getPrimaryMarketLogo, getPrimaryMarketLabel } from "../../shared/utils/primaryMarketLogo.util";
 
@@ -129,7 +129,7 @@ const AvailabilityCharts: React.FC<AvailabilityChartsProps> = ({
           interval={pricePointsChart.interval}
           onTimeRangeChange={pricePointsChart.setTimeRange}
           onIntervalChange={pricePointsChart.setInterval}
-          timeRangeOptions={TIME_RANGE_OPTIONS}
+          timeRangeOptions={CHART_TIME_RANGE_OPTIONS}
           intervalOptionsMap={INTERVAL_OPTIONS_MAP}
           height={perChartHeight}
           initialHiddenSeries={sectionHidden}
@@ -147,7 +147,7 @@ const AvailabilityCharts: React.FC<AvailabilityChartsProps> = ({
           interval={pricePointsChart.interval}
           onTimeRangeChange={pricePointsChart.setTimeRange}
           onIntervalChange={pricePointsChart.setInterval}
-          timeRangeOptions={TIME_RANGE_OPTIONS}
+          timeRangeOptions={CHART_TIME_RANGE_OPTIONS}
           intervalOptionsMap={INTERVAL_OPTIONS_MAP}
           height={perChartHeight}
           initialHiddenSeries={priceHidden}

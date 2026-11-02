@@ -38,7 +38,8 @@ import {
   LISTING_TRENDS_LONG_CHART_CONFIG,
   AVAILABILITY_SECTION_CHART_CONFIG,
   AVAILABILITY_PRICE_CHART_CONFIG,
-  TIME_RANGE_OPTIONS,
+  CHART_TIME_RANGE_OPTIONS,
+  AVAILABILITY_HOURS,
   getDefaultInterval,
 } from "../shared/constants/components.constants";
 import {
@@ -114,7 +115,7 @@ export default function EventDetailsPage() {
   // Each chart has its own default, but once the user changes any one of them
   // all charts sync to that selection via the shared override state.
   const salesChartBase        = useChartState("7d");
-  const listingShortChartBase = useChartState("1d");
+  const listingShortChartBase = useChartState("today");
   const listingLongChartBase  = useChartState("7d");
   const pricePointsChartBase  = useChartState("7d");
 
@@ -311,21 +312,7 @@ export default function EventDetailsPage() {
   React.useEffect(() => {
     if (!eventId) return;
 
-    const hoursMap: Record<string, number> = {
-      "all":  87600, // 10 years — fetch everything
-      "1h":   1,
-      "3h":   3,
-      "6h":   6,
-      "12h":  12,
-      "1d":   24,
-      "7d":   168,
-      "30d":  720,
-      "3m":   2160,
-      "6m":   4380,
-      "1y":   8760,
-    };
-
-    const lastHoursCount = hoursMap[activeTimeRange] ?? 24;
+    const lastHoursCount = AVAILABILITY_HOURS[activeTimeRange] ?? 24;
     dispatch(clearAvailability());
     dispatch(getAvailability({ eventId, lastHoursCount }));
   }, [dispatch, eventId, activeTimeRange]);
@@ -916,7 +903,7 @@ export default function EventDetailsPage() {
                 interval={pricePointsChart.interval}
                 onTimeRangeChange={pricePointsChart.setTimeRange}
                 onIntervalChange={pricePointsChart.setInterval}
-                timeRangeOptions={TIME_RANGE_OPTIONS}
+                timeRangeOptions={CHART_TIME_RANGE_OPTIONS}
                 intervalOptionsMap={INTERVAL_OPTIONS_MAP}
                 height={400}
                 logo={PRIMARY_LOGO}
@@ -942,20 +929,7 @@ export default function EventDetailsPage() {
                 defaultFilterType="header"
                 onRefresh={() => {
                   if (eventId) {
-                    const hoursMap: Record<string, number> = {
-                      "all":  87600,
-                      "1h":   1,
-                      "3h":   3,
-                      "6h":   6,
-                      "12h":  12,
-                      "1d":   24,
-                      "7d":   168,
-                      "30d":  720,
-                      "3m":   2160,
-                      "6m":   4380,
-                      "1y":   8760,
-                    };
-                    const lastHoursCount = hoursMap[activeTimeRange] ?? 24;
+                    const lastHoursCount = AVAILABILITY_HOURS[activeTimeRange] ?? 24;
                     dispatch(getAvailability({ eventId, lastHoursCount }));
                   }
                 }}
@@ -976,7 +950,7 @@ export default function EventDetailsPage() {
                 interval={pricePointsChart.interval}
                 onTimeRangeChange={pricePointsChart.setTimeRange}
                 onIntervalChange={pricePointsChart.setInterval}
-                timeRangeOptions={TIME_RANGE_OPTIONS}
+                timeRangeOptions={CHART_TIME_RANGE_OPTIONS}
                 intervalOptionsMap={INTERVAL_OPTIONS_MAP}
                 height={400}
                 logo={PRIMARY_LOGO}
@@ -996,7 +970,7 @@ export default function EventDetailsPage() {
             interval={listingShortChart.interval}
             onTimeRangeChange={listingShortChart.setTimeRange}
             onIntervalChange={listingShortChart.setInterval}
-            timeRangeOptions={TIME_RANGE_OPTIONS}
+            timeRangeOptions={CHART_TIME_RANGE_OPTIONS}
             intervalOptionsMap={INTERVAL_OPTIONS_MAP}
             height={400}
             logo={VIVID_LOGO}
@@ -1014,7 +988,7 @@ export default function EventDetailsPage() {
             interval={listingLongChart.interval}
             onTimeRangeChange={listingLongChart.setTimeRange}
             onIntervalChange={listingLongChart.setInterval}
-            timeRangeOptions={TIME_RANGE_OPTIONS}
+            timeRangeOptions={CHART_TIME_RANGE_OPTIONS}
             intervalOptionsMap={INTERVAL_OPTIONS_MAP}
             height={400}
             logo={VIVID_LOGO}
@@ -1032,7 +1006,7 @@ export default function EventDetailsPage() {
             interval={salesChart.interval}
             onTimeRangeChange={salesChart.setTimeRange}
             onIntervalChange={salesChart.setInterval}
-            timeRangeOptions={TIME_RANGE_OPTIONS}
+            timeRangeOptions={CHART_TIME_RANGE_OPTIONS}
             intervalOptionsMap={INTERVAL_OPTIONS_MAP}
             height={400}
             logo={undefined}

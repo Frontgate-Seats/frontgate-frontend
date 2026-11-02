@@ -73,6 +73,25 @@ export const TIME_RANGE_OPTIONS = [
   { value: "custom", label: "Custom Range" },
 ];
 
+// Chart dropdowns have no date pickers, so "Custom Range" is dashboard-only.
+export const CHART_TIME_RANGE_OPTIONS = TIME_RANGE_OPTIONS.filter(
+  (o) => o.value !== "custom",
+);
+
+// Hours of availability history to fetch (lastHoursCount) for each time range.
+export const AVAILABILITY_HOURS: Record<string, number> = {
+  "1h": 1,
+  "3h": 3,
+  "6h": 6,
+  "12h": 12,
+  today: 24,
+  yesterday: 48,
+  "7d": 192,
+  "30d": 744,
+  lastMonth: 1488,
+  thisYear: 8784,
+};
+
 // Interval Options Map (shared across all charts)
 // Filters > 30 days use Custom range instead
 export const INTERVAL_OPTIONS_MAP: Record<string, string[]> = {
