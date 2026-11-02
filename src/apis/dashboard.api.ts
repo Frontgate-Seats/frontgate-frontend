@@ -67,6 +67,8 @@ export interface CombinedChartBucket {
   purchaseAmount: number;
   saleCount: number;
   saleAmount: number;
+  /** Profit from tickets sold that day (sold_inventory.profit by invoice_date). */
+  saleProfit: number;
 }
 
 // ─── Column maps for the grid pipeline ──────────────────────────────────────
@@ -339,6 +341,21 @@ const fetchSalesSummary = async (
 
 // ─── Combined chart ──────────────────────────────────────────────────────────
 
+/** Local-time YYYY-MM-DD for a Date. */
+const formatLocalDay = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
+/** Local-time YYYY-MM-DD for a timestamptz string, or null if unparsable. */
+const toLocalDayKey = (value: string | null | undefined): string | null => {
+  if (!value) return null;
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? null : formatLocalDay(d);
+};
+
 const buildDateRange = (start: Date, end: Date): string[] => {
   const dates: string[] = [];
   const cur = new Date(start);
@@ -346,10 +363,7 @@ const buildDateRange = (start: Date, end: Date): string[] => {
   const endD = new Date(end);
   endD.setHours(0, 0, 0, 0);
   while (cur <= endD) {
-    const y = cur.getFullYear();
-    const m = String(cur.getMonth() + 1).padStart(2, "0");
-    const d = String(cur.getDate()).padStart(2, "0");
-    dates.push(`${y}-${m}-${d}`);
+    dates.push(formatLocalDay(cur));
     cur.setDate(cur.getDate() + 1);
   }
   return dates;
@@ -360,24 +374,42 @@ const aggregateDaily = async (
   dateCol: string,
   amountCol: string,
   dateRange: DateRange,
+  profitCol?: string,
 ) => {
-  const { data, error } = await supabaseClient
-    .from(table)
-    .select(`${dateCol}, ${amountCol}`)
-    .gte(dateCol, dateRange.startDate.toISOString())
-    .lte(dateCol, dateRange.endDate.toISOString())
-    .order(dateCol, { ascending: true });
-  if (error) throw new Error(getErrorMessage(error));
+  const cols = [dateCol, amountCol, ...(profitCol ? [profitCol] : [])].join(", ");
 
-  const agg = new Map<string, { count: number; amount: number }>();
+  // Page through results: PostgREST caps each response (1000 rows by default),
+  // and since rows are ordered oldest-first, a single request would silently
+  // drop the most recent days on long ranges.
+  const PAGE = 1000;
+  const data: unknown[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data: page, error } = await supabaseClient
+      .from(table)
+      .select(cols)
+      .gte(dateCol, dateRange.startDate.toISOString())
+      .lte(dateCol, dateRange.endDate.toISOString())
+      .order(dateCol, { ascending: true })
+      .order("id", { ascending: true }) // stable order across pages
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(getErrorMessage(error));
+    data.push(...(page ?? []));
+    if (!page || page.length < PAGE) break;
+  }
+
+  const agg = new Map<string, { count: number; amount: number; profit: number }>();
   ((data ?? []) as unknown[]).forEach((row) => {
     const r = row as Record<string, string>;
-    const key = r[dateCol]?.split("T")[0];
+    // Bucket by the LOCAL calendar day, matching the local-midnight date
+    // filter and buildDateRange's keys. Splitting the raw ISO string on "T"
+    // would use the UTC day and shift late-evening rows into the next day.
+    const key = toLocalDayKey(r[dateCol]);
     if (!key) return;
-    const prev = agg.get(key) ?? { count: 0, amount: 0 };
+    const prev = agg.get(key) ?? { count: 0, amount: 0, profit: 0 };
     agg.set(key, {
       count: prev.count + 1,
       amount: prev.amount + (parseFloat(r[amountCol] ?? "0") || 0),
+      profit: prev.profit + (profitCol ? parseFloat(r[profitCol] ?? "0") || 0 : 0),
     });
   });
   return agg;
@@ -388,7 +420,7 @@ const getCombinedChart = async (
 ): Promise<CombinedChartBucket[]> => {
   const [purchaseAgg, saleAgg] = await Promise.all([
     aggregateDaily("inventory", "created_at", "total_amount", dateRange),
-    aggregateDaily("sold_inventory", "invoice_date", "sale_total", dateRange),
+    aggregateDaily("sold_inventory", "invoice_date", "sale_total", dateRange, "profit"),
   ]);
 
   return buildDateRange(dateRange.startDate, dateRange.endDate).map((day) => ({
@@ -397,6 +429,7 @@ const getCombinedChart = async (
     purchaseAmount: purchaseAgg.get(day)?.amount ?? 0,
     saleCount: saleAgg.get(day)?.count ?? 0,
     saleAmount: saleAgg.get(day)?.amount ?? 0,
+    saleProfit: saleAgg.get(day)?.profit ?? 0,
   }));
 };
 

@@ -5,6 +5,11 @@ export interface ChartConfig {
   barSeries: BarSeriesType[];
   leftAxisLabel: string;
   rightAxisLabel: string;
+  /**
+   * Let the left axis go below zero (e.g. for profit/loss series).
+   * Default false — the axis is pinned to start at 0.
+   */
+  allowNegativeLeftAxis?: boolean;
 }
 
 export interface DynamicChartProps {

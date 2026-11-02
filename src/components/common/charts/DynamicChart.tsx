@@ -27,6 +27,7 @@ import {
   BarPlot,
   MarkPlot,
   ChartsLegend,
+  ChartsReferenceLine,
 } from "@mui/x-charts";
 import { parseChartTime } from "../../../shared/utils/dateTime.util";
 import type { DynamicChartProps } from "../../../shared/types/components.types";
@@ -61,7 +62,13 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
     setHiddenSeries(initialHiddenSeries ?? new Set());
   }, [initialHiddenSeries]);
 
-  const { lineSeries = [], barSeries = [], leftAxisLabel, rightAxisLabel } = chartConfig ?? {};
+  const {
+    lineSeries = [],
+    barSeries = [],
+    leftAxisLabel,
+    rightAxisLabel,
+    allowNegativeLeftAxis = false,
+  } = chartConfig ?? {};
 
   // Card height: fullscreen → fill viewport; fill prop → stretch parent; else fixed px.
   const cardHeight = isFullscreen ? "100%" : fill ? "100%" : `${height}px`;
@@ -345,7 +352,18 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                 {
                   id: "leftAxis",
                   label: leftAxisLabel,
-                  min: 0,
+                  // Pinning min to 0 while a series has negative values
+                  // collapses the scale (every point renders at 0). When
+                  // negatives are allowed, instead always keep 0 inside the
+                  // domain so the zero baseline is visible.
+                  ...(allowNegativeLeftAxis
+                    ? {
+                        domainLimit: (min: number, max: number) => ({
+                          min: Math.min(0, min),
+                          max: Math.max(0, max),
+                        }),
+                      }
+                    : { min: 0 }),
                 },
                 {
                   id: "rightAxis",
@@ -389,6 +407,14 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                   }}
                 >
                   <ChartsGrid horizontal />
+                  {/* Zero baseline — acts as the x-axis line when values go negative */}
+                  {allowNegativeLeftAxis && (
+                    <ChartsReferenceLine
+                      y={0}
+                      axisId="leftAxis"
+                      lineStyle={{ stroke: "#9e9e9e", strokeWidth: 1.5 }}
+                    />
+                  )}
                   <BarPlot />
                   <LinePlot />
                   <MarkPlot

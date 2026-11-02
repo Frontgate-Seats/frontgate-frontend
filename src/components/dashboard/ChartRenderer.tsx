@@ -1,7 +1,7 @@
 /**
  * ChartRenderer Component
  *
- * Combined purchases + sales trend chart. Two lines (Purchase / Sold) plotted
+ * Combined purchases + sales trend chart. Three lines (Purchase / Sold / Profit) plotted
  * by dollar amount; each point's tooltip also carries the day's quantity.
  * Data comes from the dashboard slice (getDashboardChart) — no direct DB access.
  */
@@ -25,7 +25,9 @@ export default function ChartRenderer({ dateRange, fill = false }: ChartRenderer
 
   // Money + count formatters for tooltips
   const money = (v: number | null) =>
-    v == null ? '-' : `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+    v == null
+      ? '-'
+      : `${v < 0 ? '-' : ''}$${Math.abs(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
   // Tooltip shows the day's total ($) AND quantity (count) for that line.
   // For the legend, just show the plain label (no per-point value).
@@ -61,6 +63,17 @@ export default function ChartRenderer({ dateRange, fill = false }: ChartRenderer
       yAxisId: 'leftAxis',
       valueFormatter: makeComboFormatter('saleCount'),
     },
+    {
+      // Profit from tickets SOLD that day (same basis as the Sales table Profit).
+      type: 'line' as const,
+      dataKey: 'saleProfit',
+      label: 'Profit',
+      color: '#f57c00',
+      curve: 'natural' as const,
+      showMark: true,
+      yAxisId: 'leftAxis',
+      valueFormatter: (v: number | null) => money(v),
+    },
   ];
 
   return (
@@ -75,6 +88,8 @@ export default function ChartRenderer({ dateRange, fill = false }: ChartRenderer
         barSeries: [],
         leftAxisLabel: 'Amount ($)',
         rightAxisLabel: '',
+        // Profit can be negative (losses) — let the axis dip below 0.
+        allowNegativeLeftAxis: true,
       }}
       timeRange="custom"
       interval=""
