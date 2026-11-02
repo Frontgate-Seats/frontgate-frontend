@@ -32,55 +32,16 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterMoment } from '@mui/x-date-pickers/AdapterMoment';
 import moment from 'moment';
 import { TIME_RANGE_OPTIONS } from '../../shared/constants/components.constants';
+import { startOfDay, endOfDay } from '../../shared/utils/dateTime.util';
+import { resolveDateRange } from '../../shared/utils/timeRange.util';
 import type {
-  DateRange,
   DateFilterProps,
   TimeRangeFilter,
 } from '../../types/dashboard.types';
 
-// "All Time" lower bound — early enough to predate any inventory.
-const ALL_TIME_START = new Date('2000-01-01T00:00:00Z');
-
-// Time-range options for the dashboard: the shared chart ranges + a Custom entry.
-const RANGE_OPTIONS: { value: TimeRangeFilter; label: string }[] = [
-  ...(TIME_RANGE_OPTIONS as { value: TimeRangeFilter; label: string }[]),
-  { value: 'ytd', label: 'Year to Date' },
-  { value: 'custom', label: 'Custom Range' },
-];
-
-/** Resolve a time-range token into a concrete {startDate, endDate}. */
-function rangeFor(value: TimeRangeFilter): DateRange {
-  const end = new Date();
-  const start = new Date();
-
-  // Day/month/year ranges snap the start to midnight (start of day) so the
-  // window is calendar-based — matching SkyBox's "last N days" which counts
-  // from the start of the day N days ago, not a rolling 168h-type cutoff.
-  const atStartOfDay = (d: Date) => {
-    d.setHours(0, 0, 0, 0);
-    return d;
-  };
-
-  switch (value) {
-    case 'all':
-      return { startDate: ALL_TIME_START, endDate: end };
-    // Intraday ranges stay rolling.
-    case '1h':  start.setHours(start.getHours() - 1); break;
-    case '3h':  start.setHours(start.getHours() - 3); break;
-    case '6h':  start.setHours(start.getHours() - 6); break;
-    case '12h': start.setHours(start.getHours() - 12); break;
-    // Calendar-day ranges snap to the start of the day.
-    case '1d':  start.setDate(start.getDate() - 1);  return { startDate: atStartOfDay(start), endDate: end };
-    case '7d':  start.setDate(start.getDate() - 7);  return { startDate: atStartOfDay(start), endDate: end };
-    case '30d': start.setDate(start.getDate() - 30); return { startDate: atStartOfDay(start), endDate: end };
-    case '3m':  start.setMonth(start.getMonth() - 3); return { startDate: atStartOfDay(start), endDate: end };
-    case '6m':  start.setMonth(start.getMonth() - 6); return { startDate: atStartOfDay(start), endDate: end };
-    case '1y':  start.setFullYear(start.getFullYear() - 1); return { startDate: atStartOfDay(start), endDate: end };
-    case 'ytd': return { startDate: new Date(end.getFullYear(), 0, 1), endDate: end };
-    default:    return { startDate: ALL_TIME_START, endDate: end };
-  }
-  return { startDate: start, endDate: end };
-}
+// RANGE_OPTIONS is driven directly by TIME_RANGE_OPTIONS — single source of truth.
+const RANGE_OPTIONS: { value: TimeRangeFilter; label: string }[] =
+  TIME_RANGE_OPTIONS as { value: TimeRangeFilter; label: string }[];
 
 export default function DashboardFilter({
   onDateRangeChange,
@@ -93,7 +54,7 @@ export default function DashboardFilter({
 
   // Emit the initial range once on mount.
   useEffect(() => {
-    onDateRangeChange(rangeFor(initialFilter));
+    onDateRangeChange(resolveDateRange(initialFilter));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -103,7 +64,7 @@ export default function DashboardFilter({
       setRange(value);
       setError(null);
       if (value !== 'custom') {
-        onDateRangeChange(rangeFor(value));
+        onDateRangeChange(resolveDateRange(value));
       }
     },
     [onDateRangeChange],
@@ -119,7 +80,7 @@ export default function DashboardFilter({
       return;
     }
     setError(null);
-    onDateRangeChange({ startDate: customStart, endDate: customEnd });
+    onDateRangeChange({ startDate: startOfDay(customStart), endDate: endOfDay(customEnd) });
   }, [customStart, customEnd, onDateRangeChange]);
 
   const activeLabel =

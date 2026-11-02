@@ -1,14 +1,13 @@
 /**
  * InventoryCards Component
  *
- * Four summary cards styled and populated to match the inventory page's
- * PurchaseSummaryBar. Data comes from the shared `get_inventory_summary`
- * RPC so the numbers stay consistent with the inventory page.
+ * Four summary cards showing inventory metrics. Data comes from the shared
+ * `get_inventory_summary` RPC.
  *
  * Cards:
  *  1. Total        — all purchases: Purchases / Invested / Sell + status chips
- *  2. Active Unsold — available inventory for future events + status chips
- *  3. Active       — future events: Purchases / Invested / Sell + status chips
+ *  2. Upcoming Unsold — available inventory for future events + status chips
+ *  3. Upcoming       — future events: Purchases / Invested / Sell + status chips
  *  4. P&L          — Net P&L + Margin % with Profitable/In Loss badge
  */
 
@@ -41,7 +40,7 @@ interface InventoryCardsProps {
   direction?: 'row' | 'column';
 }
 
-// ─── Helpers (mirror PurchaseSummaryBar) ────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 function fmtMoney(n: number) {
   const abs = Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
   return n < 0 ? `-$${abs}` : `$${abs}`;
@@ -252,11 +251,11 @@ export default function InventoryCards({ dateRange, direction = 'row' }: Invento
         </Card>
       </Grid>
 
-      {/* ══ Card 2: Active Unsold ══ */}
+      {/* ══ Card 2: Upcoming Unsold ══ */}
       <Grid size={cellSize} sx={{ display: 'flex' }}>
         <Card
-          title="Active Unsold"
-          subtitle="Available inventory, future events"
+          title="Upcoming Unsold"
+          subtitle="Open inventory for upcoming events"
           accentColor="#f57c00"
           icon={<Inventory2Outlined sx={{ fontSize: 16 }} />}
         >
@@ -274,10 +273,10 @@ export default function InventoryCards({ dateRange, direction = 'row' }: Invento
         </Card>
       </Grid>
 
-      {/* ══ Card 3: Active (future events) ══ */}
+      {/* ══ Card 3: Upcoming (future events) ══ */}
       <Grid size={cellSize} sx={{ display: 'flex' }}>
         <Card
-          title="Active"
+          title="Upcoming"
           subtitle="Upcoming events"
           accentColor="#2e7d32"
           icon={<Circle sx={{ fontSize: 12 }} />}

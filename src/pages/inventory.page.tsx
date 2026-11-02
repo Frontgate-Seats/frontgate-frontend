@@ -20,14 +20,13 @@ import UpdatePriceCell from "../components/purchases/UpdatePriceCell";
 import MaxUserPriceCell from "../components/purchases/MaxUserPriceCell";
 import TicketUrlsCell from "../components/purchases/TicketUrlsCell";
 import UpdateSeatNumbersCell from "../components/purchases/UpdateSeatNumbersCell";
-import PurchaseSummaryBar from "../components/purchases/PurchaseSummaryBar";
 import InventorySoldPanel, {
   INVENTORY_SOLD_PANEL_HEIGHT,
 } from "../components/purchases/InventorySoldPanel";
 import type { GridFilterItem } from "@mui/x-data-grid";
 import type { CustomGridColDef, QuickFilter } from "../shared/types/mui.type";
 import { useDataGridQueryParams } from "../hooks/useDataGridQueryParams";
-import { formatDateTime } from "../shared/utils/dateTime.util";
+import { formatDateTime, startOfDayIso } from "../shared/utils/dateTime.util";
 import { useRole } from "../hooks/useRole";
 
 // Columns hidden from roles that may not see financials (fulfillment team).
@@ -141,7 +140,7 @@ const PurchasesPage: React.FC = () => {
   const { canSeeFinancials } = useRole();
   // One timestamp shared by the default filter and the quick filter so the
   // toggle reads as "active" on first load.
-  const nowIso = React.useMemo(() => new Date().toISOString(), []);
+  const nowIso = React.useMemo(() => startOfDayIso(), []);
   const inventoryQuickFilters = React.useMemo(
     () => buildInventoryQuickFilters(nowIso),
     [nowIso],
@@ -744,7 +743,6 @@ const PurchasesPage: React.FC = () => {
           size={{ xs: 12 }}
           sx={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}
         >
-          {canSeeFinancials && <PurchaseSummaryBar />}
           {purchasesError ? (
             <Alert severity="error">{purchasesError}</Alert>
           ) : (

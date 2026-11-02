@@ -67,12 +67,12 @@ export default function EventsPage() {
       {
         field: "local_date",
         operator: "onOrAfter",
-        value: moment().toISOString(),
+        value: moment().startOf('day').toISOString(),
       },
       {
         field: "local_date",
         operator: "onOrBefore",
-        value: moment().add(6, "months").toISOString(),
+        value: moment().add(6, "months").startOf('day').toISOString(),
       },
     ],
   // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -91,10 +91,6 @@ export default function CustomDataGrid({
   quickFilters,
   footerSummary,
 }: CustomDataGridProps) {
-  const [isFullscreen, setIsFullscreen] = React.useState(false);
-  const handleFullscreenChange = (fullscreenMode: boolean) => {
-    setIsFullscreen(fullscreenMode);
-  };
   // Drive fullscreen from a button in the header toolbar instead of the
   // floating corner button (which overlapped the footer).
   const [fullscreenOpen, setFullscreenOpen] = React.useState(false);
@@ -226,7 +222,6 @@ export default function CustomDataGrid({
 
   return (
     <ToggleFullscreen
-      onFullscreenChange={handleFullscreenChange}
       fillHeight={isFullHeight}
       open={fullscreenOpen}
       onOpenChange={setFullscreenOpen}
@@ -237,7 +232,7 @@ export default function CustomDataGrid({
           flexDirection: "column",
           width: "100%",
           minHeight: 0,
-          ...(isFullscreen || isFullHeight
+          ...(fullscreenOpen || isFullHeight
             ? { flexGrow: 1, height: "100%", overflow: "hidden" }
             : { height }),
         }}
@@ -324,7 +319,7 @@ export default function CustomDataGrid({
                   <RefreshIcon />
                 </IconButton>
               </Tooltip>
-              {!isFullscreen && (
+              {!fullscreenOpen && (
                 <Tooltip title="Fullscreen" placement="right" enterDelay={1000}>
                   <IconButton
                     size="medium"
@@ -497,8 +492,21 @@ export default function CustomDataGrid({
                         minHeight: 70,
                         height: 70,
                       },
+                      // When column grouping is present, the headers container
+                      // holds both the group-header row (default ~56px) AND the
+                      // column-header row (70px). Let MUI size it naturally so
+                      // the group row is not clipped — only set minHeight to the
+                      // column-header row height so non-grouped grids still work.
                       "& .MuiDataGrid-columnHeaders": {
                         minHeight: 70,
+                        maxHeight: "none !important",
+                        overflow: "visible",
+                      },
+                      // Ensure the group header row itself is always visible
+                      "& .MuiDataGrid-columnGroupHeader": {
+                        minHeight: 36,
+                        height: "auto !important",
+                        overflow: "visible",
                       },
                       "& .MuiDataGrid-columnHeaderTitleContainer": {
                         width: "100%",

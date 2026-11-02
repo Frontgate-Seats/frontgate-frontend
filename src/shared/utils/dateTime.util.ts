@@ -64,6 +64,64 @@ export const formatTime = (
   return formatDateTime(date, true, false);
 };
 
+// ─── Midnight-snap helpers ────────────────────────────────────────────────────
+// SkyBox (and our filters) treat day-level dates as starting from midnight.
+// These helpers ensure every date-only filter across the app snaps to 00:00:00.
+
+/**
+ * Snap a Date to midnight (start of the local day).
+ * Returns a **new** Date — the input is not mutated.
+ */
+export const startOfDay = (d: Date): Date => {
+  const copy = new Date(d);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+};
+
+/**
+ * Snap a Date to end of the local day (23:59:59.999).
+ * Returns a **new** Date — the input is not mutated.
+ */
+export const endOfDay = (d: Date): Date => {
+  const copy = new Date(d);
+  copy.setHours(23, 59, 59, 999);
+  return copy;
+};
+
+/**
+ * Return today's midnight as an ISO string — convenience wrapper used by
+ * default date filters (inventory, events, etc.) that need a stable "today
+ * at 00:00" value.
+ */
+export const startOfDayIso = (d: Date = new Date()): string =>
+  startOfDay(d).toISOString();
+
+/**
+ * Snap an ISO date-string to midnight if it only represents a day
+ * (i.e. comes from a DatePicker, not a DateTimePicker).
+ * If the string already has a non-midnight time component, it is returned
+ * unchanged so hour-level filters (1h, 3h, …) are not affected.
+ */
+export const snapDateOnlyToMidnight = (iso: string): string => {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  // DatePicker values from MUI always land on 00:00 local, but let's be safe.
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+};
+
+/**
+ * Snap a date-only ISO string (YYYY-MM-DD) to end of day (23:59:59.999) in the
+ * local timezone. Used for date-range "To" filters where we want to include
+ * the entire selected day.
+ */
+export const snapDateOnlyToEndOfDay = (iso: string): string => {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  d.setHours(23, 59, 59, 999);
+  return d.toISOString();
+};
+
 export const formatChartAxis = (
   date: moment.Moment,
   timeRange: string

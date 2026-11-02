@@ -1,30 +1,11 @@
 import * as React from "react";
 import moment from "moment";
 import { formatDateTime } from "../shared/utils/dateTime.util";
+import {
+  getRangeBoundaryMs,
+  RANGE_START_SENTINEL,
+} from "../shared/utils/timeRange.util";
 import type { ChartDataPoint } from "../shared/types/components.types";
-
-/**
- * Returns the range-start timestamp (ms) for a given timeRange string.
- * "all" → -1 (sentinel: use earliest data point instead of epoch).
- * Any unrecognised value also falls back to -1.
- */
-function getRangeStart(timeRange: string): number {
-  if (timeRange === "all") return -1; // sentinel — caller must use earliest data ts
-  const now = moment.utc();
-  switch (timeRange) {
-    case "1h":  return now.subtract(1, "hour").valueOf();
-    case "3h":  return now.subtract(3, "hours").valueOf();
-    case "6h":  return now.subtract(6, "hours").valueOf();
-    case "12h": return now.subtract(12, "hours").valueOf();
-    case "1d":  return now.subtract(1, "day").valueOf();
-    case "7d":  return now.subtract(7, "days").valueOf();
-    case "30d": return now.subtract(30, "days").valueOf();
-    case "3m":  return now.subtract(3, "months").valueOf();
-    case "6m":  return now.subtract(6, "months").valueOf();
-    case "1y":  return now.subtract(1, "year").valueOf();
-    default:    return -1;
-  }
-}
 
 /** Max chart points we'll ever render — keeps the chart snappy. */
 const MAX_CHART_POINTS = 500;
@@ -134,8 +115,7 @@ export const useSalesChartData = (
   return React.useMemo(() => {
     if (!sales || sales.length === 0) return [];
 
-    const rangeEnd = moment.utc().valueOf();
-    const rawRangeStart = getRangeStart(timeRange);
+    const { start: rawRangeStart, end: rangeEnd } = getRangeBoundaryMs(timeRange);
 
     const sorted = [...sales].sort(
       (a, b) =>
@@ -143,7 +123,7 @@ export const useSalesChartData = (
     );
 
     // For "all", anchor to the earliest actual data point
-    const rangeStart = rawRangeStart === -1
+    const rangeStart = rawRangeStart === RANGE_START_SENTINEL
       ? (sorted.length > 0 ? moment.utc(sorted[0].purchased_at).valueOf() : rangeEnd)
       : rawRangeStart;
 
@@ -276,8 +256,7 @@ export const useListingTrendsChartData = (
     });
 
     // Now apply time range filtering and bucketing
-    const rangeEnd = moment.utc().valueOf();
-    const rawRangeStart = getRangeStart(timeRange);
+    const { start: rawRangeStart, end: rangeEnd } = getRangeBoundaryMs(timeRange);
 
     const sorted = [...aggregatedData].sort(
       (a, b) =>
@@ -285,7 +264,7 @@ export const useListingTrendsChartData = (
     );
 
     // For "all", anchor to the earliest actual data point
-    const rangeStart = rawRangeStart === -1
+    const rangeStart = rawRangeStart === RANGE_START_SENTINEL
       ? (sorted.length > 0 ? moment.utc(sorted[0].created_at).valueOf() : rangeEnd)
       : rawRangeStart;
 
@@ -411,8 +390,7 @@ export const useAvailabilityCapacityChartData = (
 
     const snapshots = availabilityData.snapshots;
 
-    const rangeEnd = moment.utc().valueOf();
-    const rawRangeStart = getRangeStart(timeRange);
+    const { start: rawRangeStart, end: rangeEnd } = getRangeBoundaryMs(timeRange);
 
     // Sort snapshots by timestamp
     const sortedSnapshots = [...snapshots].sort(
@@ -420,7 +398,7 @@ export const useAvailabilityCapacityChartData = (
     );
 
     // For "all", anchor to the earliest actual snapshot
-    const rangeStart = rawRangeStart === -1
+    const rangeStart = rawRangeStart === RANGE_START_SENTINEL
       ? (sortedSnapshots.length > 0 ? moment.utc(sortedSnapshots[0].timestamp).valueOf() : rangeEnd)
       : rawRangeStart;
 
@@ -553,8 +531,7 @@ export const useAvailabilityData = (
 
     const snapshots = availabilityData.snapshots;
 
-    const rangeEnd = moment.utc().valueOf();
-    const rawRangeStart = getRangeStart(timeRange);
+    const { start: rawRangeStart, end: rangeEnd } = getRangeBoundaryMs(timeRange);
 
     // Sort snapshots by timestamp
     const sortedSnapshots = [...snapshots].sort(
@@ -562,7 +539,7 @@ export const useAvailabilityData = (
     );
 
     // For "all", anchor to the earliest actual snapshot
-    const rangeStart = rawRangeStart === -1
+    const rangeStart = rawRangeStart === RANGE_START_SENTINEL
       ? (sortedSnapshots.length > 0 ? moment.utc(sortedSnapshots[0].timestamp).valueOf() : rangeEnd)
       : rawRangeStart;
 
@@ -791,14 +768,13 @@ export const useAvailabilitySectionChartData = (
 
     const snapshots = availabilityData.snapshots;
 
-    const rangeEnd = moment.utc().valueOf();
-    const rawRangeStart = getRangeStart(timeRange);
+    const { start: rawRangeStart, end: rangeEnd } = getRangeBoundaryMs(timeRange);
 
     // Sort snapshots first so we can anchor "all" to earliest
     const sortedForAnchor = [...snapshots].sort(
       (a, b) => moment.utc(a.timestamp).valueOf() - moment.utc(b.timestamp).valueOf()
     );
-    const rangeStart = rawRangeStart === -1
+    const rangeStart = rawRangeStart === RANGE_START_SENTINEL
       ? (sortedForAnchor.length > 0 ? moment.utc(sortedForAnchor[0].timestamp).valueOf() : rangeEnd)
       : rawRangeStart;
 
@@ -955,13 +931,12 @@ export const useAvailabilityPriceChartData = (
 
     const snapshots = availabilityData.snapshots;
 
-    const rangeEnd = moment.utc().valueOf();
-    const rawRangeStart = getRangeStart(timeRange);
+    const { start: rawRangeStart, end: rangeEnd } = getRangeBoundaryMs(timeRange);
 
     const sortedForAnchor = [...snapshots].sort(
       (a, b) => moment.utc(a.timestamp).valueOf() - moment.utc(b.timestamp).valueOf()
     );
-    const rangeStart = rawRangeStart === -1
+    const rangeStart = rawRangeStart === RANGE_START_SENTINEL
       ? (sortedForAnchor.length > 0 ? moment.utc(sortedForAnchor[0].timestamp).valueOf() : rangeEnd)
       : rawRangeStart;
 
@@ -1116,12 +1091,11 @@ export const useCombinedSalesChartData = (
   interval: string
 ) => {
   return React.useMemo(() => {
-    const rangeEnd = moment.utc().valueOf();
-    const rawRangeStart = getRangeStart(timeRange);
+    const { start: rawRangeStart, end: rangeEnd } = getRangeBoundaryMs(timeRange);
 
     // For "all", anchor to the earliest sale across both sources
     let rangeStart = rawRangeStart;
-    if (rawRangeStart === -1) {
+    if (rawRangeStart === RANGE_START_SENTINEL) {
       const allTs = [
         ...(seatgeekSales || []).map(i => moment.utc(i.purchased_at).valueOf()),
         ...(vividSales || []).map(i => moment.utc(i.saleDate).valueOf()),
@@ -1237,12 +1211,11 @@ export const useCombinedSalesChartDataFromRows = (
   interval: string
 ) => {
   return React.useMemo(() => {
-    const rangeEnd = moment.utc().valueOf();
-    const rawRangeStart = getRangeStart(timeRange);
+    const { start: rawRangeStart, end: rangeEnd } = getRangeBoundaryMs(timeRange);
 
     // For "all", anchor to the earliest row
     let rangeStart = rawRangeStart;
-    if (rawRangeStart === -1) {
+    if (rawRangeStart === RANGE_START_SENTINEL) {
       const allTs = (combinedRows || [])
         .map(r => moment.utc(r.purchased_at).valueOf())
         .filter(t => !isNaN(t));

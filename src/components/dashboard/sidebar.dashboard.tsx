@@ -74,6 +74,7 @@ export default function DashboardSidebar() {
           >
             <DashboardSidebarHeaderItem>Main</DashboardSidebarHeaderItem>
 
+            {canAccess("dashboard") && (
             <DashboardSidebarPageItem
               id="dashboard"
               title="Dashboard"
@@ -84,6 +85,7 @@ export default function DashboardSidebar() {
                 pathname === "/dashboard"
               }
             />
+            )}
             <DashboardSidebarPageItem
               id="purchases"
               title="Inventory"

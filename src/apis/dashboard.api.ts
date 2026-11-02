@@ -17,6 +17,7 @@ import {
 import { getErrorMessage } from "../shared/utils/error.util";
 import type { DataGridQueryOptions } from "../shared/types/mui.type";
 import type { DateRange, Purchase, Sale } from "../types/dashboard.types";
+import { startOfDayIso } from "../shared/utils/dateTime.util";
 
 // ─── Shared types ───────────────────────────────────────────────────────────
 
@@ -218,7 +219,7 @@ const getInventorySummary = async (): Promise<InventorySummary> => {
       .from("inventory")
       .select("total_amount")
       .ilike("inventory_status", "available")
-      .gte("event_utc_date", new Date().toISOString()),
+      .gte("event_utc_date", startOfDayIso()),
   ]);
 
   if (summaryRes.error) throw new Error(getErrorMessage(summaryRes.error));

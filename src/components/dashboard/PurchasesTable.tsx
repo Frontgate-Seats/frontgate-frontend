@@ -12,9 +12,10 @@
  * summary column showing a condensed value.
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { IconButton, Tooltip, Typography, Box } from '@mui/material';
+import { IconButton, Tooltip, Typography, Box, Popover, Divider } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import type {
@@ -57,6 +58,12 @@ const isSold = (status: string | null | undefined) =>
 const statusLabel = (status: string | null | undefined) =>
   status === 'DEPLETED' ? 'SOLD' : (status ?? '');
 
+const FULFILLMENT_STATUS_OPTIONS = [
+  { value: 'PENDING',   label: 'PENDING' },
+  { value: 'COMPLETE',  label: 'COMPLETE' },
+  { value: 'CANCELLED', label: 'CANCELLED' },
+];
+
 // Inventory status filter options — DB value + display label (DEPLETED => SOLD).
 const INVENTORY_STATUS_OPTIONS = [
   { value: 'AVAILABLE',    label: 'AVAILABLE' },
@@ -95,7 +102,7 @@ function GroupHeader({
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function PurchasesTable({
   dateRange,
-  pageSize = 50,
+  pageSize = 25,
 }: PurchasesTableProps) {
   const dispatch = useDispatch<AppDispatch>();
   const {
@@ -171,6 +178,7 @@ export default function PurchasesTable({
               field: 'purchaseId',
               headerName: 'PO ID',
               width: 110,
+              type: 'string',
               sortable: false,
               renderCell: ({ row }: { row: Purchase }) =>
                 row.purchaseId ? (
@@ -189,18 +197,21 @@ export default function PurchasesTable({
               field: 'orderId',
               headerName: 'Ext Ref',
               width: 130,
+              type: 'string',
               valueFormatter: (v: string | null) => v ?? '',
             } as CustomGridColDef,
             {
               field: 'inventoryId',
               headerName: 'Inventory ID',
               width: 120,
+              type: 'string',
               valueFormatter: (v: string | null) => v ?? '',
             } as CustomGridColDef,
             {
               field: 'createdAt',
               headerName: 'Purchase Date',
               width: 175,
+              type: 'dateTime',
               valueFormatter: (v: string) => v ? moment(v).format(DATE_TIME_FORMAT) : '',
             } as CustomGridColDef,
           ]),
@@ -222,7 +233,7 @@ export default function PurchasesTable({
                       <Box
                         component="span"
                         sx={{ color: 'primary.main', fontWeight: 400, cursor: 'pointer', textDecoration: 'underline' }}
-                        onClick={(e) => { e.stopPropagation(); window.open(`https://www.vividseats.com/production/${row.eventId}`, '_blank'); }}
+                        onClick={(e) => { e.stopPropagation(); window.open(`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${row.eventId}`, '_blank'); }}
                       >
                         {row.eventId}
                       </Box>
@@ -240,6 +251,7 @@ export default function PurchasesTable({
               field: 'eventId',
               headerName: 'Event ID',
               width: 100,
+              type: 'number',
               sortable: false,
               renderCell: ({ row }: { row: Purchase }) =>
                 row.eventId ? (
@@ -248,7 +260,7 @@ export default function PurchasesTable({
                     color="primary"
                     noWrap
                     sx={{ cursor: 'pointer', textDecoration: 'underline' }}
-                    onClick={(e) => { e.stopPropagation(); window.open(`https://www.vividseats.com/production/${row.eventId}`, '_blank'); }}
+                    onClick={(e) => { e.stopPropagation(); window.open(`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${row.eventId}`, '_blank'); }}
                   >
                     {row.eventId}
                   </Typography>
@@ -259,16 +271,19 @@ export default function PurchasesTable({
               headerName: 'Event Name',
               width: 220,
               flex: 1,
+              type: 'string',
             } as CustomGridColDef,
             {
               field: 'venueName',
               headerName: 'Venue',
               width: 180,
+              type: 'string',
             } as CustomGridColDef,
             {
               field: 'eventDate',
               headerName: 'Event Date',
               width: 165,
+              type: 'dateTime',
               valueFormatter: (v: string) => v ? moment(v).format(DATE_TIME_FORMAT) : '',
             } as CustomGridColDef,
           ]),
@@ -296,11 +311,13 @@ export default function PurchasesTable({
               field: 'section',
               headerName: 'Section',
               width: 90,
+              type: 'string',
             } as CustomGridColDef,
             {
               field: 'row',
               headerName: 'Row',
               width: 70,
+              type: 'string',
               valueFormatter: (v: string | null) => v ?? '',
             } as CustomGridColDef,
             {
@@ -452,6 +469,8 @@ export default function PurchasesTable({
               field: 'fulfillmentStatus',
               headerName: 'Fulfillment Status',
               width: 150,
+              type: 'singleSelect',
+              valueOptions: FULFILLMENT_STATUS_OPTIONS,
               valueFormatter: (v: string | null) => v ?? '',
             } as CustomGridColDef,
           ]),
@@ -555,7 +574,7 @@ export default function PurchasesTable({
       alignItems="center"
       justifyContent="flex-end"
       flexWrap="wrap"
-      gap={3}
+      gap={1.5}
       px={1}
       py={0.75}
     >
@@ -565,26 +584,54 @@ export default function PurchasesTable({
       <Typography variant="body2" color="text.secondary">
         Qty: <b>{(summary?.totalQty ?? 0).toLocaleString()}</b>
       </Typography>
-      <Typography variant="body2" color="text.secondary">
-        Cost: <b style={{ color: '#1565c0' }}>{fmt(summary?.totalCost ?? 0)}</b>
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        Sale: <b style={{ color: '#2e7d32' }}>{fmt(summary?.totalSale ?? 0)}</b>
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        Profit:{' '}
-        <b style={{ color: (summary?.totalProfit ?? 0) < 0 ? '#d32f2f' : '#2e7d32' }}>
-          {fmt(summary?.totalProfit ?? 0)}
-        </b>
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        Margin:{' '}
-        <b style={{ color: (summary?.totalProfit ?? 0) < 0 ? '#d32f2f' : '#2e7d32' }}>
-          {summary && summary.totalSale > 0
-            ? `${((summary.totalProfit / summary.totalSale) * 100).toFixed(1)}%`
-            : '—'}
-        </b>
-      </Typography>
+      <Box display="flex" alignItems="center" gap={0.25}>
+        <Typography variant="body2" color="text.secondary">
+          Cost: <b style={{ color: '#1565c0' }}>{fmt(summary?.totalCost ?? 0)}</b>
+        </Typography>
+        <Tooltip title="Total amount spent buying tickets in this date range.">
+          <IconButton size="small" sx={{ p: 0.25 }}>
+            <InfoOutlinedIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
+      <Box display="flex" alignItems="center" gap={0.25}>
+        <Typography variant="body2" color="text.secondary">
+          Sale: <b style={{ color: '#2e7d32' }}>{fmt(summary?.totalSale ?? 0)}</b>
+        </Typography>
+        <Tooltip title="Revenue from tickets bought in this date range that have sold so far (any sale date).">
+          <IconButton size="small" sx={{ p: 0.25 }}>
+            <InfoOutlinedIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
+      <Box display="flex" alignItems="center" gap={0.25}>
+        <Typography variant="body2" color="text.secondary">
+          Profit:{' '}
+          <b style={{ color: (summary?.totalProfit ?? 0) < 0 ? '#d32f2f' : '#2e7d32' }}>
+            {fmt(summary?.totalProfit ?? 0)}
+          </b>
+        </Typography>
+        <Tooltip title="Sale minus Cost for tickets PURCHASED in this date range (sold items only). Differs from Sales Profit, which is based on tickets SOLD in this date range.">
+          <IconButton size="small" sx={{ p: 0.25 }}>
+            <InfoOutlinedIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
+      <Box display="flex" alignItems="center" gap={0.25}>
+        <Typography variant="body2" color="text.secondary">
+          Margin:{' '}
+          <b style={{ color: (summary?.totalProfit ?? 0) < 0 ? '#d32f2f' : '#2e7d32' }}>
+            {summary && summary.totalSale > 0
+              ? `${((summary.totalProfit / summary.totalSale) * 100).toFixed(1)}%`
+              : '—'}
+          </b>
+        </Typography>
+        <Tooltip title="Profit ÷ Sale × 100 (SkyBox calculation).">
+          <IconButton size="small" sx={{ p: 0.25 }}>
+            <InfoOutlinedIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
     </Box>
   );
 
@@ -607,7 +654,8 @@ export default function PurchasesTable({
       paginationMode="server"
       sortingMode="server"
       height={600}
-      defaultFilterType="custom"
+      initialShowFilters={false}
+      defaultFilterType="header"
       footerSummary={footerSummary}
       {...(anyCollapsed ? { getRowHeight: () => collapsedLineCount * LINE_H + PADDING } : {})}
     />

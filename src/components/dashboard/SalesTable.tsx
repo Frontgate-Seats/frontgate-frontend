@@ -11,7 +11,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { IconButton, Tooltip, Typography, Box } from '@mui/material';
+import { IconButton, Tooltip, Typography, Box, Popover, Divider } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -37,6 +38,12 @@ const G_EVENT     = 'g_event';
 const G_TICKET    = 'g_ticket';
 const G_FINANCIAL = 'g_financial';
 const G_STATUS    = 'g_status';
+
+const FULFILLMENT_STATUS_OPTIONS = [
+  { value: 'PENDING',   label: 'PENDING' },
+  { value: 'COMPLETE',  label: 'COMPLETE' },
+  { value: 'CANCELLED', label: 'CANCELLED' },
+];
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-US', {
@@ -73,7 +80,7 @@ function GroupHeader({
 
 export default function SalesTable({
   dateRange,
-  pageSize = 50,
+  pageSize = 25,
 }: SalesTableProps) {
   const dispatch = useDispatch<AppDispatch>();
   const {
@@ -169,23 +176,27 @@ export default function SalesTable({
               field: 'orderId',
               headerName: 'Ext Ref',
               width: 130,
+              type: 'string',
             } as CustomGridColDef,
             {
               field: 'inventoryId',
               headerName: 'Inventory ID',
               width: 120,
+              type: 'string',
               valueFormatter: (v: string | null) => v ?? '',
             } as CustomGridColDef,
             {
               field: 'invoiceDate',
               headerName: 'Invoice Date',
               width: 175,
+              type: 'dateTime',
               valueFormatter: (v: string) => v ? moment(v).format(DATE_TIME_FORMAT) : '',
             } as CustomGridColDef,
             {
               field: 'saleDate',
               headerName: 'Sale Date',
               width: 175,
+              type: 'dateTime',
               valueFormatter: (v: string) => v ? moment(v).format(DATE_TIME_FORMAT) : '',
             } as CustomGridColDef,
           ]),
@@ -207,7 +218,7 @@ export default function SalesTable({
                       <Box
                         component="span"
                         sx={{ color: 'primary.main', fontWeight: 400, cursor: 'pointer', textDecoration: 'underline' }}
-                        onClick={(e) => { e.stopPropagation(); window.open(`https://www.vividseats.com/production/${row.eventId}`, '_blank'); }}
+                        onClick={(e) => { e.stopPropagation(); window.open(`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${row.eventId}`, '_blank'); }}
                       >
                         {row.eventId}
                       </Box>
@@ -225,13 +236,14 @@ export default function SalesTable({
               field: 'eventId',
               headerName: 'Event ID',
               width: 100,
+              type: 'number',
               sortable: false,
               renderCell: ({ row }: { row: Sale }) =>
                 row.eventId ? (
                   <Box display="flex" alignItems="center" gap={0.25}>
                     <Typography variant="body2" noWrap>{row.eventId}</Typography>
                     <Tooltip title="Open on Vivid Seats">
-                      <IconButton size="small" sx={{ p: 0.25 }} onClick={(e) => { e.stopPropagation(); window.open(`https://www.vividseats.com/production/${row.eventId}`, '_blank'); }}>
+                      <IconButton size="small" sx={{ p: 0.25 }} onClick={(e) => { e.stopPropagation(); window.open(`https://www.vividseats.com/curling-canada-tickets-scotiabank-centre-11-25-2025--sports-other-sports/production/${row.eventId}`, '_blank'); }}>
                         <OpenInNewIcon sx={{ fontSize: 13 }} />
                       </IconButton>
                     </Tooltip>
@@ -243,16 +255,19 @@ export default function SalesTable({
               headerName: 'Event Name',
               width: 220,
               flex: 1,
+              type: 'string',
             } as CustomGridColDef,
             {
               field: 'venueName',
               headerName: 'Venue',
               width: 180,
+              type: 'string',
             } as CustomGridColDef,
             {
               field: 'eventDate',
               headerName: 'Event Date',
               width: 150,
+              type: 'dateTime',
               valueFormatter: (v: string) => v ? moment(v).format(DATE_TIME_FORMAT) : '',
             } as CustomGridColDef,
           ]),
@@ -280,11 +295,13 @@ export default function SalesTable({
               field: 'section',
               headerName: 'Section',
               width: 90,
+              type: 'string',
             } as CustomGridColDef,
             {
               field: 'row',
               headerName: 'Row',
               width: 70,
+              type: 'string',
               valueFormatter: (v: string | null) => v ?? '',
             } as CustomGridColDef,
             {
@@ -367,6 +384,8 @@ export default function SalesTable({
               field: 'fulfillmentStatus',
               headerName: 'Fulfillment Status',
               width: 150,
+              type: 'singleSelect',
+              valueOptions: FULFILLMENT_STATUS_OPTIONS,
               valueFormatter: (v: string | null) => v ?? '',
             } as CustomGridColDef,
           ]),
@@ -465,13 +484,62 @@ export default function SalesTable({
 
   const anyCollapsed = collapsedLineCount > 0;
 
+  // ── Info popover ──────────────────────────────────────────────────────────
+  const [infoAnchor, setInfoAnchor] = useState<HTMLButtonElement | null>(null);
+
+  const headerComponent = (
+    <Box display="flex" alignItems="center" gap={1}>
+      <Typography component="h2" sx={{ m: 0, fontSize: '1.25rem', fontWeight: 700 }}>
+        Sales
+      </Typography>
+      <Tooltip title="About this table">
+        <IconButton
+          size="small"
+          onClick={(e) => setInfoAnchor(e.currentTarget)}
+          sx={{ color: 'text.secondary' }}
+        >
+          <InfoOutlinedIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Popover
+        open={Boolean(infoAnchor)}
+        anchorEl={infoAnchor}
+        onClose={() => setInfoAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        PaperProps={{ sx: { p: 2.5, maxWidth: 360, borderRadius: 2 } }}
+      >
+        <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+          Showing sales
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+          From <b>{moment(dateRange.startDate).format('DD/MM/YY')}</b> to{' '}
+          <b>{moment(dateRange.endDate).format('DD/MM/YY')}</b>
+          <br />
+          Filtered on <b>Sale Date</b> (when the ticket was sold).
+        </Typography>
+        <Divider sx={{ my: 1.5 }} />
+        <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+          Summary row explained
+        </Typography>
+        <Typography variant="body2" color="text.secondary" component="div">
+          <b>Sales</b> — total number of sale records in this date range.<br />
+          <b>Qty</b> — total tickets sold across all records.<br />
+          <b>Sale</b> — total seller-net revenue (SkyBox payout after marketplace fees).<br />
+          <b>Profit</b> — Sale minus original purchase cost.<br />
+          <b>Margin</b> — Profit ÷ Sale × 100 (SkyBox calculation).
+        </Typography>
+      </Popover>
+    </Box>
+  );
+
   const footerSummary = (
     <Box
       display="flex"
       alignItems="center"
       justifyContent="flex-end"
       flexWrap="wrap"
-      gap={3}
+      gap={1.5}
       px={1}
       py={0.75}
     >
@@ -481,23 +549,44 @@ export default function SalesTable({
       <Typography variant="body2" color="text.secondary">
         Qty: <b>{(summary?.totalQty ?? 0).toLocaleString()}</b>
       </Typography>
-      <Typography variant="body2" color="text.secondary">
-        Sale: <b style={{ color: '#2e7d32' }}>{fmt(summary?.totalSale ?? 0)}</b>
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        Profit:{' '}
-        <b style={{ color: (summary?.totalProfit ?? 0) < 0 ? '#d32f2f' : '#2e7d32' }}>
-          {fmt(summary?.totalProfit ?? 0)}
-        </b>
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        Margin:{' '}
-        <b style={{ color: (summary?.totalProfit ?? 0) < 0 ? '#d32f2f' : '#2e7d32' }}>
-          {summary && summary.totalSale > 0
-            ? `${((summary.totalProfit / summary.totalSale) * 100).toFixed(1)}%`
-            : '—'}
-        </b>
-      </Typography>
+      <Box display="flex" alignItems="center" gap={0.25}>
+        <Typography variant="body2" color="text.secondary">
+          Sale: <b style={{ color: '#2e7d32' }}>{fmt(summary?.totalSale ?? 0)}</b>
+        </Typography>
+        <Tooltip title="Seller-net revenue (after marketplace fees) for tickets SOLD in this date range, regardless of when they were bought.">
+          <IconButton size="small" sx={{ p: 0.25 }}>
+            <InfoOutlinedIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
+      <Box display="flex" alignItems="center" gap={0.25}>
+        <Typography variant="body2" color="text.secondary">
+          Profit:{' '}
+          <b style={{ color: (summary?.totalProfit ?? 0) < 0 ? '#d32f2f' : '#2e7d32' }}>
+            {fmt(summary?.totalProfit ?? 0)}
+          </b>
+        </Typography>
+        <Tooltip title="Sale minus original purchase cost. Shows profit from tickets SOLD in this date range. Differs from Purchase Profit which shows profit from tickets PURCHASED in this date range.">
+          <IconButton size="small" sx={{ p: 0.25 }}>
+            <InfoOutlinedIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
+      <Box display="flex" alignItems="center" gap={0.25}>
+        <Typography variant="body2" color="text.secondary">
+          Margin:{' '}
+          <b style={{ color: (summary?.totalProfit ?? 0) < 0 ? '#d32f2f' : '#2e7d32' }}>
+            {summary && summary.totalSale > 0
+              ? `${((summary.totalProfit / summary.totalSale) * 100).toFixed(1)}%`
+              : '—'}
+          </b>
+        </Typography>
+        <Tooltip title="Profit ÷ Sale × 100 (SkyBox calculation).">
+          <IconButton size="small" sx={{ p: 0.25 }}>
+            <InfoOutlinedIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
     </Box>
   );
 
@@ -520,7 +609,8 @@ export default function SalesTable({
       paginationMode="server"
       sortingMode="server"
       height={600}
-      defaultFilterType="custom"
+      initialShowFilters={false}
+      defaultFilterType="header"
       footerSummary={footerSummary}
       {...(anyCollapsed ? { getRowHeight: () => collapsedLineCount * LINE_H + PADDING } : {})}
     />
