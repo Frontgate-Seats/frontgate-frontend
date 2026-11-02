@@ -68,6 +68,7 @@ export type FilterType = 'last7days' | 'last30days' | 'ytd' | 'custom';
  * 'custom' option for an explicit start/end range. 'all' means no date filter.
  */
 export type TimeRangeFilter =
+  | 'all'
   | '1h' | '3h' | '6h' | '12h'
   | 'today' | 'yesterday' | '7d' | '30d'
   | 'lastMonth' | 'thisYear'
