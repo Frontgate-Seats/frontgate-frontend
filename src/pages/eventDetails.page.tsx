@@ -18,6 +18,7 @@ import {
 import { PlayArrow, Stop } from "@mui/icons-material";
 import moment from "moment";
 import { formatDateTime } from "../shared/utils/dateTime.util";
+import { getRangeStartMs, RANGE_START_SENTINEL } from "../shared/utils/timeRange.util";
 import { useAppDispatch } from "../store/reducers/root.reducer";
 import type { RootState } from "../store";
 import CustomDataGrid from "../components/common/datagrid/CustomDatagrid";
@@ -112,7 +113,7 @@ export default function EventDetailsPage() {
   } = useEventData(eventId);
   // Each chart has its own default, but once the user changes any one of them
   // all charts sync to that selection via the shared override state.
-  const salesChartBase        = useChartState("all");
+  const salesChartBase        = useChartState("7d");
   const listingShortChartBase = useChartState("1d");
   const listingLongChartBase  = useChartState("7d");
   const pricePointsChartBase  = useChartState("7d");
@@ -551,23 +552,12 @@ export default function EventDetailsPage() {
     );
   }, [sales, vividSales, stubhubSales]);
 
-  // Derive a cutoff date from the active time range — null means "all time" (no filter)
+  // Derive a cutoff date from the active time range — null means "all time" (no filter).
+  // Uses the shared resolver so the sales grid and charts stay consistent.
   const timeRangeCutoffDate = React.useMemo(() => {
-    if (activeTimeRange === "all") return null;
-    const now = moment.utc();
-    switch (activeTimeRange) {
-      case "1h":  return now.subtract(1, "hour").toDate();
-      case "3h":  return now.subtract(3, "hours").toDate();
-      case "6h":  return now.subtract(6, "hours").toDate();
-      case "12h": return now.subtract(12, "hours").toDate();
-      case "1d":  return now.subtract(1, "day").toDate();
-      case "7d":  return now.subtract(7, "days").toDate();
-      case "30d": return now.subtract(30, "days").toDate();
-      case "3m":  return now.subtract(3, "months").toDate();
-      case "6m":  return now.subtract(6, "months").toDate();
-      case "1y":  return now.subtract(1, "year").toDate();
-      default:    return null;
-    }
+    const startMs = getRangeStartMs(activeTimeRange);
+    if (startMs === RANGE_START_SENTINEL) return null;
+    return new Date(startMs);
   }, [activeTimeRange]);
 
   // Sales Grid State — no default date filter, show all sales from all time

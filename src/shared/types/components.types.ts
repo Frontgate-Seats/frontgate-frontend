@@ -19,6 +19,8 @@ export interface DynamicChartProps {
   timeRangeOptions: Array<{ value: string; label: string }>;
   intervalOptionsMap: Record<string, string[]>;
   height?: number;
+  /** When true the chart stretches to fill its parent's height instead of using a fixed `height`. */
+  fill?: boolean;
   onFullscreenChange?: (isFullscreen: boolean) => void;
   logo?: string;
   logoTooltip?: string;

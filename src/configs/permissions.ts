@@ -5,7 +5,7 @@
 // emails. To add a role, add one entry to `rolePermissions`.
 
 /** Pages the app gates access to. */
-export type PageKey = "events" | "inventories" | "recommendations";
+export type PageKey = "events" | "inventories" | "recommendations" | "dashboard";
 
 export interface RolePermissions {
   /** Can start the purchase (buy) flow. */
@@ -32,13 +32,13 @@ export const rolePermissions: Record<string, RolePermissions> = {
   admin: {
     canBuy: true,
     canSeeFinancials: true,
-    pages: { events: true, inventories: true, recommendations: true },
-    defaultPath: "/inventories",
+    pages: { events: true, inventories: true, recommendations: true, dashboard: true },
+    defaultPath: "/dashboard",
   },
   fulfillment: {
     canBuy: false,
     canSeeFinancials: false,
-    pages: { events: false, inventories: true, recommendations: false },
+    pages: { events: false, inventories: true, recommendations: false, dashboard: false },
     defaultPath: "/inventories",
   },
 };

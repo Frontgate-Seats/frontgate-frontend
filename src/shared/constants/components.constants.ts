@@ -58,51 +58,53 @@ export const SALES_TRENDS_CHART_CONFIG: ChartConfig = {
 };
 
 // Time Range Options (shared across all charts)
+// Filters > 30 days use Custom range instead
 export const TIME_RANGE_OPTIONS = [
-  { value: "all", label: "All Time" },
   { value: "1h", label: "Last 1 Hour" },
   { value: "3h", label: "Last 3 Hours" },
   { value: "6h", label: "Last 6 Hours" },
   { value: "12h", label: "Last 12 Hours" },
-  { value: "1d", label: "Last Day" },
-  { value: "7d", label: "Last Week" },
-  { value: "30d", label: "Last Month" },
-  { value: "3m", label: "Last 3 Months" },
-  { value: "6m", label: "Last 6 Months" },
-  { value: "1y", label: "Last Year" },
+  { value: "today", label: "Today" },
+  { value: "yesterday", label: "Yesterday" },
+  { value: "7d", label: "Last 7 Days" },
+  { value: "30d", label: "Last 30 Days" },
+  { value: "lastMonth", label: "Last Month" },
+  { value: "thisYear", label: "This Year" },
+  { value: "custom", label: "Custom Range" },
 ];
 
 // Interval Options Map (shared across all charts)
+// Filters > 30 days use Custom range instead
 export const INTERVAL_OPTIONS_MAP: Record<string, string[]> = {
-  "all": ["1d", "7d", "30d", "90d"],
   "1h": ["5m", "10m", "15m"],
   "3h": ["5m", "10m", "15m", "30m"],
   "6h": ["15m", "30m", "1h"],
   "12h": ["30m", "1h", "2h"],
-  "1d": ["1h", "3h", "6h"],
+  "today": ["15m", "30m", "1h"],
+  "yesterday": ["15m", "30m", "1h"],
   "7d": ["6h", "12h", "1d", "3d"],
   "30d": ["1d", "3d", "7d", "15d"],
-  "3m": ["3d", "7d", "30d"],
-  "6m": ["7d", "30d", "90d"],
-  "1y": ["14d", "30d", "90d", "180d"],
+  "lastMonth": ["1d", "3d", "7d"],
+  "thisYear": ["1d", "7d", "30d"],
+  "custom": ["1d", "3d", "7d", "15d"],
 };
 
 // Helper function to get default interval for a time range
 export const getDefaultInterval = (range: string): string => {
   const defaultMap: Record<string, string> = {
-    "all": "90d",
     "1h": "5m",
     "3h": "5m",
     "6h": "15m",
     "12h": "30m",
-    "1d": "1h",
+    "today": "15m",
+    "yesterday": "15m",
     "7d": "6h",
     "30d": "1d",
-    "3m": "3d",
-    "6m": "7d",
-    "1y": "14d",
+    "lastMonth": "1d",
+    "thisYear": "1d",
+    "custom": "1d",
   };
-  return defaultMap[range] || "1h";
+  return defaultMap[range] || "6h";
 };
 
 /**

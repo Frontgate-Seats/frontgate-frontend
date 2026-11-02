@@ -1,6 +1,13 @@
 import { Navigate, type RouteObject } from "react-router";
 import Loadable, { lazyWithRetry } from "./shared/loadable/index.loadable";
 import RequirePage from "./components/auth/RequirePage";
+import useRole from "./hooks/useRole";
+
+/** Redirects to the role's default landing page. */
+function DefaultRedirect() {
+  const { defaultPath } = useRole();
+  return <Navigate to={defaultPath} replace />;
+}
 
 const AuthProvider = Loadable(lazyWithRetry(() => import("./provider/auth.provider")));
 const NoAuthProvider = Loadable(lazyWithRetry(() => import("./provider/noAuth.provider")));
@@ -11,11 +18,12 @@ const FullLayout = Loadable(lazyWithRetry(() => import("./layouts/full.layout"))
 const DashboardLayout = Loadable(lazyWithRetry(() => import("./layouts/dashboard.layout")));
 
 /* ****Pages**** */
+const DashboardPage = Loadable(lazyWithRetry(() => import("./pages/dashboard.page")));
 const EventsPage = Loadable(lazyWithRetry(() => import("./pages/events.page")));
 const EventDetailsPage = Loadable(lazyWithRetry(() => import("./pages/eventDetails.page")));
 const ListingsPage = Loadable(lazyWithRetry(() => import("./pages/listings.page")));
 const SalesPage = Loadable(lazyWithRetry(() => import("./pages/sales.page")));
-const PurchasesPage = Loadable(lazyWithRetry(() => import("./pages/purchases.page")));
+const InventoryPage = Loadable(lazyWithRetry(() => import("./pages/inventory.page")));
 // const SuggestionsPage = Loadable(lazyWithRetry(() => import("./pages/suggestions.page")));
 const TradesPage = Loadable(lazyWithRetry(() => import("./pages/trades.page")));
 const ListingsMapViewPage = Loadable(lazyWithRetry(() => import("./pages/listingsMapView.page")));
@@ -36,7 +44,15 @@ export const route: RouteObject[] = [
     children: [
       {
         index: true,
-        element: <Navigate to="/inventories" replace />,
+        element: <DefaultRedirect />,
+      },
+      {
+        path: "/dashboard",
+        element: (
+          <RequirePage page="dashboard">
+            <DashboardPage />
+          </RequirePage>
+        ),
       },
       {
         path: "/events",
@@ -76,7 +92,7 @@ export const route: RouteObject[] = [
       },
       {
         path: "/inventories",
-        element: <PurchasesPage />,
+        element: <InventoryPage />,
       },
       // Suggestions page removed per meeting - June 24, 2026
       // {
@@ -93,7 +109,7 @@ export const route: RouteObject[] = [
       },
       {
         path: "*",
-        element: <Navigate to="/inventories" replace />,
+        element: <DefaultRedirect />,
       },
     ],
   },
@@ -112,7 +128,7 @@ export const route: RouteObject[] = [
     children: [
       {
         index: true,
-        element: <Navigate to="/inventories" replace />,
+        element: <Navigate to="/auth/signin" replace />,
       },
       {
         path: "/auth/signin",
@@ -120,7 +136,7 @@ export const route: RouteObject[] = [
       },
       {
         path: "*",
-        element: <Navigate to="/inventories" replace />,
+        element: <Navigate to="/auth/signin" replace />,
       },
     ],
   },

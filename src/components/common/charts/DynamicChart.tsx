@@ -44,6 +44,7 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
   timeRangeOptions,
   intervalOptionsMap,
   height = 400,
+  fill = false,
   logo,
   logoTooltip,
   customLogoComponent,
@@ -61,6 +62,11 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
   }, [initialHiddenSeries]);
 
   const { lineSeries = [], barSeries = [], leftAxisLabel, rightAxisLabel } = chartConfig ?? {};
+
+  // Card height: fullscreen → fill viewport; fill prop → stretch parent; else fixed px.
+  const cardHeight = isFullscreen ? "100%" : fill ? "100%" : `${height}px`;
+  // In fill mode the card also needs to stretch horizontally within its flex parent.
+  const cardWidth = fill ? "100%" : undefined;
 
   const handleFullscreenChange = (fullscreenMode: boolean) => {
     setIsFullscreen(fullscreenMode);
@@ -111,11 +117,12 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
 
   if (showEmptyState) {
     return (
-      <ToggleFullscreen onFullscreenChange={handleFullscreenChange}>
+      <ToggleFullscreen onFullscreenChange={handleFullscreenChange} fillHeight={fill}>
         <Card
           variant="outlined"
           sx={{
-            height: isFullscreen ? "100%" : `${height}px`,
+            height: cardHeight,
+            width: cardWidth,
             display: "flex",
             flexDirection: "column",
           }}
@@ -170,11 +177,12 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
   }
 
   return (
-    <ToggleFullscreen onFullscreenChange={handleFullscreenChange}>
+    <ToggleFullscreen onFullscreenChange={handleFullscreenChange} fillHeight={fill}>
       <Card
         variant="outlined"
         sx={{
-          height: isFullscreen ? "100%" : `${height}px`,
+          height: cardHeight,
+          width: cardWidth,
           display: "flex",
           flexDirection: "column",
         }}
@@ -389,8 +397,10 @@ const DynamicChart: React.FC<DynamicChartProps> = ({
                         <circle
                           cx={x}
                           cy={y}
-                          r={5}
-                          fill={isHighlighted ? color : "transparent"}
+                          r={isHighlighted ? 6 : 4}
+                          fill={isHighlighted ? color : "#fff"}
+                          stroke={color}
+                          strokeWidth={2}
                         />
                       ),
                     }}

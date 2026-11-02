@@ -15,6 +15,7 @@ import {
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterMoment } from "@mui/x-date-pickers/AdapterMoment";
 import moment from "moment";
+import { snapDateOnlyToMidnight, snapDateOnlyToEndOfDay } from "../../../../shared/utils/dateTime.util";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import type {
   GridSingleSelectColDef,
@@ -153,7 +154,7 @@ const CompactDateRange = ({
                   label="From"
                   value={value?.[0] ? safeMoment(value?.[0]) : null}
                   onChange={(v) =>
-                    onChange([v ? v.toISOString() : null, value?.[1]])
+                    onChange([v ? snapDateOnlyToMidnight(v.toISOString()) : null, value?.[1]])
                   }
                   slotProps={{
                     textField: {
@@ -167,7 +168,7 @@ const CompactDateRange = ({
                   label="To"
                   value={safeMoment(value?.[1])}
                   onChange={(v) =>
-                    onChange([value?.[0], v ? v.toISOString() : null])
+                    onChange([value?.[0], v ? snapDateOnlyToEndOfDay(v.toISOString()) : null])
                   }
                   slotProps={{
                     textField: {
