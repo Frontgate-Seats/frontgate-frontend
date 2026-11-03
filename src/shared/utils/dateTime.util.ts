@@ -3,12 +3,12 @@ import moment from "moment";
 // Fallback value for invalid/missing dates
 const FALLBACK_VALUE = "-";
 
-// Unified display formats used across the whole app:
-//   date  -> DD/MM/YY       (e.g. 07/11/26)
+// Unified display formats used across the whole app (US convention):
+//   date  -> MM/DD/YY       (e.g. 11/07/26)
 //   time  -> hh:mm A        (e.g. 05:45 PM)
-export const DATE_FORMAT = "DD/MM/YY";
+export const DATE_FORMAT = "MM/DD/YY";
 export const TIME_FORMAT = "hh:mm A";
-export const DATE_TIME_FORMAT = "DD/MM/YY hh:mm A";
+export const DATE_TIME_FORMAT = "MM/DD/YY hh:mm A";
 
 /**
  * Convert input to a native Date object.
