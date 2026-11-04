@@ -19,7 +19,8 @@ import PurchaseCommentCell from "../components/purchases/PurchaseCommentCell";
 import UpdatePriceCell from "../components/purchases/UpdatePriceCell";
 import MaxUserPriceCell from "../components/purchases/MaxUserPriceCell";
 import TicketUrlsCell from "../components/purchases/TicketUrlsCell";
-import UpdateSeatNumbersCell from "../components/purchases/UpdateSeatNumbersCell";
+import UpdateRowCell from "../components/purchases/UpdateRowCell";
+import UpdateSeatsCell from "../components/purchases/UpdateSeatsCell";
 import InventorySoldPanel, {
   INVENTORY_SOLD_PANEL_HEIGHT,
 } from "../components/purchases/InventorySoldPanel";
@@ -396,9 +397,20 @@ const PurchasesPage: React.FC = () => {
       field: "row",
       headerName: "Row",
       type: "string",
-      width: 90,
+      width: 120,
       align: "center",
       headerAlign: "center",
+      renderCell: (params) => {
+        if (params.row._rowType === "detail") return null;
+        return (
+          <UpdateRowCell
+            purchaseId={params.row.purchase_id}
+            row={params.row.row}
+            fulfillmentStatus={params.row.fulfillment_status}
+            onUpdate={handleRefresh}
+          />
+        );
+      },
     },
     {
       field: "quantity",
@@ -439,23 +451,24 @@ const PurchasesPage: React.FC = () => {
     {
       field: "seats",
       headerName: "Seats",
-      width: 140,
+      width: 130,
       sortable: false,
       filterable: false,
       align: "center",
       headerAlign: "center",
-      renderCell: (params) => (
-        <UpdateSeatNumbersCell
-          purchaseId={params.row.purchase_id}
-          lowSeat={params.row.low_seat}
-          highSeat={params.row.high_seat}
-          quantity={params.row.quantity}
-          soldQuantity={params.row.sold_quantity || 0}
-          inventoryStatus={params.row.inventory_status}
-          fulfillmentStatus={params.row.fulfillment_status}
-          onUpdate={handleRefresh}
-        />
-      ),
+      renderCell: (params) => {
+        if (params.row._rowType === "detail") return null;
+        return (
+          <UpdateSeatsCell
+            purchaseId={params.row.purchase_id}
+            lowSeat={params.row.low_seat}
+            highSeat={params.row.high_seat}
+            seatType={params.row.seat_type}
+            fulfillmentStatus={params.row.fulfillment_status}
+            onUpdate={handleRefresh}
+          />
+        );
+      },
     },
     {
       field: "list_price",

@@ -43,7 +43,7 @@ const eventsApi = {
   },
   
   // Re-export inventory update functions for convenience
-  updateInventorySeatNumbers: purchasesApi.updateInventorySeatNumbers,
+  replaceInventoryLine: purchasesApi.replaceInventoryLine,
 };
 
 export default eventsApi;

@@ -151,15 +151,31 @@ export const updateInventoryPrice = async (payload: {
   }
 };
 
-export const updateInventorySeatNumbers = async (
-  purchaseId: string,
-  lowSeat: number,
-  seatType: "CONSECUTIVE" | "ALTERNATING" | "GA" | "PIGGYBACK" = "CONSECUTIVE"
-) => {
+export type SeatType = "CONSECUTIVE" | "ALTERNATING" | "GA" | "PIGGYBACK";
+
+/**
+ * Replace a purchased inventory line — the generic "edit line" operation
+ * (section, row, seats, seat type).
+ *
+ * SkyBox has no edit-in-place API, so the backend cancels the existing
+ * inventory line and recreates it (lines/replace). Pass only the fields that
+ * changed; at least one is required.
+ *
+ * @param purchaseId - SkyBox numeric purchase id (inventory.purchase_id). It is
+ *   stable, unlike inventory_id which SkyBox re-mints as a line fans out.
+ */
+export const replaceInventoryLine = async (payload: {
+  purchaseId: number;
+  section?: string;
+  row?: string;
+  lowSeat?: number;
+  seatType?: SeatType;
+}) => {
   try {
+    const { purchaseId, ...body } = payload;
     const response = await supabaseHttpClient.put(
-      `/functions/v1/events-api/purchase/${purchaseId}/seats`,
-      { lowSeat, seatType },
+      `/functions/v1/events-api/purchases/${purchaseId}/lines/replace-line`,
+      body,
     );
     return response;
   } catch (error: any) {
@@ -175,7 +191,7 @@ const purchasesApi = {
   createQuote,
   createOrder,
   updateInventoryPrice,
-  updateInventorySeatNumbers,
+  replaceInventoryLine,
 };
 
 export default purchasesApi;

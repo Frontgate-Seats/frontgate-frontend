@@ -20,37 +20,48 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import eventsApi from "../../apis/events.api";
+import { getErrorMessage } from "../../shared/utils/error.util";
+import type { SeatType } from "../../apis/purchases.api";
 
-type SeatType = "CONSECUTIVE" | "ALTERNATING" | "GA" | "PIGGYBACK";
-
-interface UpdateSeatNumbersCellProps {
-  purchaseId: string;
-  lowSeat: number | null;
-  highSeat: number | null;
-  quantity: number;
-  soldQuantity: number;
-  inventoryStatus?: string | null;
+interface UpdateSeatsCellProps {
+  /** SkyBox numeric purchase ID (inventory.purchase_id) — sent to the API */
+  purchaseId: number | string | null | undefined;
+  /** Current low seat from the grid row */
+  lowSeat?: number | null;
+  /** Current high seat from the grid row (display only) */
+  highSeat?: number | null;
+  /** Current seat type from the grid row */
+  seatType?: string | null;
+  /** Fulfillment status — edit blocked once fulfillment is COMPLETE (a sold line is still editable while fulfillment is pending) */
   fulfillmentStatus?: string | null;
+  /** Called after a successful update so the parent can refresh the grid */
   onUpdate?: () => void;
 }
 
+const SEAT_TYPES: { value: SeatType; label: string; hint: string }[] = [
+  { value: "CONSECUTIVE", label: "Consecutive", hint: "Sequential seats (1, 2, 3, 4)" },
+  { value: "ALTERNATING", label: "Alternating", hint: "Every other seat (1, 3, 5, 7)" },
+  { value: "GA", label: "General Admission", hint: "No specific seat numbers" },
+  { value: "PIGGYBACK", label: "Piggyback", hint: "Non-consecutive (1, 5, 8, 12)" },
+];
+
 /**
- * Compact inline seat-number-edit control for a purchases grid row.
+ * Compact inline "Update seats" control for an inventory grid row.
  *
- * Displays the current seat numbers (e.g., "5-8") and a small icon button.
- * Clicking the button opens a Popper with a single numeric input for the low seat.
- * The high seat is automatically calculated based on available quantity (quantity - soldQuantity).
- * On save, the new low seat value is sent to the API and the parent can refresh the data.
+ * Shows the current seats (e.g. "5-8") and an edit icon. Saving sends the new
+ * low seat and seat type to
+ * PUT /events-api/purchases/:purchaseId/lines/replace-line, which cancels the
+ * SkyBox line and recreates it (lines/replace). The high seat is derived by
+ * SkyBox from low seat + quantity. Row is edited separately by UpdateRowCell.
  */
-export default function UpdateSeatNumbersCell({
+export default function UpdateSeatsCell({
   purchaseId,
   lowSeat,
   highSeat,
-  quantity,
-  soldQuantity,
+  seatType,
   fulfillmentStatus,
   onUpdate,
-}: UpdateSeatNumbersCellProps) {
+}: UpdateSeatsCellProps) {
   const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
   const [draftLowSeat, setDraftLowSeat] = React.useState("");
   const [draftSeatType, setDraftSeatType] = React.useState<SeatType>("CONSECUTIVE");
@@ -59,21 +70,31 @@ export default function UpdateSeatNumbersCell({
   const [selectOpen, setSelectOpen] = React.useState(false);
 
   const open = Boolean(anchorEl);
-  
-  // Only allow editing when:
-  // 1. Fulfillment is still pending (not COMPLETE)
-  const canEdit = fulfillmentStatus !== "COMPLETE";
+  const numericPurchaseId = purchaseId != null ? Number(purchaseId) : null;
+  const hasPurchaseId =
+    numericPurchaseId != null &&
+    !isNaN(numericPurchaseId) &&
+    numericPurchaseId > 0;
 
-  const formatSeatNumbers = (low: number | null, high: number | null): string => {
-    if (!low || !high) return "—";
-    if (low === high) return String(low);
-    return `${low}-${high}`;
-  };
+  const canEdit =
+    hasPurchaseId &&
+    fulfillmentStatus !== "COMPLETE";
+
+  const label =
+    lowSeat == null
+      ? "—"
+      : highSeat == null || lowSeat === highSeat
+        ? String(lowSeat)
+        : `${lowSeat}-${highSeat}`;
+
+  const currentSeatType: SeatType = SEAT_TYPES.some((t) => t.value === seatType)
+    ? (seatType as SeatType)
+    : "CONSECUTIVE";
 
   const handleOpen = (e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
-    setDraftLowSeat(lowSeat?.toString() || "");
-    setDraftSeatType("CONSECUTIVE"); // Default to CONSECUTIVE
+    setDraftLowSeat(lowSeat != null ? String(lowSeat) : "");
+    setDraftSeatType(currentSeatType);
     setInputError("");
     setAnchorEl(e.currentTarget);
   };
@@ -84,33 +105,33 @@ export default function UpdateSeatNumbersCell({
   };
 
   const handleSave = async () => {
-    const low = parseInt(draftLowSeat, 10);
-
-    // Validation
-    if (!draftLowSeat) {
-      setInputError("Low seat number is required");
+    if (!hasPurchaseId) {
+      setInputError("This row has no SkyBox purchase to update yet");
       return;
     }
 
-    if (isNaN(low)) {
-      setInputError("Low seat must be a valid number");
+    const low = parseInt(draftLowSeat.trim(), 10);
+    if (isNaN(low) || low <= 0) {
+      setInputError("Low seat must be a positive number");
       return;
     }
-
-    if (low <= 0) {
-      setInputError("Low seat must be positive");
+    if (low === (lowSeat ?? null) && draftSeatType === currentSeatType) {
+      handleClose();
       return;
     }
 
     setSaving(true);
     setInputError("");
-
     try {
-      await eventsApi.updateInventorySeatNumbers(purchaseId, low, draftSeatType);
+      await eventsApi.replaceInventoryLine({
+        purchaseId: numericPurchaseId as number,
+        lowSeat: low,
+        seatType: draftSeatType,
+      });
       handleClose();
       onUpdate?.();
-    } catch (err: any) {
-      setInputError(err.message || "Update failed");
+    } catch (err: unknown) {
+      setInputError(getErrorMessage(err) || "Update failed");
     } finally {
       setSaving(false);
     }
@@ -122,30 +143,39 @@ export default function UpdateSeatNumbersCell({
   };
 
   return (
-    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.5, width: "100%" }}>
-      {/* Current seat numbers display */}
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 0.5,
+        width: "100%",
+      }}
+    >
       <Typography
         variant="body2"
         fontWeight={600}
         color="text.primary"
-        sx={{ minWidth: 52, textAlign: "right", fontFamily: "monospace" }}
+        sx={{ fontFamily: "monospace" }}
       >
-        {formatSeatNumbers(lowSeat, highSeat)}
+        {label}
       </Typography>
 
-      {/* Edit button - only shown when editing is allowed */}
-      {canEdit && (
-        <Tooltip title="Update seat numbers">
+      {canEdit ? (
+        <Tooltip title="Update seats">
           <IconButton
             size="medium"
             onClick={handleOpen}
             color={open ? "primary" : "default"}
-            aria-label="Update seat numbers"
+            aria-label="Update seats"
             sx={{ p: 0.1 }}
           >
             <EditOutlinedIcon sx={{ fontSize: 20 }} />
           </IconButton>
         </Tooltip>
+      ) : (
+        // Reserve the icon slot so values line up across editable/locked rows.
+        <Box sx={{ width: 22, flexShrink: 0 }} aria-hidden />
       )}
 
       <Popper
@@ -160,28 +190,24 @@ export default function UpdateSeatNumbersCell({
       >
         <ClickAwayListener
           onClickAway={() => {
-            // Don't close if the Select dropdown is open
-            if (selectOpen) {
-              return;
-            }
+            if (selectOpen) return;
             handleClose();
           }}
         >
           <Paper
             elevation={8}
-            sx={{ p: 2, width: 280 }}
+            sx={{ p: 2, width: 300 }}
             onClick={(e) => e.stopPropagation()}
             onKeyDown={handleKeyDown}
           >
             <Stack spacing={1.5}>
               <Typography variant="subtitle2" fontWeight={700}>
-                Update Seat Numbers
+                Update Seats
               </Typography>
-              
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                Available quantity: {quantity - soldQuantity} seat(s)
-                <br />
-                High seat will be auto-calculated
+
+              <Typography variant="body2" color="text.secondary">
+                This cancels the current SkyBox line and recreates it with the
+                new seats.
               </Typography>
 
               <TextField
@@ -195,61 +221,32 @@ export default function UpdateSeatNumbersCell({
                   setInputError("");
                 }}
                 disabled={saving}
-                slotProps={{
-                  input: {
-                    inputProps: { min: 1, "aria-label": "Low seat number" },
-                  },
-                }}
                 fullWidth
-                helperText={draftLowSeat && !isNaN(parseInt(draftLowSeat, 10)) 
-                  ? `High seat will be: ${parseInt(draftLowSeat, 10) + (quantity - soldQuantity) - 1}`
-                  : " "
-                }
+                slotProps={{ htmlInput: { min: 1, "aria-label": "Low seat" } }}
               />
 
-              <FormControl size="small" fullWidth>
-                <InputLabel id="seat-type-label">Seat Type</InputLabel>
+              <FormControl size="small" fullWidth disabled={saving}>
+                <InputLabel id="update-seats-seat-type">Seat Type</InputLabel>
                 <Select
-                  labelId="seat-type-label"
+                  labelId="update-seats-seat-type"
                   value={draftSeatType}
                   label="Seat Type"
                   onChange={(e) => setDraftSeatType(e.target.value as SeatType)}
-                  disabled={saving}
                   onOpen={() => setSelectOpen(true)}
                   onClose={() => setSelectOpen(false)}
                 >
-                  <MenuItem value="CONSECUTIVE">
-                    <Box>
-                      <Typography variant="body2" fontWeight={600}>Consecutive</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Sequential seats (e.g., 1, 2, 3, 4)
-                      </Typography>
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="ALTERNATING">
-                    <Box>
-                      <Typography variant="body2" fontWeight={600}>Alternating</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Every other seat (e.g., 1, 3, 5, 7)
-                      </Typography>
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="GA">
-                    <Box>
-                      <Typography variant="body2" fontWeight={600}>General Admission</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        No specific seat numbers
-                      </Typography>
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="PIGGYBACK">
-                    <Box>
-                      <Typography variant="body2" fontWeight={600}>Piggyback</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Non-consecutive seats (e.g., 1, 5, 8, 12)
-                      </Typography>
-                    </Box>
-                  </MenuItem>
+                  {SEAT_TYPES.map((t) => (
+                    <MenuItem key={t.value} value={t.value}>
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>
+                          {t.label}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {t.hint}
+                        </Typography>
+                      </Box>
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
 
