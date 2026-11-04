@@ -64,6 +64,22 @@ export const formatTime = (
   return formatDateTime(date, true, false);
 };
 
+/**
+ * True when a UTC timestamp (e.g. inventory.event_utc_date) is still in the
+ * future. The value is always interpreted as UTC: a string with an explicit
+ * offset / "Z" keeps it, and a string WITHOUT one is read as UTC instead of
+ * the browser's local time (which is what `new Date(str)` would do).
+ * Missing or unparseable values return false.
+ */
+export const isFutureUtcDate = (
+  value: string | Date | null | undefined,
+): boolean => {
+  if (!value) return false;
+  const parsed =
+    value instanceof Date ? moment.utc(value) : moment.utc(value, moment.ISO_8601);
+  return parsed.isValid() && parsed.valueOf() > Date.now();
+};
+
 // ─── Midnight-snap helpers ────────────────────────────────────────────────────
 // SkyBox (and our filters) treat day-level dates as starting from midnight.
 // These helpers ensure every date-only filter across the app snaps to 00:00:00.

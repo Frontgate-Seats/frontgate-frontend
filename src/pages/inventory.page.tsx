@@ -406,6 +406,7 @@ const PurchasesPage: React.FC = () => {
           <UpdateRowCell
             purchaseId={params.row.purchase_id}
             row={params.row.row}
+            eventUtcDate={params.row.event_utc_date}
             fulfillmentStatus={params.row.fulfillment_status}
             onUpdate={handleRefresh}
           />
@@ -464,6 +465,7 @@ const PurchasesPage: React.FC = () => {
             lowSeat={params.row.low_seat}
             highSeat={params.row.high_seat}
             seatType={params.row.seat_type}
+            eventUtcDate={params.row.event_utc_date}
             fulfillmentStatus={params.row.fulfillment_status}
             onUpdate={handleRefresh}
           />

@@ -21,6 +21,7 @@ import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import eventsApi from "../../apis/events.api";
 import { getErrorMessage } from "../../shared/utils/error.util";
+import { isFutureUtcDate } from "../../shared/utils/dateTime.util";
 import type { SeatType } from "../../apis/purchases.api";
 
 interface UpdateSeatsCellProps {
@@ -32,6 +33,8 @@ interface UpdateSeatsCellProps {
   highSeat?: number | null;
   /** Current seat type from the grid row */
   seatType?: string | null;
+  /** Event date — edit only allowed for future events */
+  eventUtcDate?: string | null;
   /** Fulfillment status — edit blocked once fulfillment is COMPLETE (a sold line is still editable while fulfillment is pending) */
   fulfillmentStatus?: string | null;
   /** Called after a successful update so the parent can refresh the grid */
@@ -59,6 +62,7 @@ export default function UpdateSeatsCell({
   lowSeat,
   highSeat,
   seatType,
+  eventUtcDate,
   fulfillmentStatus,
   onUpdate,
 }: UpdateSeatsCellProps) {
@@ -76,8 +80,12 @@ export default function UpdateSeatsCell({
     !isNaN(numericPurchaseId) &&
     numericPurchaseId > 0;
 
+  // event_utc_date is always read as UTC, never browser-local time.
+  const isFutureEvent = isFutureUtcDate(eventUtcDate);
+
   const canEdit =
     hasPurchaseId &&
+    isFutureEvent &&
     fulfillmentStatus !== "COMPLETE";
 
   const label =

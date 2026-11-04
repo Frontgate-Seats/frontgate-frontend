@@ -17,12 +17,15 @@ import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import eventsApi from "../../apis/events.api";
 import { getErrorMessage } from "../../shared/utils/error.util";
+import { isFutureUtcDate } from "../../shared/utils/dateTime.util";
 
 interface UpdateRowCellProps {
   /** SkyBox numeric purchase ID (inventory.purchase_id) — sent to the API */
   purchaseId: number | string | null | undefined;
   /** Current row from the grid row */
   row: string | null | undefined;
+  /** Event date — edit only allowed for future events */
+  eventUtcDate?: string | null;
   /** Fulfillment status — edit blocked once fulfillment is COMPLETE (a sold line is still editable while fulfillment is pending) */
   fulfillmentStatus?: string | null;
   /** Called after a successful update so the parent can refresh the grid */
@@ -40,6 +43,7 @@ interface UpdateRowCellProps {
 export default function UpdateRowCell({
   purchaseId,
   row,
+  eventUtcDate,
   fulfillmentStatus,
   onUpdate,
 }: UpdateRowCellProps) {
@@ -55,8 +59,12 @@ export default function UpdateRowCell({
     !isNaN(numericPurchaseId) &&
     numericPurchaseId > 0;
 
+  // event_utc_date is always read as UTC, never browser-local time.
+  const isFutureEvent = isFutureUtcDate(eventUtcDate);
+
   const canEdit =
     hasPurchaseId &&
+    isFutureEvent &&
     fulfillmentStatus !== "COMPLETE";
 
   const handleOpen = (e: React.MouseEvent<HTMLElement>) => {
